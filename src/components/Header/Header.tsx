@@ -38,6 +38,7 @@ export function Header() {
   const [layoutsOpen, setLayoutsOpen] = useState(false);
   const [layoutName, setLayoutName] = useState('');
   const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>([]);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // Modal open flag — numeric counter so every button click triggers the effect.
   const [guidePulse, setGuidePulse] = useState(0);
@@ -92,6 +93,7 @@ export function Header() {
 
     loadData(nodes, savedLayout, fileName);
     setFileHandle(handle); // null for legacy input, FileSystemFileHandle for API
+    setLastSavedAt(null); // new file — reset save timestamp
     if (!savedLayout) setTimeout(() => fitToScreen(), 100);
   }, [loadData, setFileHandle, fitToScreen]);
 
@@ -150,14 +152,17 @@ export function Header() {
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(payload, null, 2));
         await writable.close();
+        setLastSavedAt(new Date());
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           // Permission denied or write error — fall back to download so no data is lost
           exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined);
+          setLastSavedAt(new Date());
         }
       }
     } else {
       exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined);
+      setLastSavedAt(new Date());
     }
   }, [fileHandle, viewMode, positions, transform, layoutCache, allNodes, currentFileName]);
 
@@ -305,7 +310,7 @@ export function Header() {
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        {currentFileName ? 'Open JSON' : 'Open JSON File'}
+        <span className={styles.btnLabel}>{currentFileName ? 'Open JSON' : 'Open JSON File'}</span>
       </button>
 
       {/* Current file name chip — shows linked (green) vs unlinked (gray) status */}
@@ -341,12 +346,13 @@ export function Header() {
         onClick={() => {
           if (allNodes.length > 0 && !window.confirm('Start a new flowchart? Unsaved changes will be lost.')) return;
           clearGraph();
+          setLastSavedAt(null);
         }}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        New
+        <span className={styles.btnLabel}>New</span>
       </button>
 
       {/* Search */}
@@ -389,6 +395,16 @@ export function Header() {
             ? <><span>{allNodes.length}</span> nodes · <span>{allEdges.length}</span> edges</>
             : 'No data loaded'
           }
+          {lastSavedAt && (
+            <span
+              className={`${styles.savedStamp} ${designDirty ? styles.savedStampStale : ''}`}
+              title={designDirty
+                ? `Last saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — you have unsaved changes`
+                : `Saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            >
+              · {designDirty ? '⚠' : '✓'} {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
           {designDirty && <span className={styles.unsavedDot} title="Unsaved changes">●</span>}
         </div>
 
@@ -418,7 +434,7 @@ export function Header() {
               <polyline points="17 21 17 13 7 13 7 21"/>
               <polyline points="7 3 7 8 15 8"/>
             </svg>
-            Layouts
+            <span className={styles.btnLabel}>Layouts</span>
           </button>
           {layoutsOpen && (
             <div className={styles.layoutsDropdown}>
@@ -488,7 +504,7 @@ export function Header() {
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
             )}
-            {fileHandle ? 'Save' : 'Save JSON'}
+            <span className={styles.btnLabel}>{fileHandle ? 'Save' : 'Save JSON'}</span>
           </button>
         )}
 
@@ -502,7 +518,7 @@ export function Header() {
             <path d="M12 20h9"/>
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
           </svg>
-          Design
+          <span className={styles.btnLabel}>Design</span>
         </button>
 
         {/* 📖 — How-to User Guide */}

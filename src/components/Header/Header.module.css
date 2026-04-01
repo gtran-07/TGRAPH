@@ -114,6 +114,9 @@
   flex-shrink: 0;
 }
 
+/* Responsive button label — hidden on small screens, icon-only */
+.btnLabel { /* visible by default — hidden via media query below */ }
+
 .statusChip {
   font-size: 10px;
   color: var(--text3);
@@ -124,6 +127,17 @@
   white-space: nowrap;
 }
 .statusChip span { color: var(--accent); font-weight: 600; }
+
+/* Save timestamp shown inside the status chip */
+.savedStamp {
+  color: var(--accent3);
+  font-size: 10px;
+  margin-left: 2px;
+}
+/* Stale = last save exists but there are new unsaved changes */
+.savedStampStale {
+  color: var(--highlight);
+}
 
 /* DAG/LANES view toggle */
 .viewToggle {
@@ -370,3 +384,62 @@
 }
 .btnDesign:hover { border-color: var(--design); color: var(--design); background: rgba(167,139,250,.07); }
 .btnDesignActive { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.13) !important; }
+
+/* ─── RESPONSIVE BREAKPOINTS ─────────────────────────────────────────────────
+ *
+ * Three tiers:
+ *   < 1140px  — hide the file chip (tooltip still gives info on hover)
+ *               hide the saved timestamp from the status chip
+ *   < 920px   — collapse button text labels (icons only); hide status chip
+ *               hide Layouts button text label
+ *   < 680px   — header wraps to two rows; search bar moves to its own row
+ *               hide the four right-edge icon buttons (↺ ▣ ⊞ 📖) behind the ⋯ overflow
+ *
+ * All interactive controls remain reachable at every size — only labels
+ * and decorative metadata are hidden. Tooltips always carry the full info.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1140px) {
+  .fileChip { display: none; }
+  .savedStamp { display: none; }
+}
+
+@media (max-width: 920px) {
+  .btnLabel { display: none; }
+  .statusChip { display: none; }
+  /* Shrink padded buttons to icon-only squares */
+  .btnUpload, .btnNew, .btnSaveJson, .btnDesign, .btnLayouts {
+    padding: 6px 8px !important;
+    gap: 0 !important;
+    min-width: 32px;
+    justify-content: center;
+  }
+  /* Search bar gets a bit narrower */
+  .searchWrap { max-width: 200px; }
+}
+
+@media (max-width: 680px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    padding: 8px 10px;
+  }
+  /* Logo + sep stay on top row */
+  .logo { flex-shrink: 0; }
+  .sep { display: none; }
+  /* Search moves to its own full-width row */
+  .searchWrap {
+    order: 10;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  /* Right toolbar wraps below the top row */
+  .toolbarRight {
+    flex-wrap: wrap;
+    margin-left: 0;
+    gap: 4px;
+  }
+  /* Hide Layouts and view toggle on very small screens */
+  .layoutsWrap { display: none; }
+  .viewToggle { display: none; }
+}
