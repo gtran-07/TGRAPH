@@ -111,10 +111,17 @@ export interface GraphStore {
 
   /** Name of the currently-loaded JSON file, or null if no file is loaded */
   currentFileName: string | null;
+  /**
+   * File System Access API handle for the currently-open file.
+   * When present, Save writes directly back to the file on disk (Chrome/Edge).
+   * When null, Save falls back to downloading a copy.
+   */
+  fileHandle: FileSystemFileHandle | null;
 
   // ── Actions ───────────────────────────────────────────────────────────────
   /** clearGraph — resets all graph data and enters design mode for a fresh start */
   clearGraph: () => void;
+  setFileHandle: (handle: FileSystemFileHandle | null) => void;
   loadData: (nodes: GraphNode[], savedLayout?: {
     currentView?: string;
     dag?:   { positions: Record<string, Position>; transform: Transform } | null;
@@ -247,6 +254,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   undoStack: [],
   redoStack: [],
   currentFileName: null,
+  fileHandle: null,
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -275,8 +283,12 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       undoStack: [],
       redoStack: [],
       currentFileName: null,
+      fileHandle: null,
     });
   },
+
+  // ── setFileHandle ─────────────────────────────────────────────────────────
+  setFileHandle: (handle) => set({ fileHandle: handle }),
 
   // ── loadData ─────────────────────────────────────────────────────────────
 
@@ -349,6 +361,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       redoStack: [],
       transform: activeLayout ? activeLayout.transform : { x: 0, y: 0, k: 1 },
       currentFileName: fileName ?? null,
+      fileHandle: null, // caller sets this via setFileHandle after loadData
     });
   },
 

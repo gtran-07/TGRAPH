@@ -14,7 +14,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useGraphStore } from '../../store/graphStore';
-import { exportGraphToJson } from '../../utils/exportJson';
+import { exportGraphToJson, buildExportPayload } from '../../utils/exportJson';
 import type { SavedLayout } from '../../types/graph';
 import styles from './Header.module.css';
 
@@ -25,7 +25,11 @@ export function Header() {
     saveNamedLayout, loadNamedLayout, fitToScreen,
     setSelectedNode, setLastJumpedNode, positions, setTransform, transform,
     activeOwners, toggleOwner, layoutCache, currentFileName,
+    fileHandle, setFileHandle,
   } = useGraphStore();
+
+  // True when File System Access API is available (Chrome/Edge 86+)
+  const fsApiSupported = typeof window !== 'undefined' && 'showOpenFilePicker' in window;
 
   // ── Local UI state ────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,14 +60,106 @@ export function Header() {
     document.dispatchEvent(new CustomEvent('flowgraph:open-guide'));
   }, [guidePulse]);
 
-  // ── Allow Canvas empty state to trigger the file picker ──────────────
-  useEffect(() => {
-    function handleOpenFilePicker() {
+  // ── Shared JSON parse + load logic ───────────────────────────────────
+  const parseAndLoad = useCallback((text: string, fileName: string, handle: FileSystemFileHandle | null) => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch {
+      alert('Invalid JSON file. Make sure the file is valid JSON.');
+      return;
+    }
+
+    let rawNodes: unknown[];
+    let savedLayout: { positions: Record<string, { x: number; y: number }>; transform: { x: number; y: number; k: number }; viewMode?: string; currentView?: string; dag?: unknown; lanes?: unknown } | null = null;
+
+    if (Array.isArray(parsed)) {
+      rawNodes = parsed;
+    } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>).nodes)) {
+      const obj = parsed as Record<string, unknown>;
+      rawNodes = obj.nodes as unknown[];
+      savedLayout = (obj._layout as typeof savedLayout) ?? null;
+    } else {
+      alert('JSON must be an array of nodes or an object with a "nodes" array.');
+      return;
+    }
+
+    const nodes = (rawNodes as Record<string, unknown>[]).map((raw) => ({
+      id: String(raw.id ?? ''),
+      name: String(raw.name ?? raw.id ?? 'Unnamed'),
+      owner: String(raw.owner ?? 'Unknown'),
+      description: String(raw.description ?? ''),
+      dependencies: Array.isArray(raw.dependencies) ? raw.dependencies.map(String) : [],
+    }));
+
+    loadData(nodes, savedLayout, fileName);
+    setFileHandle(handle); // null for legacy input, FileSystemFileHandle for API
+    if (!savedLayout) setTimeout(() => fitToScreen(), 100);
+  }, [loadData, setFileHandle, fitToScreen]);
+
+  // ── Primary file open — File System Access API (Chrome/Edge) ─────────
+  const handleOpenFile = useCallback(async () => {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'FlowGraph JSON', accept: { 'application/json': ['.json'] } }],
+          multiple: false,
+        });
+        const file = await handle.getFile();
+        const text = await file.text();
+        parseAndLoad(text, file.name, handle);
+      } catch (err) {
+        // AbortError = user cancelled the picker — not a real error
+        if ((err as Error).name !== 'AbortError') {
+          alert(`Failed to open file: ${(err as Error).message}`);
+        }
+      }
+    } else {
+      // Fallback for Firefox/Safari: use hidden <input type="file">
       fileInputRef.current?.click();
     }
-    document.addEventListener('flowgraph:open-file-picker', handleOpenFilePicker);
-    return () => document.removeEventListener('flowgraph:open-file-picker', handleOpenFilePicker);
-  }, []);
+  }, [parseAndLoad]);
+
+  // ── Fallback file load via <input type="file"> ────────────────────────
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      parseAndLoad(text, file.name, null); // null = no handle, saves will download
+    } catch (err) {
+      alert(`Failed to load file: ${(err as Error).message}`);
+    }
+    e.target.value = '';
+  }
+
+  // ── Allow Canvas empty state to trigger the file picker ──────────────
+  useEffect(() => {
+    document.addEventListener('flowgraph:open-file-picker', handleOpenFile);
+    return () => document.removeEventListener('flowgraph:open-file-picker', handleOpenFile);
+  }, [handleOpenFile]);
+
+  // ── Save — writes in-place if handle available, downloads otherwise ───
+  const handleSaveJson = useCallback(async () => {
+    const dagLayout   = viewMode === 'dag'   ? { positions, transform } : (layoutCache['dag']   ?? null);
+    const lanesLayout = viewMode === 'lanes' ? { positions, transform } : (layoutCache['lanes'] ?? null);
+
+    if (fileHandle) {
+      try {
+        const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') throw new Error('Write permission denied');
+        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout);
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(payload, null, 2));
+        await writable.close();
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          // Permission denied or write error — fall back to download so no data is lost
+          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined);
+        }
+      }
+    } else {
+      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined);
+    }
+  }, [fileHandle, viewMode, positions, transform, layoutCache, allNodes, currentFileName]);
 
   // ── Global keyboard shortcuts ─────────────────────────────────────────
   useEffect(() => {
@@ -95,50 +191,6 @@ export function Header() {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
-
-  // ── File load handler ─────────────────────────────────────────────────
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      let parsed: unknown;
-      try { parsed = JSON.parse(text); } catch {
-        alert('Invalid JSON file. Make sure the file is valid JSON.');
-        return;
-      }
-
-      // Support both legacy format (plain array) and layout-aware format ({nodes, _layout})
-      let rawNodes: unknown[];
-      let savedLayout: { positions: Record<string, { x: number; y: number }>; transform: { x: number; y: number; k: number }; viewMode?: string } | null = null;
-
-      if (Array.isArray(parsed)) {
-        rawNodes = parsed;
-      } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>).nodes)) {
-        const obj = parsed as Record<string, unknown>;
-        rawNodes = obj.nodes as unknown[];
-        savedLayout = (obj._layout as typeof savedLayout) ?? null;
-      } else {
-        alert('JSON must be an array of nodes or an object with a "nodes" array.');
-        return;
-      }
-
-      const nodes = (rawNodes as Record<string, unknown>[]).map((raw) => ({
-        id: String(raw.id ?? ''),
-        name: String(raw.name ?? raw.id ?? 'Unnamed'),
-        owner: String(raw.owner ?? 'Unknown'),
-        description: String(raw.description ?? ''),
-        dependencies: Array.isArray(raw.dependencies) ? raw.dependencies.map(String) : [],
-      }));
-
-      loadData(nodes, savedLayout, file.name);
-      // Only auto-fit if no saved layout (saved layout provides its own transform)
-      if (!savedLayout) setTimeout(() => fitToScreen(), 100);
-    } catch (err) {
-      alert(`Failed to load file: ${(err as Error).message}`);
-    }
-    e.target.value = '';
-  }
 
   // ── Search handler ────────────────────────────────────────────────────
   const handleSearch = useCallback((query: string) => {
@@ -232,29 +284,52 @@ export function Header() {
       </div>
       <div className={styles.sep} />
 
-      {/* File loader */}
-      <label className={styles.btnUpload} title="Load a JSON file">
+      {/* Hidden fallback file input for browsers without File System Access API */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleFileChange}
+        className={styles.fileInput}
+      />
+
+      {/* File loader button — uses File System Access API when available */}
+      <button
+        className={styles.btnUpload}
+        title={fsApiSupported
+          ? 'Open a JSON file — saves will write back to this file directly (no download)'
+          : 'Open a JSON file — your browser does not support direct file saving, saves will download a copy'}
+        onClick={handleOpenFile}
+      >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        {currentFileName ? 'Load JSON' : 'Browse JSON File'}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleFileChange}
-          className={styles.fileInput}
-        />
-      </label>
+        {currentFileName ? 'Open JSON' : 'Open JSON File'}
+      </button>
 
-      {/* Current file name chip */}
+      {/* Current file name chip — shows linked (green) vs unlinked (gray) status */}
       {currentFileName && (
-        <div className={styles.fileChip} title={currentFileName}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-          </svg>
+        <div
+          className={`${styles.fileChip} ${fileHandle ? styles.fileChipLinked : styles.fileChipUnlinked}`}
+          title={fileHandle
+            ? `Linked to "${currentFileName}" — Save writes directly to this file on your disk`
+            : `"${currentFileName}" loaded as a copy — Save will download a new file. Re-open with the button above to enable direct saving (Chrome/Edge only)`}
+        >
+          {fileHandle ? (
+            /* Chain-link icon — file is linked, saves go in-place */
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          ) : (
+            /* Broken-link icon — no handle, saves will download */
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              <line x1="2" y1="2" x2="22" y2="22"/>
+            </svg>
+          )}
           <span className={styles.fileChipName}>{currentFileName}</span>
         </div>
       )}
@@ -389,28 +464,31 @@ export function Header() {
           )}
         </div>
 
-        {/* Save JSON — visible whenever data is loaded; always captures current layout */}
+        {/* Save — in-place if file is linked, download otherwise */}
         {hasData && (
           <button
-            className={`${styles.btnSaveJson} ${!designDirty ? styles.btnSaveJsonQuiet : ''}`}
-            title={designDirty ? 'Download JSON with unsaved changes' : 'Download JSON with current layout'}
-            onClick={() => {
-              // Merge the current view's live positions/transform with the cache for the other view
-              const dagLayout   = viewMode === 'dag'
-                ? { positions, transform }
-                : (layoutCache['dag']   ?? null);
-              const lanesLayout = viewMode === 'lanes'
-                ? { positions, transform }
-                : (layoutCache['lanes'] ?? null);
-              exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout);
-            }}
+            className={`${styles.btnSaveJson} ${fileHandle ? styles.btnSaveJsonLinked : ''} ${!designDirty && !fileHandle ? styles.btnSaveJsonQuiet : ''}`}
+            title={fileHandle
+              ? `Save — writes directly to "${currentFileName}" on your disk (no download)`
+              : `Download JSON — saves a copy to your Downloads folder${currentFileName ? ` as "${currentFileName}"` : ''}\nTo save in-place, re-open the file using the Open button (Chrome/Edge only)`}
+            onClick={handleSaveJson}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Save JSON
+            {fileHandle ? (
+              /* Floppy-disk icon when linked */
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+            ) : (
+              /* Download icon when not linked */
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            )}
+            {fileHandle ? 'Save' : 'Save JSON'}
           </button>
         )}
 

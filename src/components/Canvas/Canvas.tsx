@@ -256,7 +256,7 @@ export function Canvas() {
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              <span className={styles.emptyActionLabel}>Load JSON File</span>
+              <span className={styles.emptyActionLabel}>Open JSON File</span>
               <span className={styles.emptyActionHint}>Open an existing flowchart</span>
             </button>
             <div className={styles.emptyOr}>or</div>
@@ -270,6 +270,16 @@ export function Canvas() {
               <span className={styles.emptyActionLabel}>New Flowchart</span>
               <span className={styles.emptyActionHint}>Start from scratch in design mode</span>
             </button>
+          </div>
+          <div className={styles.emptyFootnote}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Chrome / Edge: opening a file links it — Save writes back to your file directly, no download needed.
+            Other browsers: Save downloads a copy.
+          </div>
+          <div className={styles.emptyCredit}>
+            Built with Claude Code · Authored by Giang Tran
           </div>
         </div>
       )}
@@ -408,6 +418,11 @@ export function Canvas() {
       {/* Edge delete tooltip — shown when hovering an edge in design mode */}
       <div id="edge-delete-tip" className={styles.edgeDeleteTip} style={{ display: 'none' }}>
         🗑 Click to delete connection
+      </div>
+
+      {/* Persistent attribution — bottom-left corner */}
+      <div className={styles.credit}>
+        Built with Claude Code · Authored by Giang Tran
       </div>
     </div>
   );

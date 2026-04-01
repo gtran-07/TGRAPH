@@ -251,19 +251,29 @@
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 5px;
-  color: var(--text3);
   font-family: var(--font-mono);
   font-size: 10px;
   max-width: 180px;
   flex-shrink: 1;
   min-width: 0;
+  cursor: default;
 }
 .fileChipName {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text2);
 }
+/* Linked — File System Access API handle is active; saves go in-place */
+.fileChipLinked {
+  border-color: rgba(45, 212, 191, 0.4);
+  color: var(--accent3);
+}
+.fileChipLinked .fileChipName { color: var(--accent3); }
+/* Unlinked — loaded via legacy input; saves will download */
+.fileChipUnlinked {
+  color: var(--text3);
+}
+.fileChipUnlinked .fileChipName { color: var(--text2); }
 
 /* New flowchart button */
 .btnNew {
@@ -314,6 +324,15 @@
   animation: fadeIn .2s ease;
 }
 .btnSaveJson:hover { border-color: var(--accent3); background: rgba(45,212,191,.1); }
+/* Linked variant — file handle active, save writes in-place (teal, more prominent) */
+.btnSaveJsonLinked {
+  border-color: var(--accent3) !important;
+  color: var(--accent3) !important;
+  background: rgba(45,212,191,.08) !important;
+  animation: none !important;
+}
+.btnSaveJsonLinked:hover { background: rgba(45,212,191,.18) !important; }
+
 /* Quiet variant — data is clean (no design changes), button is less prominent */
 .btnSaveJsonQuiet {
   border-color: var(--border2) !important;

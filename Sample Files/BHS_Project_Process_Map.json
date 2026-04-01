@@ -1,1052 +1,2074 @@
-[
-  {
-    "id": "EXT-001",
-    "name": "BHS Specifications",
-    "owner": "External",
-    "dependencies": [],
-    "description": "External BHS specifications provided by the airport authority or consultant. These are the foundational technical and operational requirements that define the baggage handling system scope."
-  },
-  {
-    "id": "EXT-002",
-    "name": "TSA CBIS Concept of Operation & Associated Funding Documentations",
-    "owner": "External",
-    "dependencies": [],
-    "description": "TSA Checked Baggage Inspection System Concept of Operations and all associated funding documentation required for project authorization and compliance."
-  },
-  {
-    "id": "EXT-003",
-    "name": "TSA Latest PGDS",
-    "owner": "External",
-    "dependencies": [],
-    "description": "TSA's latest Planning Guide and Design Standards (PGDS) document, providing regulatory and design standards that must be adhered to throughout the project."
-  },
-  {
-    "id": "EXT-004",
-    "name": "Mechanical Layout",
-    "owner": "External",
-    "dependencies": [],
-    "description": "Externally provided mechanical conveyor layout drawings showing the physical arrangement of BHS equipment in the facility."
-  },
-  {
-    "id": "EXT-005",
-    "name": "Motor Manifest",
-    "owner": "External",
-    "dependencies": [],
-    "description": "Complete list of all motors in the BHS system including specifications, locations, and electrical requirements provided by the mechanical contractor."
-  },
-  {
-    "id": "EXT-006",
-    "name": "Airport IT Cyber Security Requirements & Specifications",
-    "owner": "External",
-    "dependencies": [],
-    "description": "Cyber security requirements and specifications from the airport authority's IT department governing all networked systems within the airport."
-  },
-  {
-    "id": "EXT-007",
-    "name": "Airlines IT Cyber Security Requirements & Specifications",
-    "owner": "External",
-    "dependencies": [],
-    "description": "Cyber security requirements and specifications from the airlines' IT departments for systems that interface with airline operations."
-  },
-  {
-    "id": "EXT-008",
-    "name": "MCP Location",
-    "owner": "External",
-    "dependencies": [],
-    "description": "Main Control Panel location information provided by the airport, defining where primary control infrastructure will be installed."
-  },
-  {
-    "id": "EXT-009",
-    "name": "Airlines IT Requirements & Specifications",
-    "owner": "External",
-    "dependencies": [],
-    "description": "General IT requirements and specifications from the airlines for system integration, communication protocols, and operational interfaces."
-  },
-  {
-    "id": "EXT-010",
-    "name": "KASA Contracting",
-    "owner": "External",
-    "dependencies": [],
-    "description": "KASA (or relevant authority) contracting process and requirements that govern project execution terms and conditions."
-  },
-  {
-    "id": "SALE-001",
-    "name": "Brock BID Proposal & Sale Estimates",
-    "owner": "Sale",
-    "dependencies": ["EXT-001", "EXT-002", "EXT-003", "EXT-004", "EXT-005"],
-    "description": "Brock's formal BID proposal and sales estimates developed from the BHS specifications, TSA documents, and mechanical layout. This document initiates the sales and contracting process."
-  },
-  {
-    "id": "SALE-002",
-    "name": "Contracting & NTP",
-    "owner": "Sale",
-    "dependencies": ["SALE-001", "EXT-010"],
-    "description": "Contract execution and issuance of Notice to Proceed (NTP). This milestone authorizes the project team to begin engineering and development activities."
-  },
-  {
-    "id": "PM-001",
-    "name": "Internal Project Kick-off",
-    "owner": "Project Management",
-    "dependencies": ["SALE-002"],
-    "description": "Internal project kick-off meeting that formally initiates the project. Triggers work order creation in Brock's project management system and resource planning."
-  },
-  {
-    "id": "PM-002",
-    "name": "Brock Report Work Order",
-    "owner": "Project Management",
-    "dependencies": ["PM-001"],
-    "description": "Formal work order created in Brock's reporting system to track the project, assign budget codes, and enable time and resource tracking across all disciplines."
-  },
-  {
-    "id": "PM-003",
-    "name": "Resource Assignment",
-    "owner": "Project Management",
-    "dependencies": ["PM-001"],
-    "description": "Assignment of engineering, controls, IT, and other resources to the project based on project scope and schedule requirements."
-  },
-  {
-    "id": "PM-004",
-    "name": "SharePoint Setup",
-    "owner": "Project Management",
-    "dependencies": ["PM-001"],
-    "description": "Setup of the project SharePoint site for document management, collaboration, and file sharing among all project disciplines and stakeholders."
-  },
-  {
-    "id": "PM-005",
-    "name": "Preliminary Internal Schedule",
-    "owner": "Project Management",
-    "dependencies": ["PM-002", "PM-003"],
-    "description": "Initial project schedule developed internally, capturing key milestones, phase durations, and discipline dependencies across the full project lifecycle."
-  },
-  {
-    "id": "PM-006",
-    "name": "Panel Build List",
-    "owner": "Project Management",
-    "dependencies": ["CTRL-004", "ELEC-002"],
-    "description": "Consolidated list of all control and power panels to be fabricated, used by the panel shop to schedule and track panel build activities."
-  },
-  {
-    "id": "EXT-DES-010",
-    "name": "10% Design",
-    "owner": "External",
-    "dependencies": ["EXT-001", "EXT-002", "EXT-003"],
-    "description": "10% design deliverable from the external engineer of record or consultant. Provides early schematic-level design for internal review and planning."
-  },
-  {
-    "id": "EXT-DES-070",
-    "name": "70% Design",
-    "owner": "External",
-    "dependencies": ["EXT-DES-010"],
-    "description": "70% design deliverable providing near-complete engineering drawings and specifications for detailed internal engineering and procurement initiation."
-  },
-  {
-    "id": "EXT-DES-100",
-    "name": "100% Design",
-    "owner": "External",
-    "dependencies": ["EXT-DES-070"],
-    "description": "100% final design package from the external engineer of record. Fully approved and stamped drawings used for construction, fabrication, and regulatory submittals."
-  },
-  {
-    "id": "PT-001",
-    "name": "Internal Schedule Validation",
-    "owner": "Project Team",
-    "dependencies": ["PM-005", "EXT-DES-010"],
-    "description": "Cross-discipline review and validation of the preliminary internal schedule, ensuring all teams agree on milestones, durations, and dependencies."
-  },
-  {
-    "id": "HMI-001",
-    "name": "HMI Software Platform Selection",
-    "owner": "HMI",
-    "dependencies": ["PM-003", "EXT-DES-010"],
-    "description": "Selection of the HMI software platform (e.g., FactoryTalk, Ignition) based on project requirements, airport standards, and compatibility with the control architecture."
-  },
-  {
-    "id": "SS-001",
-    "name": "SmartSort Version Selection",
-    "owner": "SmartSort",
-    "dependencies": ["PM-003", "EXT-DES-010"],
-    "description": "Selection of the SmartSort upper-level software version based on project requirements, system architecture, and compatibility with existing airport infrastructure."
-  },
-  {
-    "id": "HMI-002",
-    "name": "HMI Functional Specification Sections",
-    "owner": "HMI",
-    "dependencies": ["HMI-001", "EXT-DES-070"],
-    "description": "HMI-specific sections of the project functional specification, defining screen layouts, navigation, alarms, reporting, and user interaction requirements."
-  },
-  {
-    "id": "SS-002",
-    "name": "SmartSort Functional Specification Sections",
-    "owner": "SmartSort",
-    "dependencies": ["SS-001", "EXT-DES-070"],
-    "description": "SmartSort upper-level software sections of the functional specification, defining sortation logic, bag tracking, carrier integration, and statistical reporting requirements."
-  },
-  {
-    "id": "IT-001",
-    "name": "IT Functional Specification Sections",
-    "owner": "IT",
-    "dependencies": ["EXT-006", "EXT-007", "EXT-DES-070"],
-    "description": "IT-specific sections of the project functional specification covering network architecture, cybersecurity, server infrastructure, and system integration requirements."
-  },
-  {
-    "id": "CTRL-001",
-    "name": "Controls Functional Specification Sections",
-    "owner": "Controls",
-    "dependencies": ["EXT-DES-070", "PM-003"],
-    "description": "Controls-specific sections of the project functional specification defining PLC architecture, device-level control logic, safety systems, and inter-system communication."
-  },
-  {
-    "id": "PT-002",
-    "name": "Brock Functional Specifications for Approval",
-    "owner": "Project Team",
-    "dependencies": ["HMI-002", "SS-002", "IT-001", "CTRL-001"],
-    "description": "Consolidated Brock functional specification document compiled from all discipline sections, submitted to the airport/client for review and approval."
-  },
-  {
-    "id": "EXT-011",
-    "name": "Approved Functional Specification",
-    "owner": "External",
-    "dependencies": ["PT-002"],
-    "description": "Client/airport authority approved functional specification. This approval gates the start of the formal development phase across all disciplines."
-  },
-  {
-    "id": "CTRL-002",
-    "name": "Upper-level Architecture Design, Review & Modification",
-    "owner": "IT",
-    "dependencies": ["EXT-011", "EXT-DES-100"],
-    "description": "Design, review, and modification of the upper-level network and system architecture including server topology, network segmentation, and system interconnections."
-  },
-  {
-    "id": "IT-002",
-    "name": "Cyber Security Specification",
-    "owner": "IT",
-    "dependencies": ["EXT-006", "EXT-007", "EXT-011"],
-    "description": "Detailed cybersecurity specification documenting network security controls, access management, firewall rules, patching policies, and compliance requirements."
-  },
-  {
-    "id": "IT-003",
-    "name": "Logical Network Design",
-    "owner": "IT",
-    "dependencies": ["CTRL-002", "IT-002"],
-    "description": "Logical network design document defining VLANs, subnets, routing protocols, and traffic segmentation for the BHS control and upper-level network infrastructure."
-  },
-  {
-    "id": "IT-004",
-    "name": "Upper-level Catalog Cut",
-    "owner": "IT",
-    "dependencies": ["CTRL-002"],
-    "description": "Catalog cut sheets for all upper-level hardware including servers, workstations, network switches, and associated equipment selected for the project."
-  },
-  {
-    "id": "IT-005",
-    "name": "Switch Typology/Connection Design",
-    "owner": "IT",
-    "dependencies": ["IT-003"],
-    "description": "Detailed switch topology and connection design document specifying port assignments, VLAN configurations, uplink connections, and redundancy paths for all network switches."
-  },
-  {
-    "id": "IT-006",
-    "name": "Switch Connection Spreadsheet",
-    "owner": "IT",
-    "dependencies": ["IT-005"],
-    "description": "Spreadsheet documenting all switch port connections, device assignments, VLAN memberships, and IP addresses for every switch in the BHS network."
-  },
-  {
-    "id": "IT-007",
-    "name": "BHS Upper-level Network IP Spreadsheet",
-    "owner": "IT",
-    "dependencies": ["IT-003"],
-    "description": "Complete IP address allocation spreadsheet for all devices on the BHS upper-level network including servers, workstations, PLCs, cameras, and infrastructure equipment."
-  },
-  {
-    "id": "IT-008",
-    "name": "Upper-level Network Drawing for Approval",
-    "owner": "IT",
-    "dependencies": ["IT-003", "IT-005", "IT-007"],
-    "description": "Formal upper-level network drawing submitted for client/airport authority approval, showing all network components, connections, and IP addressing."
-  },
-  {
-    "id": "IT-009",
-    "name": "IT BOM",
-    "owner": "IT",
-    "dependencies": ["IT-004", "IT-005"],
-    "description": "Complete IT bill of materials listing all hardware, software licenses, and third-party components required for the upper-level BHS network and server infrastructure."
-  },
-  {
-    "id": "IT-010",
-    "name": "Upper-level Hardware & Third-party Software Licensing Procurement",
-    "owner": "IT",
-    "dependencies": ["IT-009", "IT-008"],
-    "description": "Procurement of all approved upper-level hardware (servers, switches, workstations) and third-party software licenses required for the BHS upper-level systems."
-  },
-  {
-    "id": "IT-011",
-    "name": "Server Hardware & Switch Office Setup",
-    "owner": "IT",
-    "dependencies": ["IT-010"],
-    "description": "Physical setup and rack assembly of server hardware and network switches in the office/staging environment for pre-configuration and testing prior to site delivery."
-  },
-  {
-    "id": "IT-012",
-    "name": "Server Hardware & Switch QA",
-    "owner": "IT",
-    "dependencies": ["IT-011"],
-    "description": "Quality assurance inspection and testing of all server hardware and network switches to verify hardware functionality, configuration accuracy, and readiness for software installation."
-  },
-  {
-    "id": "IT-013",
-    "name": "Software Installation & Setup",
-    "owner": "IT",
-    "dependencies": ["IT-012"],
-    "description": "Installation and configuration of all required software on servers and workstations including operating systems, middleware, database software, and BHS application software."
-  },
-  {
-    "id": "IT-014",
-    "name": "Workstation Configuration, Installation, Setup & Imaging",
-    "owner": "IT",
-    "dependencies": ["IT-013"],
-    "description": "Configuration, OS imaging, and setup of all operator and engineering workstations including application installation, network configuration, and security hardening."
-  },
-  {
-    "id": "IT-015",
-    "name": "IT Infrastructure Setup (VLANs, VMs, and etc.)",
-    "owner": "IT",
-    "dependencies": ["IT-013"],
-    "description": "Configuration of IT infrastructure including virtual machine setup, VLAN configuration, firewall rules, DNS, DHCP, Active Directory, and other network services."
-  },
-  {
-    "id": "IT-016",
-    "name": "Account & Password Creation in DPS",
-    "owner": "IT",
-    "dependencies": ["IT-015"],
-    "description": "Creation of user accounts, service accounts, and passwords within the Distributed Processing System (DPS) and associated security management systems."
-  },
-  {
-    "id": "CTRL-003",
-    "name": "Lower-level Architecture Design, Review & Modification",
-    "owner": "Controls",
-    "dependencies": ["EXT-011", "EXT-DES-100", "EXT-004", "EXT-005"],
-    "description": "Design, review, and modification of the lower-level PLC and field device control architecture including panel layout, device distribution, and network topology."
-  },
-  {
-    "id": "CTRL-004",
-    "name": "Control/Power Panel Breakout",
-    "owner": "Controls",
-    "dependencies": ["CTRL-003", "EXT-004"],
-    "description": "Breakdown and assignment of all control zones to specific control and power panels, defining which devices are controlled by each panel throughout the BHS."
-  },
-  {
-    "id": "CTRL-005",
-    "name": "PLC Breakout",
-    "owner": "Controls",
-    "dependencies": ["CTRL-004"],
-    "description": "Assignment of PLC processors and I/O to control panels, defining the PLC program structure, chassis configuration, and inter-PLC communication paths."
-  },
-  {
-    "id": "ELEC-001",
-    "name": "Lower-level Catalog Cut",
-    "owner": "Electrical",
-    "dependencies": ["CTRL-003", "EXT-005"],
-    "description": "Catalog cut sheets for all lower-level electrical components including motor starters, VFDs, breakers, terminals, conduit, and field devices selected for the project."
-  },
-  {
-    "id": "CTRL-006",
-    "name": "Lower-level Hardware Estimator",
-    "owner": "Controls",
-    "dependencies": ["CTRL-004", "ELEC-001"],
-    "description": "Detailed hardware quantity and cost estimate for all lower-level controls components including PLCs, I/O cards, field devices, and panel hardware."
-  },
-  {
-    "id": "ELEC-002",
-    "name": "Power Calculation",
-    "owner": "Electrical",
-    "dependencies": ["CTRL-003", "EXT-005"],
-    "description": "Electrical power calculations for all BHS equipment including motor loads, panel sizing, wire gauge selection, and power distribution design."
-  },
-  {
-    "id": "ELEC-003",
-    "name": "Single Line Drawing For Approval",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-002"],
-    "description": "Single-line electrical drawing submitted for client/engineer of record approval, showing power distribution from the main distribution panel to all sub-panels and major loads."
-  },
-  {
-    "id": "ELEC-004",
-    "name": "Flattened 2D CAD Conveyor Layout",
-    "owner": "Electrical",
-    "dependencies": ["EXT-004", "EXT-DES-100"],
-    "description": "Flattened 2D CAD drawing of the conveyor layout used as the base layer for electrical device placement, E-stop layout, and field wiring design."
-  },
-  {
-    "id": "ELEC-005",
-    "name": "Device/E-stop Layout Drawing for Approval",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-004", "CTRL-004"],
-    "description": "Drawing showing the location of all field devices and E-stop push buttons throughout the BHS, submitted for client approval prior to construction."
-  },
-  {
-    "id": "ELEC-006",
-    "name": "Device/E-stop Layout for Construction",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-005"],
-    "description": "Approved and released device and E-stop layout drawing used by field installers for device mounting and wiring during BHS construction."
-  },
-  {
-    "id": "ELEC-007",
-    "name": "Control Station Typicals Drawing for Approval",
-    "owner": "Electrical",
-    "dependencies": ["CTRL-003"],
-    "description": "Typical drawings for all control station types (local control stations, E-stop stations, junction boxes) submitted for client/engineer approval."
-  },
-  {
-    "id": "CTRL-007",
-    "name": "HMI Tag Convention",
-    "owner": "Controls",
-    "dependencies": ["CTRL-003", "CTRL-005"],
-    "description": "Document defining the naming convention for all HMI tags, ensuring consistent tag names across the PLC program, HMI screens, and upper-level systems."
-  },
-  {
-    "id": "CTRL-008",
-    "name": "HMI Color & Animation Scheme",
-    "owner": "Controls",
-    "dependencies": ["CTRL-007"],
-    "description": "Specification defining the color scheme and animation standards for all HMI objects, ensuring consistent visual feedback for operators across all HMI screens."
-  },
-  {
-    "id": "CTRL-009",
-    "name": "HMI Controls",
-    "owner": "Controls",
-    "dependencies": ["CTRL-008", "HMI-001"],
-    "description": "Definition of standard HMI control objects (faceplates, navigation buttons, alarm displays) used consistently throughout all HMI screens in the project."
-  },
-  {
-    "id": "CTRL-010",
-    "name": "PLC IO Tag Convention",
-    "owner": "Controls",
-    "dependencies": ["CTRL-005"],
-    "description": "Document defining the naming convention for all PLC I/O tags, ensuring consistent and logical naming across all PLC programs and I/O modules in the system."
-  },
-  {
-    "id": "CTRL-011",
-    "name": "Lower-level IO and Peer to Peer Network Design",
-    "owner": "Controls",
-    "dependencies": ["CTRL-005", "IT-003"],
-    "description": "Design of the lower-level I/O network and PLC peer-to-peer communication network, defining network topology, protocols, and data exchange between PLCs."
-  },
-  {
-    "id": "ELEC-008",
-    "name": "Network Drawing for Approval",
-    "owner": "Electrical",
-    "dependencies": ["CTRL-011", "IT-008"],
-    "description": "Formal network drawing combining upper and lower-level network design, submitted for client/engineer of record approval prior to fabrication."
-  },
-  {
-    "id": "ELEC-009",
-    "name": "Control Panel IO Sheets",
-    "owner": "Electrical",
-    "dependencies": ["CTRL-010", "CTRL-004"],
-    "description": "I/O assignment sheets for each control panel listing every I/O point, its tag name, device assignment, and wire number for use in panel design and PLC programming."
-  },
-  {
-    "id": "ELEC-010",
-    "name": "Control & Power Panel Drawing for Approval",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-009", "CTRL-004", "ELEC-002"],
-    "description": "Complete control and power panel drawings submitted for client and engineer of record approval, showing panel layout, wiring diagrams, and component specifications."
-  },
-  {
-    "id": "ELEC-011",
-    "name": "Logical Control Panel Drawing for Approval",
-    "owner": "Electrical",
-    "dependencies": ["CTRL-011", "ELEC-009"],
-    "description": "Logical control panel drawings showing PLC I/O wiring, peer-to-peer connections, and network device connections, submitted for approval."
-  },
-  {
-    "id": "ELEC-012",
-    "name": "Control & Power Panel Drawing for Fabrication",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-010"],
-    "description": "Approved and released control and power panel drawings issued to the panel shop for fabrication, including all revisions from the approval process."
-  },
-  {
-    "id": "ELEC-013",
-    "name": "Logical Control Panel Drawing for Fabrication",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-011"],
-    "description": "Approved and released logical control panel drawings issued to the panel shop for fabrication of network and peer-to-peer wiring."
-  },
-  {
-    "id": "ELEC-014",
-    "name": "Single Line Drawing For Construction",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-003"],
-    "description": "Approved single-line drawing released for construction use by field electricians, including all approval markups and final revisions."
-  },
-  {
-    "id": "ELEC-015",
-    "name": "Control & Power Panel Drawing for Construction",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-010"],
-    "description": "Approved control and power panel drawings released for construction reference, used by field team for installation verification and as-built mark-ups."
-  },
-  {
-    "id": "ELEC-016",
-    "name": "Logical Control Panel Drawing for Construction",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-011"],
-    "description": "Approved logical control panel drawings released for construction use by field installers for network and PLC wiring verification."
-  },
-  {
-    "id": "ELEC-017",
-    "name": "Network Drawing for Construction",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-008"],
-    "description": "Approved network drawing released for field construction use, guiding installation of network cabling, switch mounting, and device connections."
-  },
-  {
-    "id": "ELEC-018",
-    "name": "PDP Quote and Lead Time",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-002", "ELEC-003"],
-    "description": "Power Distribution Panel (PDP) quote and lead time obtained from suppliers to inform procurement scheduling and project timeline."
-  },
-  {
-    "id": "ELEC-019",
-    "name": "PDP Procurement",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-018"],
-    "description": "Formal procurement/purchase order for the Power Distribution Panel(s) based on approved specifications and confirmed lead times."
-  },
-  {
-    "id": "ELEC-020",
-    "name": "PDP Inspection",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-019"],
-    "description": "Factory inspection of the Power Distribution Panel at the manufacturer's facility to verify compliance with specifications before shipment."
-  },
-  {
-    "id": "ELEC-021",
-    "name": "PDP Site Delivery",
-    "owner": "External",
-    "dependencies": ["ELEC-020"],
-    "description": "Delivery of the approved Power Distribution Panel to the project site, ready for installation by the electrical contractor."
-  },
-  {
-    "id": "ELEC-022",
-    "name": "Control, Power Logical Panels & Field Device Material Procurement",
-    "owner": "Electrical",
-    "dependencies": ["ELEC-012", "ELEC-013", "IT-009"],
-    "description": "Procurement of all materials required for control panels, power panels, logical panels, and field devices including all components listed on approved drawings and BOM."
-  },
-  {
-    "id": "CTRL-012",
-    "name": "Controls Development Task Scheduler",
-    "owner": "Controls",
-    "dependencies": ["CTRL-005", "CTRL-010", "PT-001"],
-    "description": "Detailed task schedule for the controls development team, breaking down PLC programming, testing, and documentation activities into assignable work packages."
-  },
-  {
-    "id": "CTRL-013",
-    "name": "PLC Logic Template",
-    "owner": "Controls",
-    "dependencies": ["CTRL-010", "CTRL-007"],
-    "description": "Reusable PLC logic template library providing standardized function blocks and routines for common BHS devices (conveyors, diverters, scanners) used in program development."
-  },
-  {
-    "id": "CTRL-014",
-    "name": "Source Generator Sheets",
-    "owner": "Controls",
-    "dependencies": ["CTRL-013", "CTRL-010"],
-    "description": "Structured spreadsheets used to automatically generate PLC source code, tag databases, and HMI configurations from device lists and I/O assignments."
-  },
-  {
-    "id": "CTRL-015",
-    "name": "Upper-level Tags Export",
-    "owner": "Controls",
-    "dependencies": ["CTRL-014", "IT-007"],
-    "description": "Export of upper-level tag database from the Controls source generator, providing tag definitions for SmartSort and HMI upper-level system configuration."
-  },
-  {
-    "id": "CTRL-016",
-    "name": "HMI Tag Exports",
-    "owner": "Controls",
-    "dependencies": ["CTRL-014", "CTRL-007"],
-    "description": "Export of HMI tag database from the Controls source generator, providing all tag definitions required for HMI screen development and PLC connection configuration."
-  },
-  {
-    "id": "CTRL-017",
-    "name": "IO Simulator",
-    "owner": "Controls",
-    "dependencies": ["CTRL-013", "CTRL-014"],
-    "description": "I/O simulation tool that allows PLC programs to be tested offline without physical hardware, simulating field device inputs and verifying output logic."
-  },
-  {
-    "id": "CTRL-018",
-    "name": "Device-level Test Plan Data Exports",
-    "owner": "Controls",
-    "dependencies": ["CTRL-014", "CTRL-010"],
-    "description": "Automated data exports from the source generator system providing device lists, tag assignments, and configuration data used to generate device-level test plans."
-  },
-  {
-    "id": "CTRL-019",
-    "name": "Office Testing Setup",
-    "owner": "Controls",
-    "dependencies": ["CTRL-017", "IT-011"],
-    "description": "Setup of the office testing environment including PLC hardware, network connections, simulation software, and HMI stations for pre-site testing activities."
-  },
-  {
-    "id": "CTRL-020",
-    "name": "PLC Program",
-    "owner": "Controls",
-    "dependencies": ["CTRL-013", "CTRL-014", "CTRL-010", "CTRL-007"],
-    "description": "Complete PLC program developed from the logic templates and source generator sheets, implementing all conveyor control, safety, and communication logic for the BHS."
-  },
-  {
-    "id": "CTRL-021",
-    "name": "Control Development Plan",
-    "owner": "Controls",
-    "dependencies": ["CTRL-012", "CTRL-020"],
-    "description": "Comprehensive controls development plan documenting the approach, timeline, and milestones for PLC programming, testing, and commissioning activities."
-  },
-  {
-    "id": "SS-003",
-    "name": "SmartSuite Software Auto-deployment",
-    "owner": "SmartSort",
-    "dependencies": ["IT-015", "SS-001"],
-    "description": "Automated deployment of SmartSuite software to all designated servers and workstations using the configured IT infrastructure and deployment tools."
-  },
-  {
-    "id": "SS-004",
-    "name": "Statistic Configuration",
-    "owner": "SmartSort",
-    "dependencies": ["SS-003", "CTRL-015"],
-    "description": "Configuration of the SmartSort statistical reporting module, defining KPIs, data collection points, report templates, and dashboard elements for BHS performance monitoring."
-  },
-  {
-    "id": "SS-005",
-    "name": "HMI Alarm Mapping",
-    "owner": "SmartSort",
-    "dependencies": ["SS-003", "CTRL-016"],
-    "description": "Mapping of PLC and device alarms to the SmartSort HMI alarm management system, defining alarm priorities, display text, and notification routing."
-  },
-  {
-    "id": "SS-006",
-    "name": "Device ID Configuration",
-    "owner": "SmartSort",
-    "dependencies": ["SS-003", "CTRL-015"],
-    "description": "Configuration of unique device identifiers within SmartSort for all BHS components, enabling bag tracking, device status monitoring, and event correlation."
-  },
-  {
-    "id": "SS-007",
-    "name": "Upper-level Services",
-    "owner": "SmartSort",
-    "dependencies": ["SS-003", "IT-015"],
-    "description": "Configuration and startup of all SmartSort upper-level Windows services required for system operation including bag tracking, statistics, alarming, and communication services."
-  },
-  {
-    "id": "SS-008",
-    "name": "Web Client Configurations",
-    "owner": "SmartSort",
-    "dependencies": ["SS-007"],
-    "description": "Configuration of SmartSort web client interfaces providing browser-based monitoring and control access for authorized airport operators and maintenance personnel."
-  },
-  {
-    "id": "SS-009",
-    "name": "PRTG Configurations",
-    "owner": "SmartSort",
-    "dependencies": ["SS-007", "IT-006"],
-    "description": "Configuration of PRTG network monitoring software to monitor all BHS servers, workstations, network switches, and services, with alerting for outages and performance issues."
-  },
-  {
-    "id": "SS-010",
-    "name": "Upper-level Tag Exports",
-    "owner": "SmartSort",
-    "dependencies": ["SS-006", "CTRL-015"],
-    "description": "Export of all upper-level tags from SmartSort configuration for use in integration testing, HMI configuration verification, and system documentation."
-  },
-  {
-    "id": "SS-011",
-    "name": "External Feed Connection Configuration",
-    "owner": "SmartSort",
-    "dependencies": ["SS-007", "EXT-009"],
-    "description": "Configuration of SmartSort connections to external airline and airport systems including DCS feeds, check-in system interfaces, and FIDS integrations."
-  },
-  {
-    "id": "SS-012",
-    "name": "PLC Connection Configuration & Validation",
-    "owner": "SmartSort",
-    "dependencies": ["SS-007", "CTRL-015", "CTRL-020"],
-    "description": "Configuration and validation of SmartSort communication connections to all PLCs in the BHS, verifying data exchange, tag mapping, and status monitoring."
-  },
-  {
-    "id": "HMI-003",
-    "name": "HMI Servers Software Installation & Setup",
-    "owner": "HMI",
-    "dependencies": ["IT-013", "HMI-001"],
-    "description": "Installation and initial configuration of HMI server software on designated servers, including license activation, server redundancy setup, and initial system configuration."
-  },
-  {
-    "id": "HMI-004",
-    "name": "HMI Conveyor Layout",
-    "owner": "HMI",
-    "dependencies": ["HMI-003", "ELEC-004"],
-    "description": "Creation of the conveyor layout background graphic in the HMI system, providing the base map for device placement and operational overview screens."
-  },
-  {
-    "id": "HMI-005",
-    "name": "Device Animation",
-    "owner": "HMI",
-    "dependencies": ["HMI-003", "CTRL-009"],
-    "description": "Development of animated device objects in the HMI that visually indicate device states (running, stopped, faulted, in auto/manual) based on PLC tag values."
-  },
-  {
-    "id": "HMI-006",
-    "name": "Device Placement",
-    "owner": "HMI",
-    "dependencies": ["HMI-004", "HMI-005", "ELEC-005"],
-    "description": "Placement of animated device objects onto the HMI conveyor layout graphic at locations matching the physical BHS installation."
-  },
-  {
-    "id": "HMI-007",
-    "name": "PLC Tag Import",
-    "owner": "HMI",
-    "dependencies": ["HMI-003", "CTRL-016"],
-    "description": "Import of PLC tag database into the HMI server, establishing the tag references used by all HMI screens, faceplates, and data logging functions."
-  },
-  {
-    "id": "HMI-008",
-    "name": "PLC Connection Configuration",
-    "owner": "HMI",
-    "dependencies": ["HMI-007", "CTRL-020"],
-    "description": "Configuration of HMI server connections to all PLCs in the BHS, establishing communications paths and verifying successful data exchange."
-  },
-  {
-    "id": "HMI-009",
-    "name": "HMI QA",
-    "owner": "HMI",
-    "dependencies": ["HMI-006", "HMI-008"],
-    "description": "Quality assurance review of all HMI screens, device animations, tag bindings, and navigation to verify correctness and compliance with the HMI functional specification."
-  },
-  {
-    "id": "HMI-010",
-    "name": "UL Tag Import",
-    "owner": "HMI",
-    "dependencies": ["HMI-007", "SS-010"],
-    "description": "Import of upper-level (SmartSort) tags into the HMI server, enabling display of sortation data, bag counts, and upper-level system status on HMI screens."
-  },
-  {
-    "id": "HMI-011",
-    "name": "Finishing up HMI Connection Screen",
-    "owner": "HMI",
-    "dependencies": ["HMI-009", "HMI-010", "SS-012"],
-    "description": "Final development and completion of HMI connection monitoring screens showing PLC and upper-level system connection status, enabling rapid fault diagnosis."
-  },
-  {
-    "id": "HMI-012",
-    "name": "Connection Screen QA",
-    "owner": "HMI",
-    "dependencies": ["HMI-011"],
-    "description": "Quality assurance review of HMI connection screens, verifying all PLC and upper-level connections are correctly displayed and status indicators function properly."
-  },
-  {
-    "id": "DOC-001",
-    "name": "Device-level Test Plan Template",
-    "owner": "Documentation",
-    "dependencies": ["CTRL-010", "ELEC-005"],
-    "description": "Standardized template for device-level test plans defining the format, required test steps, pass/fail criteria, and sign-off requirements for all device types in the BHS."
-  },
-  {
-    "id": "DOC-002",
-    "name": "Sample Device-level Test Plan",
-    "owner": "Documentation",
-    "dependencies": ["DOC-001", "CTRL-018"],
-    "description": "Completed sample device-level test plan created from the template using actual project device data, used for client review and approval of the testing approach."
-  },
-  {
-    "id": "CTRL-022",
-    "name": "Sample Device-level Test Plan Review",
-    "owner": "Controls",
-    "dependencies": ["DOC-002"],
-    "description": "Controls team review of the sample device-level test plan to verify completeness, accuracy, and alignment with PLC programming and device configuration."
-  },
-  {
-    "id": "DOC-003",
-    "name": "Device-level Test Plan Generation",
-    "owner": "Documentation",
-    "dependencies": ["CTRL-022", "CTRL-018"],
-    "description": "Automated generation of device-level test plans for all BHS devices using the approved template and data exports from the controls source generator system."
-  },
-  {
-    "id": "PS-001",
-    "name": "Panel & Field Device Fabrication",
-    "owner": "Panel Shop",
-    "dependencies": ["ELEC-012", "ELEC-013", "ELEC-022", "PM-006"],
-    "description": "Fabrication of all control panels, power panels, and field device assemblies in the panel shop according to approved drawings and procurement materials."
-  },
-  {
-    "id": "PS-002",
-    "name": "Panel Shop QA",
-    "owner": "Panel Shop",
-    "dependencies": ["PS-001"],
-    "description": "Quality assurance inspection of fabricated panels and field device assemblies, verifying compliance with drawings, correct component installation, and wiring accuracy."
-  },
-  {
-    "id": "PS-003",
-    "name": "Engineering Testing",
-    "owner": "Panel Shop",
-    "dependencies": ["PS-002", "CTRL-020"],
-    "description": "Engineering-level testing of fabricated panels in the panel shop, including PLC I/O verification, communication testing, and functional logic checks prior to shipping."
-  },
-  {
-    "id": "PS-004",
-    "name": "Label Engraving",
-    "owner": "Panel Shop",
-    "dependencies": ["PS-002"],
-    "description": "Engraving of identification labels for all panel components, devices, terminals, and field equipment according to the tag naming conventions and drawing requirements."
-  },
-  {
-    "id": "PS-005",
-    "name": "Shipping",
-    "owner": "Panel Shop",
-    "dependencies": ["PS-003", "PS-004"],
-    "description": "Shipping of completed and tested panels and field device assemblies from the panel shop to the project site."
-  },
-  {
-    "id": "EXT-012",
-    "name": "Panel & Field Device Site Delivery",
-    "owner": "External",
-    "dependencies": ["PS-005"],
-    "description": "Receipt of panels and field devices at the project site, including unloading, staging, and coordination with site general contractor for installation."
-  },
-  {
-    "id": "EMU-001",
-    "name": "Emulation Layout",
-    "owner": "Emulation",
-    "dependencies": ["CTRL-019", "ELEC-004"],
-    "description": "Creation of the BHS conveyor layout within the emulation software, providing the physical model basis for virtual commissioning and testing activities."
-  },
-  {
-    "id": "EMU-002",
-    "name": "PLC Tag Configurations",
-    "owner": "Emulation",
-    "dependencies": ["EMU-001", "CTRL-020"],
-    "description": "Configuration of PLC tag connections within the emulation software, linking the virtual BHS model to the PLC program for real-time simulation testing."
-  },
-  {
-    "id": "EMU-003",
-    "name": "Field Device Creation and Placement",
-    "owner": "Emulation",
-    "dependencies": ["EMU-001", "ELEC-005"],
-    "description": "Creation and placement of virtual field devices (sensors, actuators, E-stops) within the emulation model at locations matching the physical BHS layout."
-  },
-  {
-    "id": "EMU-004",
-    "name": "PLC Emulation Logic",
-    "owner": "Emulation",
-    "dependencies": ["EMU-002", "EMU-003"],
-    "description": "Development of emulation logic within the simulation software that accurately models conveyor physics, bag movement, scanner reads, and device behaviors for PLC testing."
-  },
-  {
-    "id": "EMU-005",
-    "name": "Emulation Model Integration",
-    "owner": "Controls",
-    "dependencies": ["EMU-004", "CTRL-020"],
-    "description": "Integration of the emulation model with the PLC program, enabling virtual commissioning where the PLC controls the simulated BHS and results are verified."
-  },
-  {
-    "id": "CTRL-023",
-    "name": "Tracking Stats and Window Sheets",
-    "owner": "Controls",
-    "dependencies": ["CTRL-021", "SS-004"],
-    "description": "Development of tracking statistics and time window configuration sheets defining baggage flow parameters, timing windows, and statistical targets for system optimization."
-  },
-  {
-    "id": "CTRL-024",
-    "name": "Tracking Setup",
-    "owner": "Controls",
-    "dependencies": ["CTRL-023", "SS-006"],
-    "description": "Configuration of the bag tracking system including tracking zones, handoff points, read point assignments, and tracking algorithm parameters within the BHS."
-  },
-  {
-    "id": "CTRL-025",
-    "name": "Device Setup",
-    "owner": "Controls",
-    "dependencies": ["CTRL-024", "CTRL-019"],
-    "description": "Individual device setup and parameter configuration for all BHS devices including speed settings, timer values, tracking parameters, and operational mode configurations."
-  },
-  {
-    "id": "CTRL-026",
-    "name": "System Testing",
-    "owner": "Controls",
-    "dependencies": ["CTRL-025", "EMU-005", "HMI-009", "SS-012"],
-    "description": "Comprehensive system-level testing using the integrated PLC program, HMI, emulation model, and SmartSort upper-level software to verify end-to-end BHS functionality."
-  },
-  {
-    "id": "CTRL-027",
-    "name": "ATR & BMA Integration Specifications",
-    "owner": "Controls",
-    "dependencies": ["CTRL-026", "SS-011"],
-    "description": "Specifications for integration of Automatic Tag Reader (ATR) and Baggage Management Application (BMA) systems, defining data exchange formats, timing, and protocols."
-  },
-  {
-    "id": "CTRL-028",
-    "name": "SMH & SAM Connection",
-    "owner": "Controls",
-    "dependencies": ["CTRL-027"],
-    "description": "Configuration and testing of connections between the BHS controls and the Sort Management Host (SMH) and Sort Assignment Module (SAM) for real-time sortation decisions."
-  },
-  {
-    "id": "CTRL-029",
-    "name": "HMI Issue List",
-    "owner": "Controls",
-    "dependencies": ["CTRL-026", "HMI-009"],
-    "description": "Compiled list of HMI issues identified during system testing, providing a tracked action item list for HMI development team resolution prior to FAT."
-  },
-  {
-    "id": "HMI-013",
-    "name": "Device Level Testing Issue List Resolution",
-    "owner": "HMI",
-    "dependencies": ["CTRL-029"],
-    "description": "Resolution by the HMI team of all device-level testing issues identified in the Controls HMI issue list, with verification sign-off for each corrected item."
-  },
-  {
-    "id": "HMI-014",
-    "name": "HMI Server Licensing & Redundancy Setup",
-    "owner": "HMI",
-    "dependencies": ["HMI-012", "IT-014"],
-    "description": "Finalization of HMI server licensing activation and configuration of server redundancy/failover mechanisms to ensure high availability of the HMI system."
-  },
-  {
-    "id": "CTRL-030",
-    "name": "Functional Office Testing",
-    "owner": "Controls",
-    "dependencies": ["CTRL-019", "HMI-009", "SS-012", "CTRL-026"],
-    "description": "Full functional office testing of the integrated BHS control system including PLC program, HMI, SmartSort upper-level, and emulation in the office environment."
-  },
-  {
-    "id": "CTRL-031",
-    "name": "Lower-level Factory Acceptance Test Plan",
-    "owner": "Controls",
-    "dependencies": ["DOC-003", "CTRL-030"],
-    "description": "Formal factory acceptance test plan for the lower-level PLC and controls system, defining test procedures, acceptance criteria, and sign-off requirements."
-  },
-  {
-    "id": "SS-013",
-    "name": "Upper-level Factory Acceptance Test Plan",
-    "owner": "SmartSort",
-    "dependencies": ["DOC-003", "SS-012"],
-    "description": "Formal factory acceptance test plan for the SmartSort upper-level system, defining test scenarios, data validation procedures, and acceptance criteria."
-  },
-  {
-    "id": "IT-017",
-    "name": "IT Factory Acceptance Test Plan",
-    "owner": "IT",
-    "dependencies": ["IT-014", "IT-015", "IT-016"],
-    "description": "Formal factory acceptance test plan for the IT infrastructure, covering network connectivity, server performance, VLAN segmentation, redundancy failover, and security controls."
-  },
-  {
-    "id": "IT-018",
-    "name": "Cyber FAT Requirement Decision",
-    "owner": "IT",
-    "dependencies": ["IT-002", "EXT-006", "EXT-007"],
-    "description": "Decision point determining whether a formal Cyber Security Factory Acceptance Test is required based on contract requirements, airport/airline cyber security specifications."
-  },
-  {
-    "id": "IT-019",
-    "name": "Cyber FAT Test Plan",
-    "owner": "IT",
-    "dependencies": ["IT-018", "IT-002"],
-    "description": "Formal cybersecurity factory acceptance test plan defining penetration testing scope, vulnerability scanning procedures, and security control verification requirements."
-  },
-  {
-    "id": "IT-020",
-    "name": "Cyber FAT",
-    "owner": "IT",
-    "dependencies": ["IT-019", "IT-017"],
-    "description": "Execution of the cybersecurity factory acceptance test including network vulnerability scanning, penetration testing, security configuration review, and results documentation."
-  },
-  {
-    "id": "CTRL-032",
-    "name": "Factory Acceptance Test Prep",
-    "owner": "Controls",
-    "dependencies": ["CTRL-031", "SS-013", "IT-017", "CTRL-028", "HMI-014"],
-    "description": "Preparation activities for the Factory Acceptance Test including client notification, environment setup, test equipment calibration, and stakeholder coordination."
-  },
-  {
-    "id": "CTRL-033",
-    "name": "Factory Acceptance Test",
-    "owner": "Controls",
-    "dependencies": ["CTRL-032", "IT-020"],
-    "description": "Formal Factory Acceptance Test (FAT) conducted with the client witnessing, demonstrating full BHS functionality including controls, HMI, upper-level software, and IT infrastructure."
-  },
-  {
-    "id": "CTRL-034",
-    "name": "Post Factory Acceptance Test Correction",
-    "owner": "Controls",
-    "dependencies": ["CTRL-033"],
-    "description": "Resolution of all punch list items and deficiencies identified during the Factory Acceptance Test, with client re-verification of corrected items."
-  },
-  {
-    "id": "CTRL-035",
-    "name": "System Level Test HMI Issue List",
-    "owner": "Controls",
-    "dependencies": ["CTRL-034"],
-    "description": "Compiled list of outstanding HMI issues identified during system-level testing phase, carried forward for resolution before integrated testing."
-  },
-  {
-    "id": "HMI-015",
-    "name": "System Level Test HMI Issue List Resolution",
-    "owner": "HMI",
-    "dependencies": ["CTRL-035"],
-    "description": "HMI team resolution of all system-level test HMI issues with verification and sign-off, ensuring HMI quality before integrated testing with all systems."
-  },
-  {
-    "id": "CTRL-036",
-    "name": "Upper Level Issue List",
-    "owner": "Controls",
-    "dependencies": ["CTRL-034"],
-    "description": "Compiled list of upper-level system issues identified during FAT and post-FAT testing, covering SmartSort, HMI, and IT infrastructure items requiring resolution."
-  },
-  {
-    "id": "SS-014",
-    "name": "Integrated Testing",
-    "owner": "SmartSort",
-    "dependencies": ["HMI-015", "CTRL-036", "SS-011", "CTRL-028"],
-    "description": "Fully integrated testing of all BHS systems together including controls, HMI, SmartSort upper-level, ATR/BMA interfaces, and external airline/airport system connections."
-  },
-  {
-    "id": "SS-015",
-    "name": "Issue List Resolution",
-    "owner": "SmartSort",
-    "dependencies": ["SS-014"],
-    "description": "Resolution of all issues identified during integrated testing across all disciplines, with coordinated retesting to verify fixes before site activities begin."
-  },
-  {
-    "id": "IT-021",
-    "name": "Rabit7 Scan",
-    "owner": "IT",
-    "dependencies": ["IT-020", "SS-014"],
-    "description": "Execution of Rabit7 (or equivalent) cybersecurity vulnerability scan against all BHS networked systems to identify security vulnerabilities before site deployment."
-  },
-  {
-    "id": "IT-022",
-    "name": "Rabit7 Scan Result Remediation",
-    "owner": "IT",
-    "dependencies": ["IT-021"],
-    "description": "Remediation of all vulnerabilities identified in the Rabit7 cybersecurity scan, including patching, configuration changes, and re-scanning to verify remediation effectiveness."
-  },
-  {
-    "id": "EXT-013",
-    "name": "Field Mark-ups & Red Lines",
-    "owner": "External",
-    "dependencies": ["EXT-012", "ELEC-015", "ELEC-016", "ELEC-017"],
-    "description": "Field mark-ups and red-line drawings created by installers during site construction, capturing all deviations from issued-for-construction drawings for as-built documentation."
-  },
-  {
-    "id": "ELEC-023",
-    "name": "As-built Drawings",
-    "owner": "Electrical",
-    "dependencies": ["EXT-013"],
-    "description": "Final as-built drawings updated from field red-lines and mark-ups, accurately reflecting the installed BHS system configuration for client handover and future maintenance reference."
+{
+  "nodes": [
+    {
+      "id": "EXT-001",
+      "name": "BHS Specifications",
+      "owner": "External",
+      "description": "External BHS specifications provided by the airport authority or consultant. These are the foundational technical and operational requirements that define the baggage handling system scope.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-002",
+      "name": "TSA CBIS Concept of Operation & Associated Funding Documentations",
+      "owner": "External",
+      "description": "TSA Checked Baggage Inspection System Concept of Operations and all associated funding documentation required for project authorization and compliance.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-003",
+      "name": "TSA Latest PGDS",
+      "owner": "External",
+      "description": "TSA's latest Planning Guide and Design Standards (PGDS) document, providing regulatory and design standards that must be adhered to throughout the project.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-004",
+      "name": "Mechanical Layout",
+      "owner": "External",
+      "description": "Externally provided mechanical conveyor layout drawings showing the physical arrangement of BHS equipment in the facility.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-005",
+      "name": "Motor Manifest",
+      "owner": "External",
+      "description": "Complete list of all motors in the BHS system including specifications, locations, and electrical requirements provided by the mechanical contractor.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-006",
+      "name": "Airport IT Cyber Security Requirements & Specifications",
+      "owner": "External",
+      "description": "Cyber security requirements and specifications from the airport authority's IT department governing all networked systems within the airport.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-007",
+      "name": "Airlines IT Cyber Security Requirements & Specifications",
+      "owner": "External",
+      "description": "Cyber security requirements and specifications from the airlines' IT departments for systems that interface with airline operations.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-008",
+      "name": "MCP Location",
+      "owner": "External",
+      "description": "Main Control Panel location information provided by the airport, defining where primary control infrastructure will be installed.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-009",
+      "name": "Airlines IT Requirements & Specifications",
+      "owner": "External",
+      "description": "General IT requirements and specifications from the airlines for system integration, communication protocols, and operational interfaces.",
+      "dependencies": []
+    },
+    {
+      "id": "EXT-010",
+      "name": "KASA Contracting",
+      "owner": "External",
+      "description": "KASA (or relevant authority) contracting process and requirements that govern project execution terms and conditions.",
+      "dependencies": []
+    },
+    {
+      "id": "SALE-001",
+      "name": "Brock BID Proposal & Sale Estimates",
+      "owner": "Sale",
+      "description": "Brock's formal BID proposal and sales estimates developed from the BHS specifications, TSA documents, and mechanical layout. This document initiates the sales and contracting process.",
+      "dependencies": [
+        "EXT-001",
+        "EXT-002",
+        "EXT-003",
+        "EXT-004",
+        "EXT-005"
+      ]
+    },
+    {
+      "id": "SALE-002",
+      "name": "Contracting & NTP",
+      "owner": "Sale",
+      "description": "Contract execution and issuance of Notice to Proceed (NTP). This milestone authorizes the project team to begin engineering and development activities.",
+      "dependencies": [
+        "SALE-001",
+        "EXT-010"
+      ]
+    },
+    {
+      "id": "PM-001",
+      "name": "Internal Project Kick-off",
+      "owner": "Project Management",
+      "description": "Internal project kick-off meeting that formally initiates the project. Triggers work order creation in Brock's project management system and resource planning.",
+      "dependencies": [
+        "SALE-002"
+      ]
+    },
+    {
+      "id": "PM-002",
+      "name": "Brock Report Work Order",
+      "owner": "Project Management",
+      "description": "Formal work order created in Brock's reporting system to track the project, assign budget codes, and enable time and resource tracking across all disciplines.",
+      "dependencies": [
+        "PM-001"
+      ]
+    },
+    {
+      "id": "PM-003",
+      "name": "Resource Assignment",
+      "owner": "Project Management",
+      "description": "Assignment of engineering, controls, IT, and other resources to the project based on project scope and schedule requirements.",
+      "dependencies": [
+        "PM-001"
+      ]
+    },
+    {
+      "id": "PM-004",
+      "name": "SharePoint Setup",
+      "owner": "Project Management",
+      "description": "Setup of the project SharePoint site for document management, collaboration, and file sharing among all project disciplines and stakeholders.",
+      "dependencies": [
+        "PM-001"
+      ]
+    },
+    {
+      "id": "PM-005",
+      "name": "Preliminary Internal Schedule",
+      "owner": "Project Management",
+      "description": "Initial project schedule developed internally, capturing key milestones, phase durations, and discipline dependencies across the full project lifecycle.",
+      "dependencies": [
+        "PM-002",
+        "PM-003"
+      ]
+    },
+    {
+      "id": "PM-006",
+      "name": "Panel Build List",
+      "owner": "Project Management",
+      "description": "Consolidated list of all control and power panels to be fabricated, used by the panel shop to schedule and track panel build activities.",
+      "dependencies": [
+        "CTRL-004",
+        "ELEC-002"
+      ]
+    },
+    {
+      "id": "EXT-DES-010",
+      "name": "10% Design",
+      "owner": "External",
+      "description": "10% design deliverable from the external engineer of record or consultant. Provides early schematic-level design for internal review and planning.",
+      "dependencies": [
+        "EXT-001",
+        "EXT-002",
+        "EXT-003"
+      ]
+    },
+    {
+      "id": "EXT-DES-070",
+      "name": "70% Design",
+      "owner": "External",
+      "description": "70% design deliverable providing near-complete engineering drawings and specifications for detailed internal engineering and procurement initiation.",
+      "dependencies": [
+        "EXT-DES-010"
+      ]
+    },
+    {
+      "id": "EXT-DES-100",
+      "name": "100% Design",
+      "owner": "External",
+      "description": "100% final design package from the external engineer of record. Fully approved and stamped drawings used for construction, fabrication, and regulatory submittals.",
+      "dependencies": [
+        "EXT-DES-070"
+      ]
+    },
+    {
+      "id": "PT-001",
+      "name": "Internal Schedule Validation",
+      "owner": "Project Team",
+      "description": "Cross-discipline review and validation of the preliminary internal schedule, ensuring all teams agree on milestones, durations, and dependencies.",
+      "dependencies": [
+        "PM-005",
+        "EXT-DES-010"
+      ]
+    },
+    {
+      "id": "HMI-001",
+      "name": "HMI Software Platform Selection",
+      "owner": "HMI",
+      "description": "Selection of the HMI software platform (e.g., FactoryTalk, Ignition) based on project requirements, airport standards, and compatibility with the control architecture.",
+      "dependencies": [
+        "PM-003",
+        "EXT-DES-010"
+      ]
+    },
+    {
+      "id": "SS-001",
+      "name": "SmartSort Version Selection",
+      "owner": "SmartSort",
+      "description": "Selection of the SmartSort upper-level software version based on project requirements, system architecture, and compatibility with existing airport infrastructure.",
+      "dependencies": [
+        "PM-003",
+        "EXT-DES-010"
+      ]
+    },
+    {
+      "id": "HMI-002",
+      "name": "HMI Functional Specification Sections",
+      "owner": "HMI",
+      "description": "HMI-specific sections of the project functional specification, defining screen layouts, navigation, alarms, reporting, and user interaction requirements.",
+      "dependencies": [
+        "HMI-001",
+        "EXT-DES-070"
+      ]
+    },
+    {
+      "id": "SS-002",
+      "name": "SmartSort Functional Specification Sections",
+      "owner": "SmartSort",
+      "description": "SmartSort upper-level software sections of the functional specification, defining sortation logic, bag tracking, carrier integration, and statistical reporting requirements.",
+      "dependencies": [
+        "SS-001",
+        "EXT-DES-070"
+      ]
+    },
+    {
+      "id": "IT-001",
+      "name": "IT Functional Specification Sections",
+      "owner": "IT",
+      "description": "IT-specific sections of the project functional specification covering network architecture, cybersecurity, server infrastructure, and system integration requirements.",
+      "dependencies": [
+        "EXT-006",
+        "EXT-007",
+        "EXT-DES-070"
+      ]
+    },
+    {
+      "id": "CTRL-001",
+      "name": "Controls Functional Specification Sections",
+      "owner": "Controls",
+      "description": "Controls-specific sections of the project functional specification defining PLC architecture, device-level control logic, safety systems, and inter-system communication.",
+      "dependencies": [
+        "EXT-DES-070",
+        "PM-003"
+      ]
+    },
+    {
+      "id": "PT-002",
+      "name": "Brock Functional Specifications for Approval",
+      "owner": "Project Team",
+      "description": "Consolidated Brock functional specification document compiled from all discipline sections, submitted to the airport/client for review and approval.",
+      "dependencies": [
+        "HMI-002",
+        "SS-002",
+        "IT-001",
+        "CTRL-001"
+      ]
+    },
+    {
+      "id": "EXT-011",
+      "name": "Approved Functional Specification",
+      "owner": "External",
+      "description": "Client/airport authority approved functional specification. This approval gates the start of the formal development phase across all disciplines.",
+      "dependencies": [
+        "PT-002"
+      ]
+    },
+    {
+      "id": "CTRL-002",
+      "name": "Upper-level Architecture Design, Review & Modification",
+      "owner": "IT",
+      "description": "Design, review, and modification of the upper-level network and system architecture including server topology, network segmentation, and system interconnections.",
+      "dependencies": [
+        "EXT-011",
+        "EXT-DES-100"
+      ]
+    },
+    {
+      "id": "IT-002",
+      "name": "Cyber Security Specification",
+      "owner": "IT",
+      "description": "Detailed cybersecurity specification documenting network security controls, access management, firewall rules, patching policies, and compliance requirements.",
+      "dependencies": [
+        "EXT-006",
+        "EXT-007",
+        "EXT-011"
+      ]
+    },
+    {
+      "id": "IT-003",
+      "name": "Logical Network Design",
+      "owner": "IT",
+      "description": "Logical network design document defining VLANs, subnets, routing protocols, and traffic segmentation for the BHS control and upper-level network infrastructure.",
+      "dependencies": [
+        "CTRL-002",
+        "IT-002"
+      ]
+    },
+    {
+      "id": "IT-004",
+      "name": "Upper-level Catalog Cut",
+      "owner": "IT",
+      "description": "Catalog cut sheets for all upper-level hardware including servers, workstations, network switches, and associated equipment selected for the project.",
+      "dependencies": [
+        "CTRL-002"
+      ]
+    },
+    {
+      "id": "IT-005",
+      "name": "Switch Typology/Connection Design",
+      "owner": "IT",
+      "description": "Detailed switch topology and connection design document specifying port assignments, VLAN configurations, uplink connections, and redundancy paths for all network switches.",
+      "dependencies": [
+        "IT-003"
+      ]
+    },
+    {
+      "id": "IT-006",
+      "name": "Switch Connection Spreadsheet",
+      "owner": "IT",
+      "description": "Spreadsheet documenting all switch port connections, device assignments, VLAN memberships, and IP addresses for every switch in the BHS network.",
+      "dependencies": [
+        "IT-005"
+      ]
+    },
+    {
+      "id": "IT-007",
+      "name": "BHS Upper-level Network IP Spreadsheet",
+      "owner": "IT",
+      "description": "Complete IP address allocation spreadsheet for all devices on the BHS upper-level network including servers, workstations, PLCs, cameras, and infrastructure equipment.",
+      "dependencies": [
+        "IT-003"
+      ]
+    },
+    {
+      "id": "IT-008",
+      "name": "Upper-level Network Drawing for Approval",
+      "owner": "IT",
+      "description": "Formal upper-level network drawing submitted for client/airport authority approval, showing all network components, connections, and IP addressing.",
+      "dependencies": [
+        "IT-003",
+        "IT-005",
+        "IT-007"
+      ]
+    },
+    {
+      "id": "IT-009",
+      "name": "IT BOM",
+      "owner": "IT",
+      "description": "Complete IT bill of materials listing all hardware, software licenses, and third-party components required for the upper-level BHS network and server infrastructure.",
+      "dependencies": [
+        "IT-004",
+        "IT-005"
+      ]
+    },
+    {
+      "id": "IT-010",
+      "name": "Upper-level Hardware & Third-party Software Licensing Procurement",
+      "owner": "IT",
+      "description": "Procurement of all approved upper-level hardware (servers, switches, workstations) and third-party software licenses required for the BHS upper-level systems.",
+      "dependencies": [
+        "IT-009",
+        "IT-008"
+      ]
+    },
+    {
+      "id": "IT-011",
+      "name": "Server Hardware & Switch Office Setup",
+      "owner": "IT",
+      "description": "Physical setup and rack assembly of server hardware and network switches in the office/staging environment for pre-configuration and testing prior to site delivery.",
+      "dependencies": [
+        "IT-010"
+      ]
+    },
+    {
+      "id": "IT-012",
+      "name": "Server Hardware & Switch QA",
+      "owner": "IT",
+      "description": "Quality assurance inspection and testing of all server hardware and network switches to verify hardware functionality, configuration accuracy, and readiness for software installation.",
+      "dependencies": [
+        "IT-011"
+      ]
+    },
+    {
+      "id": "IT-013",
+      "name": "Software Installation & Setup",
+      "owner": "IT",
+      "description": "Installation and configuration of all required software on servers and workstations including operating systems, middleware, database software, and BHS application software.",
+      "dependencies": [
+        "IT-012"
+      ]
+    },
+    {
+      "id": "IT-014",
+      "name": "Workstation Configuration, Installation, Setup & Imaging",
+      "owner": "IT",
+      "description": "Configuration, OS imaging, and setup of all operator and engineering workstations including application installation, network configuration, and security hardening.",
+      "dependencies": [
+        "IT-013"
+      ]
+    },
+    {
+      "id": "IT-015",
+      "name": "IT Infrastructure Setup (VLANs, VMs, and etc.)",
+      "owner": "IT",
+      "description": "Configuration of IT infrastructure including virtual machine setup, VLAN configuration, firewall rules, DNS, DHCP, Active Directory, and other network services.",
+      "dependencies": [
+        "IT-013"
+      ]
+    },
+    {
+      "id": "IT-016",
+      "name": "Account & Password Creation in DPS",
+      "owner": "IT",
+      "description": "Creation of user accounts, service accounts, and passwords within the Distributed Processing System (DPS) and associated security management systems.",
+      "dependencies": [
+        "IT-015"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "name": "Lower-level Architecture Design, Review & Modification",
+      "owner": "Controls",
+      "description": "Design, review, and modification of the lower-level PLC and field device control architecture including panel layout, device distribution, and network topology.",
+      "dependencies": [
+        "EXT-011",
+        "EXT-DES-100",
+        "EXT-004",
+        "EXT-005"
+      ]
+    },
+    {
+      "id": "CTRL-004",
+      "name": "Control/Power Panel Breakout",
+      "owner": "Controls",
+      "description": "Breakdown and assignment of all control zones to specific control and power panels, defining which devices are controlled by each panel throughout the BHS.",
+      "dependencies": [
+        "CTRL-003",
+        "EXT-004"
+      ]
+    },
+    {
+      "id": "CTRL-005",
+      "name": "PLC Breakout",
+      "owner": "Controls",
+      "description": "Assignment of PLC processors and I/O to control panels, defining the PLC program structure, chassis configuration, and inter-PLC communication paths.",
+      "dependencies": [
+        "CTRL-004"
+      ]
+    },
+    {
+      "id": "ELEC-001",
+      "name": "Lower-level Catalog Cut",
+      "owner": "Electrical",
+      "description": "Catalog cut sheets for all lower-level electrical components including motor starters, VFDs, breakers, terminals, conduit, and field devices selected for the project.",
+      "dependencies": [
+        "CTRL-003",
+        "EXT-005"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "name": "Lower-level Hardware Estimator",
+      "owner": "Controls",
+      "description": "Detailed hardware quantity and cost estimate for all lower-level controls components including PLCs, I/O cards, field devices, and panel hardware.",
+      "dependencies": [
+        "CTRL-004",
+        "ELEC-001"
+      ]
+    },
+    {
+      "id": "ELEC-002",
+      "name": "Power Calculation",
+      "owner": "Electrical",
+      "description": "Electrical power calculations for all BHS equipment including motor loads, panel sizing, wire gauge selection, and power distribution design.",
+      "dependencies": [
+        "CTRL-003",
+        "EXT-005"
+      ]
+    },
+    {
+      "id": "ELEC-003",
+      "name": "Single Line Drawing For Approval",
+      "owner": "Electrical",
+      "description": "Single-line electrical drawing submitted for client/engineer of record approval, showing power distribution from the main distribution panel to all sub-panels and major loads.",
+      "dependencies": [
+        "ELEC-002"
+      ]
+    },
+    {
+      "id": "ELEC-004",
+      "name": "Flattened 2D CAD Conveyor Layout",
+      "owner": "Electrical",
+      "description": "Flattened 2D CAD drawing of the conveyor layout used as the base layer for electrical device placement, E-stop layout, and field wiring design.",
+      "dependencies": [
+        "EXT-004",
+        "EXT-DES-100"
+      ]
+    },
+    {
+      "id": "ELEC-005",
+      "name": "Device/E-stop Layout Drawing for Approval",
+      "owner": "Electrical",
+      "description": "Drawing showing the location of all field devices and E-stop push buttons throughout the BHS, submitted for client approval prior to construction.",
+      "dependencies": [
+        "ELEC-004",
+        "CTRL-004"
+      ]
+    },
+    {
+      "id": "ELEC-006",
+      "name": "Device/E-stop Layout for Construction",
+      "owner": "Electrical",
+      "description": "Approved and released device and E-stop layout drawing used by field installers for device mounting and wiring during BHS construction.",
+      "dependencies": [
+        "ELEC-005"
+      ]
+    },
+    {
+      "id": "ELEC-007",
+      "name": "Control Station Typicals Drawing for Approval",
+      "owner": "Electrical",
+      "description": "Typical drawings for all control station types (local control stations, E-stop stations, junction boxes) submitted for client/engineer approval.",
+      "dependencies": [
+        "CTRL-003"
+      ]
+    },
+    {
+      "id": "CTRL-007",
+      "name": "HMI Tag Convention",
+      "owner": "Controls",
+      "description": "Document defining the naming convention for all HMI tags, ensuring consistent tag names across the PLC program, HMI screens, and upper-level systems.",
+      "dependencies": [
+        "CTRL-003",
+        "CTRL-005"
+      ]
+    },
+    {
+      "id": "CTRL-008",
+      "name": "HMI Color & Animation Scheme",
+      "owner": "Controls",
+      "description": "Specification defining the color scheme and animation standards for all HMI objects, ensuring consistent visual feedback for operators across all HMI screens.",
+      "dependencies": [
+        "CTRL-007"
+      ]
+    },
+    {
+      "id": "CTRL-009",
+      "name": "HMI Controls",
+      "owner": "Controls",
+      "description": "Definition of standard HMI control objects (faceplates, navigation buttons, alarm displays) used consistently throughout all HMI screens in the project.",
+      "dependencies": [
+        "CTRL-008",
+        "HMI-001"
+      ]
+    },
+    {
+      "id": "CTRL-010",
+      "name": "PLC IO Tag Convention",
+      "owner": "Controls",
+      "description": "Document defining the naming convention for all PLC I/O tags, ensuring consistent and logical naming across all PLC programs and I/O modules in the system.",
+      "dependencies": [
+        "CTRL-005"
+      ]
+    },
+    {
+      "id": "CTRL-011",
+      "name": "Lower-level IO and Peer to Peer Network Design",
+      "owner": "Controls",
+      "description": "Design of the lower-level I/O network and PLC peer-to-peer communication network, defining network topology, protocols, and data exchange between PLCs.",
+      "dependencies": [
+        "CTRL-005",
+        "IT-003"
+      ]
+    },
+    {
+      "id": "ELEC-008",
+      "name": "Network Drawing for Approval",
+      "owner": "Electrical",
+      "description": "Formal network drawing combining upper and lower-level network design, submitted for client/engineer of record approval prior to fabrication.",
+      "dependencies": [
+        "CTRL-011",
+        "IT-008"
+      ]
+    },
+    {
+      "id": "ELEC-009",
+      "name": "Control Panel IO Sheets",
+      "owner": "Electrical",
+      "description": "I/O assignment sheets for each control panel listing every I/O point, its tag name, device assignment, and wire number for use in panel design and PLC programming.",
+      "dependencies": [
+        "CTRL-010",
+        "CTRL-004"
+      ]
+    },
+    {
+      "id": "ELEC-010",
+      "name": "Control & Power Panel Drawing for Approval",
+      "owner": "Electrical",
+      "description": "Complete control and power panel drawings submitted for client and engineer of record approval, showing panel layout, wiring diagrams, and component specifications.",
+      "dependencies": [
+        "ELEC-009",
+        "CTRL-004",
+        "ELEC-002"
+      ]
+    },
+    {
+      "id": "ELEC-011",
+      "name": "Logical Control Panel Drawing for Approval",
+      "owner": "Electrical",
+      "description": "Logical control panel drawings showing PLC I/O wiring, peer-to-peer connections, and network device connections, submitted for approval.",
+      "dependencies": [
+        "CTRL-011",
+        "ELEC-009"
+      ]
+    },
+    {
+      "id": "ELEC-012",
+      "name": "Control & Power Panel Drawing for Fabrication",
+      "owner": "Electrical",
+      "description": "Approved and released control and power panel drawings issued to the panel shop for fabrication, including all revisions from the approval process.",
+      "dependencies": [
+        "ELEC-010"
+      ]
+    },
+    {
+      "id": "ELEC-013",
+      "name": "Logical Control Panel Drawing for Fabrication",
+      "owner": "Electrical",
+      "description": "Approved and released logical control panel drawings issued to the panel shop for fabrication of network and peer-to-peer wiring.",
+      "dependencies": [
+        "ELEC-011"
+      ]
+    },
+    {
+      "id": "ELEC-014",
+      "name": "Single Line Drawing For Construction",
+      "owner": "Electrical",
+      "description": "Approved single-line drawing released for construction use by field electricians, including all approval markups and final revisions.",
+      "dependencies": [
+        "ELEC-003"
+      ]
+    },
+    {
+      "id": "ELEC-015",
+      "name": "Control & Power Panel Drawing for Construction",
+      "owner": "Electrical",
+      "description": "Approved control and power panel drawings released for construction reference, used by field team for installation verification and as-built mark-ups.",
+      "dependencies": [
+        "ELEC-010"
+      ]
+    },
+    {
+      "id": "ELEC-016",
+      "name": "Logical Control Panel Drawing for Construction",
+      "owner": "Electrical",
+      "description": "Approved logical control panel drawings released for construction use by field installers for network and PLC wiring verification.",
+      "dependencies": [
+        "ELEC-011"
+      ]
+    },
+    {
+      "id": "ELEC-017",
+      "name": "Network Drawing for Construction",
+      "owner": "Electrical",
+      "description": "Approved network drawing released for field construction use, guiding installation of network cabling, switch mounting, and device connections.",
+      "dependencies": [
+        "ELEC-008"
+      ]
+    },
+    {
+      "id": "ELEC-018",
+      "name": "PDP Quote and Lead Time",
+      "owner": "Electrical",
+      "description": "Power Distribution Panel (PDP) quote and lead time obtained from suppliers to inform procurement scheduling and project timeline.",
+      "dependencies": [
+        "ELEC-002",
+        "ELEC-003"
+      ]
+    },
+    {
+      "id": "ELEC-019",
+      "name": "PDP Procurement",
+      "owner": "Electrical",
+      "description": "Formal procurement/purchase order for the Power Distribution Panel(s) based on approved specifications and confirmed lead times.",
+      "dependencies": [
+        "ELEC-018"
+      ]
+    },
+    {
+      "id": "ELEC-020",
+      "name": "PDP Inspection",
+      "owner": "Electrical",
+      "description": "Factory inspection of the Power Distribution Panel at the manufacturer's facility to verify compliance with specifications before shipment.",
+      "dependencies": [
+        "ELEC-019"
+      ]
+    },
+    {
+      "id": "ELEC-021",
+      "name": "PDP Site Delivery",
+      "owner": "External",
+      "description": "Delivery of the approved Power Distribution Panel to the project site, ready for installation by the electrical contractor.",
+      "dependencies": [
+        "ELEC-020"
+      ]
+    },
+    {
+      "id": "ELEC-022",
+      "name": "Control, Power Logical Panels & Field Device Material Procurement",
+      "owner": "Electrical",
+      "description": "Procurement of all materials required for control panels, power panels, logical panels, and field devices including all components listed on approved drawings and BOM.",
+      "dependencies": [
+        "ELEC-012",
+        "ELEC-013",
+        "IT-009"
+      ]
+    },
+    {
+      "id": "CTRL-012",
+      "name": "Controls Development Task Scheduler",
+      "owner": "Controls",
+      "description": "Detailed task schedule for the controls development team, breaking down PLC programming, testing, and documentation activities into assignable work packages.",
+      "dependencies": [
+        "CTRL-005",
+        "CTRL-010",
+        "PT-001"
+      ]
+    },
+    {
+      "id": "CTRL-013",
+      "name": "PLC Logic Template",
+      "owner": "Controls",
+      "description": "Reusable PLC logic template library providing standardized function blocks and routines for common BHS devices (conveyors, diverters, scanners) used in program development.",
+      "dependencies": [
+        "CTRL-010",
+        "CTRL-007"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "name": "Source Generator Sheets",
+      "owner": "Controls",
+      "description": "Structured spreadsheets used to automatically generate PLC source code, tag databases, and HMI configurations from device lists and I/O assignments.",
+      "dependencies": [
+        "CTRL-013",
+        "CTRL-010"
+      ]
+    },
+    {
+      "id": "CTRL-015",
+      "name": "Upper-level Tags Export",
+      "owner": "Controls",
+      "description": "Export of upper-level tag database from the Controls source generator, providing tag definitions for SmartSort and HMI upper-level system configuration.",
+      "dependencies": [
+        "CTRL-014",
+        "IT-007"
+      ]
+    },
+    {
+      "id": "CTRL-016",
+      "name": "HMI Tag Exports",
+      "owner": "Controls",
+      "description": "Export of HMI tag database from the Controls source generator, providing all tag definitions required for HMI screen development and PLC connection configuration.",
+      "dependencies": [
+        "CTRL-014",
+        "CTRL-007"
+      ]
+    },
+    {
+      "id": "CTRL-017",
+      "name": "IO Simulator",
+      "owner": "Controls",
+      "description": "I/O simulation tool that allows PLC programs to be tested offline without physical hardware, simulating field device inputs and verifying output logic.",
+      "dependencies": [
+        "CTRL-013",
+        "CTRL-014"
+      ]
+    },
+    {
+      "id": "CTRL-018",
+      "name": "Device-level Test Plan Data Exports",
+      "owner": "Controls",
+      "description": "Automated data exports from the source generator system providing device lists, tag assignments, and configuration data used to generate device-level test plans.",
+      "dependencies": [
+        "CTRL-014",
+        "CTRL-010"
+      ]
+    },
+    {
+      "id": "CTRL-019",
+      "name": "Office Testing Setup",
+      "owner": "Controls",
+      "description": "Setup of the office testing environment including PLC hardware, network connections, simulation software, and HMI stations for pre-site testing activities.",
+      "dependencies": [
+        "CTRL-017",
+        "IT-011"
+      ]
+    },
+    {
+      "id": "CTRL-020",
+      "name": "PLC Program",
+      "owner": "Controls",
+      "description": "Complete PLC program developed from the logic templates and source generator sheets, implementing all conveyor control, safety, and communication logic for the BHS.",
+      "dependencies": [
+        "CTRL-013",
+        "CTRL-014",
+        "CTRL-010",
+        "CTRL-007"
+      ]
+    },
+    {
+      "id": "CTRL-021",
+      "name": "Control Development Plan",
+      "owner": "Controls",
+      "description": "Comprehensive controls development plan documenting the approach, timeline, and milestones for PLC programming, testing, and commissioning activities.",
+      "dependencies": [
+        "CTRL-012",
+        "CTRL-020"
+      ]
+    },
+    {
+      "id": "SS-003",
+      "name": "SmartSuite Software Auto-deployment",
+      "owner": "SmartSort",
+      "description": "Automated deployment of SmartSuite software to all designated servers and workstations using the configured IT infrastructure and deployment tools.",
+      "dependencies": [
+        "IT-015",
+        "SS-001"
+      ]
+    },
+    {
+      "id": "SS-004",
+      "name": "Statistic Configuration",
+      "owner": "SmartSort",
+      "description": "Configuration of the SmartSort statistical reporting module, defining KPIs, data collection points, report templates, and dashboard elements for BHS performance monitoring.",
+      "dependencies": [
+        "SS-003",
+        "CTRL-015"
+      ]
+    },
+    {
+      "id": "SS-005",
+      "name": "HMI Alarm Mapping",
+      "owner": "SmartSort",
+      "description": "Mapping of PLC and device alarms to the SmartSort HMI alarm management system, defining alarm priorities, display text, and notification routing.",
+      "dependencies": [
+        "SS-003",
+        "CTRL-016"
+      ]
+    },
+    {
+      "id": "SS-006",
+      "name": "Device ID Configuration",
+      "owner": "SmartSort",
+      "description": "Configuration of unique device identifiers within SmartSort for all BHS components, enabling bag tracking, device status monitoring, and event correlation.",
+      "dependencies": [
+        "SS-003",
+        "CTRL-015"
+      ]
+    },
+    {
+      "id": "SS-007",
+      "name": "Upper-level Services",
+      "owner": "SmartSort",
+      "description": "Configuration and startup of all SmartSort upper-level Windows services required for system operation including bag tracking, statistics, alarming, and communication services.",
+      "dependencies": [
+        "SS-003",
+        "IT-015"
+      ]
+    },
+    {
+      "id": "SS-008",
+      "name": "Web Client Configurations",
+      "owner": "SmartSort",
+      "description": "Configuration of SmartSort web client interfaces providing browser-based monitoring and control access for authorized airport operators and maintenance personnel.",
+      "dependencies": [
+        "SS-007"
+      ]
+    },
+    {
+      "id": "SS-009",
+      "name": "PRTG Configurations",
+      "owner": "SmartSort",
+      "description": "Configuration of PRTG network monitoring software to monitor all BHS servers, workstations, network switches, and services, with alerting for outages and performance issues.",
+      "dependencies": [
+        "SS-007",
+        "IT-006"
+      ]
+    },
+    {
+      "id": "SS-010",
+      "name": "Upper-level Tag Exports",
+      "owner": "SmartSort",
+      "description": "Export of all upper-level tags from SmartSort configuration for use in integration testing, HMI configuration verification, and system documentation.",
+      "dependencies": [
+        "SS-006",
+        "CTRL-015"
+      ]
+    },
+    {
+      "id": "SS-011",
+      "name": "External Feed Connection Configuration",
+      "owner": "SmartSort",
+      "description": "Configuration of SmartSort connections to external airline and airport systems including DCS feeds, check-in system interfaces, and FIDS integrations.",
+      "dependencies": [
+        "SS-007",
+        "EXT-009"
+      ]
+    },
+    {
+      "id": "SS-012",
+      "name": "PLC Connection Configuration & Validation",
+      "owner": "SmartSort",
+      "description": "Configuration and validation of SmartSort communication connections to all PLCs in the BHS, verifying data exchange, tag mapping, and status monitoring.",
+      "dependencies": [
+        "SS-007",
+        "CTRL-015",
+        "CTRL-020"
+      ]
+    },
+    {
+      "id": "HMI-003",
+      "name": "HMI Servers Software Installation & Setup",
+      "owner": "HMI",
+      "description": "Installation and initial configuration of HMI server software on designated servers, including license activation, server redundancy setup, and initial system configuration.",
+      "dependencies": [
+        "IT-013",
+        "HMI-001"
+      ]
+    },
+    {
+      "id": "HMI-004",
+      "name": "HMI Conveyor Layout",
+      "owner": "HMI",
+      "description": "Creation of the conveyor layout background graphic in the HMI system, providing the base map for device placement and operational overview screens.",
+      "dependencies": [
+        "HMI-003",
+        "ELEC-004"
+      ]
+    },
+    {
+      "id": "HMI-005",
+      "name": "Device Animation",
+      "owner": "HMI",
+      "description": "Development of animated device objects in the HMI that visually indicate device states (running, stopped, faulted, in auto/manual) based on PLC tag values.",
+      "dependencies": [
+        "HMI-003",
+        "CTRL-009"
+      ]
+    },
+    {
+      "id": "HMI-006",
+      "name": "Device Placement",
+      "owner": "HMI",
+      "description": "Placement of animated device objects onto the HMI conveyor layout graphic at locations matching the physical BHS installation.",
+      "dependencies": [
+        "HMI-004",
+        "HMI-005",
+        "ELEC-005"
+      ]
+    },
+    {
+      "id": "HMI-007",
+      "name": "PLC Tag Import",
+      "owner": "HMI",
+      "description": "Import of PLC tag database into the HMI server, establishing the tag references used by all HMI screens, faceplates, and data logging functions.",
+      "dependencies": [
+        "HMI-003",
+        "CTRL-016"
+      ]
+    },
+    {
+      "id": "HMI-008",
+      "name": "PLC Connection Configuration",
+      "owner": "HMI",
+      "description": "Configuration of HMI server connections to all PLCs in the BHS, establishing communications paths and verifying successful data exchange.",
+      "dependencies": [
+        "HMI-007",
+        "CTRL-020"
+      ]
+    },
+    {
+      "id": "HMI-009",
+      "name": "HMI QA",
+      "owner": "HMI",
+      "description": "Quality assurance review of all HMI screens, device animations, tag bindings, and navigation to verify correctness and compliance with the HMI functional specification.",
+      "dependencies": [
+        "HMI-006",
+        "HMI-008"
+      ]
+    },
+    {
+      "id": "HMI-010",
+      "name": "UL Tag Import",
+      "owner": "HMI",
+      "description": "Import of upper-level (SmartSort) tags into the HMI server, enabling display of sortation data, bag counts, and upper-level system status on HMI screens.",
+      "dependencies": [
+        "HMI-007",
+        "SS-010"
+      ]
+    },
+    {
+      "id": "HMI-011",
+      "name": "Finishing up HMI Connection Screen",
+      "owner": "HMI",
+      "description": "Final development and completion of HMI connection monitoring screens showing PLC and upper-level system connection status, enabling rapid fault diagnosis.",
+      "dependencies": [
+        "HMI-009",
+        "HMI-010",
+        "SS-012"
+      ]
+    },
+    {
+      "id": "HMI-012",
+      "name": "Connection Screen QA",
+      "owner": "HMI",
+      "description": "Quality assurance review of HMI connection screens, verifying all PLC and upper-level connections are correctly displayed and status indicators function properly.",
+      "dependencies": [
+        "HMI-011"
+      ]
+    },
+    {
+      "id": "DOC-001",
+      "name": "Device-level Test Plan Template",
+      "owner": "Documentation",
+      "description": "Standardized template for device-level test plans defining the format, required test steps, pass/fail criteria, and sign-off requirements for all device types in the BHS.",
+      "dependencies": [
+        "CTRL-010",
+        "ELEC-005"
+      ]
+    },
+    {
+      "id": "DOC-002",
+      "name": "Sample Device-level Test Plan",
+      "owner": "Documentation",
+      "description": "Completed sample device-level test plan created from the template using actual project device data, used for client review and approval of the testing approach.",
+      "dependencies": [
+        "DOC-001",
+        "CTRL-018"
+      ]
+    },
+    {
+      "id": "CTRL-022",
+      "name": "Sample Device-level Test Plan Review",
+      "owner": "Controls",
+      "description": "Controls team review of the sample device-level test plan to verify completeness, accuracy, and alignment with PLC programming and device configuration.",
+      "dependencies": [
+        "DOC-002"
+      ]
+    },
+    {
+      "id": "DOC-003",
+      "name": "Device-level Test Plan Generation",
+      "owner": "Documentation",
+      "description": "Automated generation of device-level test plans for all BHS devices using the approved template and data exports from the controls source generator system.",
+      "dependencies": [
+        "CTRL-022",
+        "CTRL-018"
+      ]
+    },
+    {
+      "id": "PS-001",
+      "name": "Panel & Field Device Fabrication",
+      "owner": "Panel Shop",
+      "description": "Fabrication of all control panels, power panels, and field device assemblies in the panel shop according to approved drawings and procurement materials.",
+      "dependencies": [
+        "ELEC-012",
+        "ELEC-013",
+        "ELEC-022",
+        "PM-006"
+      ]
+    },
+    {
+      "id": "PS-002",
+      "name": "Panel Shop QA",
+      "owner": "Panel Shop",
+      "description": "Quality assurance inspection of fabricated panels and field device assemblies, verifying compliance with drawings, correct component installation, and wiring accuracy.",
+      "dependencies": [
+        "PS-001"
+      ]
+    },
+    {
+      "id": "PS-003",
+      "name": "Engineering Testing",
+      "owner": "Panel Shop",
+      "description": "Engineering-level testing of fabricated panels in the panel shop, including PLC I/O verification, communication testing, and functional logic checks prior to shipping.",
+      "dependencies": [
+        "PS-002",
+        "CTRL-020"
+      ]
+    },
+    {
+      "id": "PS-004",
+      "name": "Label Engraving",
+      "owner": "Panel Shop",
+      "description": "Engraving of identification labels for all panel components, devices, terminals, and field equipment according to the tag naming conventions and drawing requirements.",
+      "dependencies": [
+        "PS-002"
+      ]
+    },
+    {
+      "id": "PS-005",
+      "name": "Shipping",
+      "owner": "Panel Shop",
+      "description": "Shipping of completed and tested panels and field device assemblies from the panel shop to the project site.",
+      "dependencies": [
+        "PS-003",
+        "PS-004"
+      ]
+    },
+    {
+      "id": "EXT-012",
+      "name": "Panel & Field Device Site Delivery",
+      "owner": "External",
+      "description": "Receipt of panels and field devices at the project site, including unloading, staging, and coordination with site general contractor for installation.",
+      "dependencies": [
+        "PS-005"
+      ]
+    },
+    {
+      "id": "EMU-001",
+      "name": "Emulation Layout",
+      "owner": "Emulation",
+      "description": "Creation of the BHS conveyor layout within the emulation software, providing the physical model basis for virtual commissioning and testing activities.",
+      "dependencies": [
+        "CTRL-019",
+        "ELEC-004"
+      ]
+    },
+    {
+      "id": "EMU-002",
+      "name": "PLC Tag Configurations",
+      "owner": "Emulation",
+      "description": "Configuration of PLC tag connections within the emulation software, linking the virtual BHS model to the PLC program for real-time simulation testing.",
+      "dependencies": [
+        "EMU-001",
+        "CTRL-020"
+      ]
+    },
+    {
+      "id": "EMU-003",
+      "name": "Field Device Creation and Placement",
+      "owner": "Emulation",
+      "description": "Creation and placement of virtual field devices (sensors, actuators, E-stops) within the emulation model at locations matching the physical BHS layout.",
+      "dependencies": [
+        "EMU-001",
+        "ELEC-005"
+      ]
+    },
+    {
+      "id": "EMU-004",
+      "name": "PLC Emulation Logic",
+      "owner": "Emulation",
+      "description": "Development of emulation logic within the simulation software that accurately models conveyor physics, bag movement, scanner reads, and device behaviors for PLC testing.",
+      "dependencies": [
+        "EMU-002",
+        "EMU-003"
+      ]
+    },
+    {
+      "id": "EMU-005",
+      "name": "Emulation Model Integration",
+      "owner": "Controls",
+      "description": "Integration of the emulation model with the PLC program, enabling virtual commissioning where the PLC controls the simulated BHS and results are verified.",
+      "dependencies": [
+        "EMU-004",
+        "CTRL-020"
+      ]
+    },
+    {
+      "id": "CTRL-023",
+      "name": "Tracking Stats and Window Sheets",
+      "owner": "Controls",
+      "description": "Development of tracking statistics and time window configuration sheets defining baggage flow parameters, timing windows, and statistical targets for system optimization.",
+      "dependencies": [
+        "CTRL-021",
+        "SS-004"
+      ]
+    },
+    {
+      "id": "CTRL-024",
+      "name": "Tracking Setup",
+      "owner": "Controls",
+      "description": "Configuration of the bag tracking system including tracking zones, handoff points, read point assignments, and tracking algorithm parameters within the BHS.",
+      "dependencies": [
+        "CTRL-023",
+        "SS-006"
+      ]
+    },
+    {
+      "id": "CTRL-025",
+      "name": "Device Setup",
+      "owner": "Controls",
+      "description": "Individual device setup and parameter configuration for all BHS devices including speed settings, timer values, tracking parameters, and operational mode configurations.",
+      "dependencies": [
+        "CTRL-024",
+        "CTRL-019"
+      ]
+    },
+    {
+      "id": "CTRL-026",
+      "name": "System Testing",
+      "owner": "Controls",
+      "description": "Comprehensive system-level testing using the integrated PLC program, HMI, emulation model, and SmartSort upper-level software to verify end-to-end BHS functionality.",
+      "dependencies": [
+        "CTRL-025",
+        "EMU-005",
+        "HMI-009",
+        "SS-012"
+      ]
+    },
+    {
+      "id": "CTRL-027",
+      "name": "ATR & BMA Integration Specifications",
+      "owner": "Controls",
+      "description": "Specifications for integration of Automatic Tag Reader (ATR) and Baggage Management Application (BMA) systems, defining data exchange formats, timing, and protocols.",
+      "dependencies": [
+        "CTRL-026",
+        "SS-011"
+      ]
+    },
+    {
+      "id": "CTRL-028",
+      "name": "SMH & SAM Connection",
+      "owner": "Controls",
+      "description": "Configuration and testing of connections between the BHS controls and the Sort Management Host (SMH) and Sort Assignment Module (SAM) for real-time sortation decisions.",
+      "dependencies": [
+        "CTRL-027"
+      ]
+    },
+    {
+      "id": "CTRL-029",
+      "name": "HMI Issue List",
+      "owner": "Controls",
+      "description": "Compiled list of HMI issues identified during system testing, providing a tracked action item list for HMI development team resolution prior to FAT.",
+      "dependencies": [
+        "CTRL-026",
+        "HMI-009"
+      ]
+    },
+    {
+      "id": "HMI-013",
+      "name": "Device Level Testing Issue List Resolution",
+      "owner": "HMI",
+      "description": "Resolution by the HMI team of all device-level testing issues identified in the Controls HMI issue list, with verification sign-off for each corrected item.",
+      "dependencies": [
+        "CTRL-029"
+      ]
+    },
+    {
+      "id": "HMI-014",
+      "name": "HMI Server Licensing & Redundancy Setup",
+      "owner": "HMI",
+      "description": "Finalization of HMI server licensing activation and configuration of server redundancy/failover mechanisms to ensure high availability of the HMI system.",
+      "dependencies": [
+        "HMI-012",
+        "IT-014"
+      ]
+    },
+    {
+      "id": "CTRL-030",
+      "name": "Functional Office Testing",
+      "owner": "Controls",
+      "description": "Full functional office testing of the integrated BHS control system including PLC program, HMI, SmartSort upper-level, and emulation in the office environment.",
+      "dependencies": [
+        "CTRL-019",
+        "HMI-009",
+        "SS-012",
+        "CTRL-026"
+      ]
+    },
+    {
+      "id": "CTRL-031",
+      "name": "Lower-level Factory Acceptance Test Plan",
+      "owner": "Controls",
+      "description": "Formal factory acceptance test plan for the lower-level PLC and controls system, defining test procedures, acceptance criteria, and sign-off requirements.",
+      "dependencies": [
+        "DOC-003",
+        "CTRL-030"
+      ]
+    },
+    {
+      "id": "SS-013",
+      "name": "Upper-level Factory Acceptance Test Plan",
+      "owner": "SmartSort",
+      "description": "Formal factory acceptance test plan for the SmartSort upper-level system, defining test scenarios, data validation procedures, and acceptance criteria.",
+      "dependencies": [
+        "DOC-003",
+        "SS-012"
+      ]
+    },
+    {
+      "id": "IT-017",
+      "name": "IT Factory Acceptance Test Plan",
+      "owner": "IT",
+      "description": "Formal factory acceptance test plan for the IT infrastructure, covering network connectivity, server performance, VLAN segmentation, redundancy failover, and security controls.",
+      "dependencies": [
+        "IT-014",
+        "IT-015",
+        "IT-016"
+      ]
+    },
+    {
+      "id": "IT-018",
+      "name": "Cyber FAT Requirement Decision",
+      "owner": "IT",
+      "description": "Decision point determining whether a formal Cyber Security Factory Acceptance Test is required based on contract requirements, airport/airline cyber security specifications.",
+      "dependencies": [
+        "IT-002",
+        "EXT-006",
+        "EXT-007"
+      ]
+    },
+    {
+      "id": "IT-019",
+      "name": "Cyber FAT Test Plan",
+      "owner": "IT",
+      "description": "Formal cybersecurity factory acceptance test plan defining penetration testing scope, vulnerability scanning procedures, and security control verification requirements.",
+      "dependencies": [
+        "IT-018",
+        "IT-002"
+      ]
+    },
+    {
+      "id": "IT-020",
+      "name": "Cyber FAT",
+      "owner": "IT",
+      "description": "Execution of the cybersecurity factory acceptance test including network vulnerability scanning, penetration testing, security configuration review, and results documentation.",
+      "dependencies": [
+        "IT-019",
+        "IT-017"
+      ]
+    },
+    {
+      "id": "CTRL-032",
+      "name": "Factory Acceptance Test Prep",
+      "owner": "Controls",
+      "description": "Preparation activities for the Factory Acceptance Test including client notification, environment setup, test equipment calibration, and stakeholder coordination.",
+      "dependencies": [
+        "CTRL-031",
+        "SS-013",
+        "IT-017",
+        "CTRL-028",
+        "HMI-014"
+      ]
+    },
+    {
+      "id": "CTRL-033",
+      "name": "Factory Acceptance Test",
+      "owner": "Controls",
+      "description": "Formal Factory Acceptance Test (FAT) conducted with the client witnessing, demonstrating full BHS functionality including controls, HMI, upper-level software, and IT infrastructure.",
+      "dependencies": [
+        "CTRL-032",
+        "IT-020"
+      ]
+    },
+    {
+      "id": "CTRL-034",
+      "name": "Post Factory Acceptance Test Correction",
+      "owner": "Controls",
+      "description": "Resolution of all punch list items and deficiencies identified during the Factory Acceptance Test, with client re-verification of corrected items.",
+      "dependencies": [
+        "CTRL-033"
+      ]
+    },
+    {
+      "id": "CTRL-035",
+      "name": "System Level Test HMI Issue List",
+      "owner": "Controls",
+      "description": "Compiled list of outstanding HMI issues identified during system-level testing phase, carried forward for resolution before integrated testing.",
+      "dependencies": [
+        "CTRL-034"
+      ]
+    },
+    {
+      "id": "HMI-015",
+      "name": "System Level Test HMI Issue List Resolution",
+      "owner": "HMI",
+      "description": "HMI team resolution of all system-level test HMI issues with verification and sign-off, ensuring HMI quality before integrated testing with all systems.",
+      "dependencies": [
+        "CTRL-035"
+      ]
+    },
+    {
+      "id": "CTRL-036",
+      "name": "Upper Level Issue List",
+      "owner": "Controls",
+      "description": "Compiled list of upper-level system issues identified during FAT and post-FAT testing, covering SmartSort, HMI, and IT infrastructure items requiring resolution.",
+      "dependencies": [
+        "CTRL-034"
+      ]
+    },
+    {
+      "id": "SS-014",
+      "name": "Integrated Testing",
+      "owner": "SmartSort",
+      "description": "Fully integrated testing of all BHS systems together including controls, HMI, SmartSort upper-level, ATR/BMA interfaces, and external airline/airport system connections.",
+      "dependencies": [
+        "HMI-015",
+        "CTRL-036",
+        "SS-011",
+        "CTRL-028"
+      ]
+    },
+    {
+      "id": "SS-015",
+      "name": "Issue List Resolution",
+      "owner": "SmartSort",
+      "description": "Resolution of all issues identified during integrated testing across all disciplines, with coordinated retesting to verify fixes before site activities begin.",
+      "dependencies": [
+        "SS-014"
+      ]
+    },
+    {
+      "id": "IT-021",
+      "name": "Rabit7 Scan",
+      "owner": "IT",
+      "description": "Execution of Rabit7 (or equivalent) cybersecurity vulnerability scan against all BHS networked systems to identify security vulnerabilities before site deployment.",
+      "dependencies": [
+        "IT-020",
+        "SS-014"
+      ]
+    },
+    {
+      "id": "IT-022",
+      "name": "Rabit7 Scan Result Remediation",
+      "owner": "IT",
+      "description": "Remediation of all vulnerabilities identified in the Rabit7 cybersecurity scan, including patching, configuration changes, and re-scanning to verify remediation effectiveness.",
+      "dependencies": [
+        "IT-021"
+      ]
+    },
+    {
+      "id": "EXT-013",
+      "name": "Field Mark-ups & Red Lines",
+      "owner": "External",
+      "description": "Field mark-ups and red-line drawings created by installers during site construction, capturing all deviations from issued-for-construction drawings for as-built documentation.",
+      "dependencies": [
+        "EXT-012",
+        "ELEC-015",
+        "ELEC-016",
+        "ELEC-017"
+      ]
+    },
+    {
+      "id": "ELEC-023",
+      "name": "As-built Drawings",
+      "owner": "Electrical",
+      "description": "Final as-built drawings updated from field red-lines and mark-ups, accurately reflecting the installed BHS system configuration for client handover and future maintenance reference.",
+      "dependencies": [
+        "EXT-013"
+      ]
+    }
+  ],
+  "_layout": {
+    "currentView": "dag",
+    "dag": {
+      "positions": {
+        "EXT-001": {
+          "x": -1343.154518781255,
+          "y": -1261.6499069965303
+        },
+        "EXT-002": {
+          "x": 138.2534281313322,
+          "y": -1066.67268982996
+        },
+        "EXT-003": {
+          "x": -320.16583356729564,
+          "y": -768.0367806114352
+        },
+        "EXT-004": {
+          "x": -833.1588168967126,
+          "y": -367.5299243487708
+        },
+        "EXT-005": {
+          "x": -698.5436368740995,
+          "y": -98
+        },
+        "EXT-006": {
+          "x": -884.0942904187823,
+          "y": 237.01839030571762
+        },
+        "EXT-007": {
+          "x": 0,
+          "y": 150
+        },
+        "EXT-008": {
+          "x": 0,
+          "y": 274
+        },
+        "EXT-009": {
+          "x": -611.2256822648371,
+          "y": 499.87094704413954
+        },
+        "EXT-010": {
+          "x": 0,
+          "y": 522
+        },
+        "EXT-DES-010": {
+          "x": 320,
+          "y": -98
+        },
+        "SALE-001": {
+          "x": 320,
+          "y": 26
+        },
+        "EXT-DES-070": {
+          "x": 640,
+          "y": -98
+        },
+        "SALE-002": {
+          "x": 640,
+          "y": 26
+        },
+        "EXT-DES-100": {
+          "x": 960,
+          "y": -160
+        },
+        "PM-001": {
+          "x": 960,
+          "y": -36
+        },
+        "IT-001": {
+          "x": 960,
+          "y": 88
+        },
+        "PM-003": {
+          "x": 1280,
+          "y": -222
+        },
+        "ELEC-004": {
+          "x": 1280,
+          "y": -98
+        },
+        "PM-004": {
+          "x": 1280,
+          "y": 26
+        },
+        "PM-002": {
+          "x": 1280,
+          "y": 150
+        },
+        "HMI-001": {
+          "x": 1600,
+          "y": -222
+        },
+        "SS-001": {
+          "x": 1600,
+          "y": -98
+        },
+        "CTRL-001": {
+          "x": 1600,
+          "y": 26
+        },
+        "PM-005": {
+          "x": 1600,
+          "y": 150
+        },
+        "HMI-002": {
+          "x": 1920,
+          "y": -160
+        },
+        "SS-002": {
+          "x": 1920,
+          "y": -36
+        },
+        "PT-001": {
+          "x": 1920,
+          "y": 88
+        },
+        "PT-002": {
+          "x": 2240,
+          "y": -36
+        },
+        "EXT-011": {
+          "x": 2560,
+          "y": -36
+        },
+        "IT-002": {
+          "x": 2880,
+          "y": -160
+        },
+        "CTRL-002": {
+          "x": 2880,
+          "y": -36
+        },
+        "CTRL-003": {
+          "x": 2880,
+          "y": 88
+        },
+        "IT-003": {
+          "x": 3200,
+          "y": -408
+        },
+        "IT-018": {
+          "x": 3200,
+          "y": -284
+        },
+        "IT-004": {
+          "x": 3200,
+          "y": -160
+        },
+        "ELEC-001": {
+          "x": 3200,
+          "y": -36
+        },
+        "ELEC-007": {
+          "x": 3200,
+          "y": 88
+        },
+        "CTRL-004": {
+          "x": 3200,
+          "y": 212
+        },
+        "ELEC-002": {
+          "x": 3200,
+          "y": 336
+        },
+        "IT-007": {
+          "x": 3520,
+          "y": -470
+        },
+        "IT-005": {
+          "x": 3520,
+          "y": -346
+        },
+        "CTRL-005": {
+          "x": 3520,
+          "y": -222
+        },
+        "IT-019": {
+          "x": 3520,
+          "y": -98
+        },
+        "CTRL-006": {
+          "x": 3520,
+          "y": 26
+        },
+        "PM-006": {
+          "x": 3520,
+          "y": 150
+        },
+        "ELEC-005": {
+          "x": 3520,
+          "y": 274
+        },
+        "ELEC-003": {
+          "x": 3520,
+          "y": 398
+        },
+        "IT-009": {
+          "x": 3840,
+          "y": -532
+        },
+        "IT-008": {
+          "x": 3840,
+          "y": -408
+        },
+        "CTRL-007": {
+          "x": 3840,
+          "y": -284
+        },
+        "CTRL-011": {
+          "x": 3840,
+          "y": -160
+        },
+        "IT-006": {
+          "x": 3840,
+          "y": -36
+        },
+        "CTRL-010": {
+          "x": 3840,
+          "y": 88
+        },
+        "ELEC-006": {
+          "x": 3840,
+          "y": 212
+        },
+        "ELEC-014": {
+          "x": 3840,
+          "y": 336
+        },
+        "ELEC-018": {
+          "x": 3840,
+          "y": 460
+        },
+        "IT-010": {
+          "x": 4160,
+          "y": -470
+        },
+        "CTRL-013": {
+          "x": 4160,
+          "y": -346
+        },
+        "ELEC-008": {
+          "x": 4160,
+          "y": -222
+        },
+        "CTRL-008": {
+          "x": 4160,
+          "y": -98
+        },
+        "CTRL-012": {
+          "x": 4160,
+          "y": 26
+        },
+        "DOC-001": {
+          "x": 4160,
+          "y": 150
+        },
+        "ELEC-009": {
+          "x": 4160,
+          "y": 274
+        },
+        "ELEC-019": {
+          "x": 4160,
+          "y": 398
+        },
+        "IT-011": {
+          "x": 4480,
+          "y": -408
+        },
+        "CTRL-014": {
+          "x": 4480,
+          "y": -284
+        },
+        "ELEC-017": {
+          "x": 4480,
+          "y": -160
+        },
+        "CTRL-009": {
+          "x": 4480,
+          "y": -36
+        },
+        "ELEC-010": {
+          "x": 4480,
+          "y": 88
+        },
+        "ELEC-020": {
+          "x": 4480,
+          "y": 212
+        },
+        "ELEC-011": {
+          "x": 4480,
+          "y": 336
+        },
+        "IT-012": {
+          "x": 4800,
+          "y": -656
+        },
+        "CTRL-018": {
+          "x": 4800,
+          "y": -532
+        },
+        "CTRL-020": {
+          "x": 4800,
+          "y": -408
+        },
+        "CTRL-015": {
+          "x": 4800,
+          "y": -284
+        },
+        "CTRL-016": {
+          "x": 4800,
+          "y": -160
+        },
+        "ELEC-015": {
+          "x": 4800,
+          "y": -36
+        },
+        "ELEC-016": {
+          "x": 4800,
+          "y": 88
+        },
+        "ELEC-021": {
+          "x": 4800,
+          "y": 212
+        },
+        "CTRL-017": {
+          "x": 4800,
+          "y": 336
+        },
+        "ELEC-012": {
+          "x": 4800,
+          "y": 460
+        },
+        "ELEC-013": {
+          "x": 4800,
+          "y": 584
+        },
+        "IT-013": {
+          "x": 5120,
+          "y": -284
+        },
+        "DOC-002": {
+          "x": 5120,
+          "y": -160
+        },
+        "CTRL-021": {
+          "x": 5120,
+          "y": -36
+        },
+        "CTRL-019": {
+          "x": 5120,
+          "y": 88
+        },
+        "ELEC-022": {
+          "x": 5120,
+          "y": 212
+        },
+        "IT-015": {
+          "x": 5440,
+          "y": -346
+        },
+        "HMI-003": {
+          "x": 5440,
+          "y": -222
+        },
+        "CTRL-022": {
+          "x": 5440,
+          "y": -98
+        },
+        "IT-014": {
+          "x": 5440,
+          "y": 26
+        },
+        "EMU-001": {
+          "x": 5440,
+          "y": 150
+        },
+        "PS-001": {
+          "x": 5440,
+          "y": 274
+        },
+        "IT-016": {
+          "x": 5760,
+          "y": -532
+        },
+        "SS-003": {
+          "x": 5760,
+          "y": -408
+        },
+        "HMI-004": {
+          "x": 5760,
+          "y": -284
+        },
+        "HMI-005": {
+          "x": 5760,
+          "y": -160
+        },
+        "DOC-003": {
+          "x": 5760,
+          "y": -36
+        },
+        "HMI-007": {
+          "x": 5760,
+          "y": 88
+        },
+        "EMU-002": {
+          "x": 5760,
+          "y": 212
+        },
+        "EMU-003": {
+          "x": 5760,
+          "y": 336
+        },
+        "PS-002": {
+          "x": 5760,
+          "y": 460
+        },
+        "SS-004": {
+          "x": 6080,
+          "y": -594
+        },
+        "SS-006": {
+          "x": 6080,
+          "y": -470
+        },
+        "IT-017": {
+          "x": 6080,
+          "y": -346
+        },
+        "SS-007": {
+          "x": 6080,
+          "y": -222
+        },
+        "SS-005": {
+          "x": 6080,
+          "y": -98
+        },
+        "HMI-006": {
+          "x": 6080,
+          "y": 26
+        },
+        "HMI-008": {
+          "x": 6080,
+          "y": 150
+        },
+        "EMU-004": {
+          "x": 6080,
+          "y": 274
+        },
+        "PS-003": {
+          "x": 6080,
+          "y": 398
+        },
+        "PS-004": {
+          "x": 6080,
+          "y": 522
+        },
+        "CTRL-023": {
+          "x": 6400,
+          "y": -594
+        },
+        "SS-010": {
+          "x": 6400,
+          "y": -470
+        },
+        "IT-020": {
+          "x": 6400,
+          "y": -346
+        },
+        "SS-008": {
+          "x": 6400,
+          "y": -222
+        },
+        "SS-009": {
+          "x": 6400,
+          "y": -98
+        },
+        "SS-011": {
+          "x": 6400,
+          "y": 26
+        },
+        "SS-012": {
+          "x": 6400,
+          "y": 150
+        },
+        "HMI-009": {
+          "x": 6400,
+          "y": 274
+        },
+        "EMU-005": {
+          "x": 6400,
+          "y": 398
+        },
+        "PS-005": {
+          "x": 6400,
+          "y": 522
+        },
+        "CTRL-024": {
+          "x": 6720,
+          "y": -222
+        },
+        "HMI-010": {
+          "x": 6720,
+          "y": -98
+        },
+        "SS-013": {
+          "x": 6720,
+          "y": 26
+        },
+        "EXT-012": {
+          "x": 6720,
+          "y": 150
+        },
+        "CTRL-025": {
+          "x": 7040,
+          "y": -160
+        },
+        "HMI-011": {
+          "x": 7040,
+          "y": -36
+        },
+        "EXT-013": {
+          "x": 7040,
+          "y": 88
+        },
+        "CTRL-026": {
+          "x": 7360,
+          "y": -160
+        },
+        "HMI-012": {
+          "x": 7360,
+          "y": -36
+        },
+        "ELEC-023": {
+          "x": 7360,
+          "y": 88
+        },
+        "CTRL-027": {
+          "x": 7680,
+          "y": -222
+        },
+        "CTRL-030": {
+          "x": 7680,
+          "y": -98
+        },
+        "HMI-014": {
+          "x": 7680,
+          "y": 26
+        },
+        "CTRL-029": {
+          "x": 7680,
+          "y": 150
+        },
+        "CTRL-028": {
+          "x": 8000,
+          "y": -160
+        },
+        "CTRL-031": {
+          "x": 8000,
+          "y": -36
+        },
+        "HMI-013": {
+          "x": 8000,
+          "y": 88
+        },
+        "CTRL-032": {
+          "x": 8320,
+          "y": -36
+        },
+        "CTRL-033": {
+          "x": 8640,
+          "y": -36
+        },
+        "CTRL-034": {
+          "x": 8960,
+          "y": -36
+        },
+        "CTRL-035": {
+          "x": 9280,
+          "y": -98
+        },
+        "CTRL-036": {
+          "x": 9280,
+          "y": 26
+        },
+        "HMI-015": {
+          "x": 9600,
+          "y": -36
+        },
+        "SS-014": {
+          "x": 9920,
+          "y": -36
+        },
+        "IT-021": {
+          "x": 10240,
+          "y": -98
+        },
+        "SS-015": {
+          "x": 10240,
+          "y": 26
+        },
+        "IT-022": {
+          "x": 10560,
+          "y": -36
+        }
+      },
+      "transform": {
+        "x": 378.17849994545577,
+        "y": 397.47270681779327,
+        "k": 0.27485756059446387
+      }
+    },
+    "lanes": null
   }
-]
+}

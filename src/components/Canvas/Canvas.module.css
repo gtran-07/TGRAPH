@@ -98,6 +98,39 @@
 .emptyActionHint {
   font-size: 10px; color: var(--text3); line-height: 1.4;
 }
+.emptyFootnote {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 10px; color: var(--text3);
+  max-width: 360px; text-align: center; line-height: 1.6;
+  margin-top: 10px;
+  pointer-events: none;
+}
+.emptyFootnote svg { flex-shrink: 0; margin-top: 2px; }
+
+.emptyCredit {
+  font-size: 10px;
+  color: var(--text3);
+  opacity: 0.5;
+  margin-top: 18px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+/* Persistent bottom-left attribution — always visible once canvas is shown */
+.credit {
+  position: absolute;
+  bottom: 12px; left: 14px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text3);
+  opacity: 0.4;
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+  letter-spacing: 0.02em;
+  transition: opacity .2s;
+}
+.canvasWrap:hover .credit { opacity: 0.65; }
 
 /* Focus mode banner */
 .focusBanner {

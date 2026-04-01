@@ -38,13 +38,18 @@ export interface ViewLayout {
  * @param lanesLayout  - LANES positions + transform (null if never used)
  * @param filename     - Suggested filename (default: 'flowgraph.json')
  */
-export function exportGraphToJson(
+/**
+ * buildExportPayload — builds the serializable graph data object.
+ *
+ * Shared by exportGraphToJson (download) and the in-place file-write path
+ * so both always produce identical JSON.
+ */
+export function buildExportPayload(
   nodes: GraphNode[],
   currentView?: string,
   dagLayout?: ViewLayout | null,
   lanesLayout?: ViewLayout | null,
-  filename = 'flowgraph.json',
-): void {
+): object {
   const nodeData = nodes.map((node) => ({
     id: node.id,
     name: node.name,
@@ -54,7 +59,7 @@ export function exportGraphToJson(
   }));
 
   const hasLayout = dagLayout || lanesLayout;
-  const exportData = hasLayout
+  return hasLayout
     ? {
         nodes: nodeData,
         _layout: {
@@ -64,7 +69,16 @@ export function exportGraphToJson(
         },
       }
     : nodeData;
+}
 
+export function exportGraphToJson(
+  nodes: GraphNode[],
+  currentView?: string,
+  dagLayout?: ViewLayout | null,
+  lanesLayout?: ViewLayout | null,
+  filename = 'flowgraph.json',
+): void {
+  const exportData = buildExportPayload(nodes, currentView, dagLayout, lanesLayout);
   const jsonString = JSON.stringify(exportData, null, 2);
 
   // Create a downloadable Blob from the JSON string
