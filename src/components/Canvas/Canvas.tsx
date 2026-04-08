@@ -21,6 +21,11 @@ import { EdgeLayer } from './EdgeLayer';
 import { LaneLayer } from './LaneLayer';
 import { MiniMap } from './MiniMap';
 import { GhostEdge } from './GhostEdge';
+import { PhaseLayer } from './PhaseLayer';
+import { PhaseNavigator } from './PhaseNavigator';
+import { PhaseCrowns } from './PhaseCrowns';
+import type { CrownBand } from './PhaseCrowns';
+import { NODE_W, computePhaseAdjustedPositions } from '../../utils/layout';
 import { DesignToolbar } from '../DesignMode/DesignToolbar';
 import {
   computeGroupNestLevel,
@@ -40,12 +45,94 @@ export function Canvas() {
     allNodes, allEdges, ownerColors, laneMetrics, viewMode,
     enterFocusMode, hoveredNodeId, fitToScreen, clearGraph,
     groups, toggleGroupCollapse, clearMultiSelect,
+    phases, focusedPhaseId, selectedPhaseId, setFocusedPhaseId, setSelectedPhaseId,
+    collapsedPhaseIds, togglePhaseCollapse,
   } = useGraphStore();
 
 
   // ── Refs ──────────────────────────────────────────────────────────────
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+
+  // ── Canvas height (SVG user-space) for PhaseLayer band height ─────────
+  // We track the canvas pixel height and divide by the current zoom scale
+  // so bands always span the full visible canvas regardless of zoom level.
+  const [canvasPixelHeight, setCanvasPixelHeight] = useState(600);
+  const [canvasPixelWidth, setCanvasPixelWidth] = useState(1200);
+  useEffect(() => {
+    const el = canvasWrapRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) {
+        setCanvasPixelHeight(rect.height);
+        setCanvasPixelWidth(rect.width);
+      }
+    });
+    obs.observe(el);
+    const rect = el.getBoundingClientRect();
+    setCanvasPixelHeight(rect.height);
+    setCanvasPixelWidth(rect.width);
+    return () => obs.disconnect();
+  }, []);
+  // Convert pixel height to SVG-space height accounting for pan offset
+  const svgBandHeight = canvasPixelHeight / Math.max(transform.k, 0.01) + Math.abs(transform.y / Math.max(transform.k, 0.01)) + 200;
+
+  // ── Nodes hidden by collapsed phases (works in all view modes) ──────────
+  // Computed separately from position adjustment so it's always reliable.
+  const hiddenNodeIds = useMemo(() => {
+    if (collapsedPhaseIds.length === 0) return new Set<string>();
+    const collapsedSet = new Set(collapsedPhaseIds);
+    const hidden = new Set<string>();
+    phases.forEach((ph) => {
+      if (collapsedSet.has(ph.id)) ph.nodeIds.forEach((nid) => hidden.add(nid));
+    });
+    return hidden;
+  }, [phases, collapsedPhaseIds]);
+
+  // ── Phase-adjusted positions (visual x-shift for collapsed bands, dag only) ─
+  // Nodes to the right of a collapsed band shift left to fill freed space.
+  // Stored positions are never mutated.
+  const adjustedPositions = useMemo(() => {
+    if (viewMode !== 'dag' || collapsedPhaseIds.length === 0) return positions;
+    return computePhaseAdjustedPositions(phases, positions, collapsedPhaseIds, NODE_W).adjustedPositions;
+  }, [phases, positions, collapsedPhaseIds, viewMode]);
+
+  // ── Phase crown bands + viewport-presence set ─────────────────────────
+  // Derived from phases + positions + transform. No store state needed.
+  const PHASE_PAD_X_C = 30; // matches PhaseLayer constant
+  const { crownBands, inViewportPhaseIds } = useMemo(() => {
+    const sorted = [...phases].sort((a, b) => a.sequence - b.sequence);
+    const bands: CrownBand[] = [];
+    const inViewport = new Set<string>();
+    const { x: tx, y: _ty, k } = transform;
+
+    // Viewport rectangle in SVG space
+    const vpLeft  = -tx / k;
+    const vpRight = (canvasPixelWidth - tx) / k;
+    const vpTop   = -transform.y / k;
+    const vpBottom = (canvasPixelHeight - transform.y) / k;
+
+    sorted.forEach((phase, idx) => {
+      const assignedPositions = phase.nodeIds
+        .map((nid) => adjustedPositions[nid])
+        .filter((p): p is { x: number; y: number } => !!p);
+      if (assignedPositions.length === 0) return;
+
+      const minX = Math.min(...assignedPositions.map((p) => p.x)) - PHASE_PAD_X_C;
+      const maxX = Math.max(...assignedPositions.map((p) => p.x + NODE_W)) + PHASE_PAD_X_C;
+      bands.push({ phase, idx: idx + 1, minX, maxX });
+
+      // Check if any node in this phase is inside the viewport
+      const hasNodeInView = assignedPositions.some((p) => {
+        return p.x + NODE_W > vpLeft && p.x < vpRight &&
+               p.y > vpTop - 200 && p.y < vpBottom + 200;
+      });
+      if (hasNodeInView) inViewport.add(phase.id);
+    });
+
+    return { crownBands: bands, inViewportPhaseIds: inViewport };
+  }, [phases, adjustedPositions, transform, canvasPixelWidth, canvasPixelHeight]);
 
   // ── Pan state (local — doesn't need to be in global store) ────────────
   const panState = useRef<{ startX: number; startY: number; startTX: number; startTY: number } | null>(null);
@@ -98,6 +185,28 @@ export function Canvas() {
 
     return extra.length > 0 ? [...visibleEdges, ...extra] : visibleEdges;
   }, [visibleEdges, visibleNodes, allEdges, groups]);
+
+  // ── Filter edges and groups hidden by collapsed phases ────────────────
+  // Nodes inside collapsed phases are already skipped at render time via hiddenNodeIds.
+  // Edges touching those nodes must also be removed (no proxy polygon to route them to).
+  // Groups whose every descendant node is phase-hidden are suppressed entirely.
+  const phaseFilteredEdges = useMemo(() => {
+    if (hiddenNodeIds.size === 0) return displayEdges;
+    return displayEdges.filter((e) => !hiddenNodeIds.has(e.from) && !hiddenNodeIds.has(e.to));
+  }, [displayEdges, hiddenNodeIds]);
+
+  const phaseHiddenGroupIds = useMemo(() => {
+    if (hiddenNodeIds.size === 0) return new Set<string>();
+    const hidden = new Set<string>();
+    for (const group of groups) {
+      const descendants = getAllDescendantNodeIds(group.id, groups);
+      if (descendants.length > 0 && descendants.every((id) => hiddenNodeIds.has(id))) {
+        hidden.add(group.id);
+      }
+    }
+    return hidden;
+  }, [groups, hiddenNodeIds]);
+
   const focusedNode = focusNodeId ? allNodes.find((n) => n.id === focusNodeId) : null;
 
   // ── Convert screen coordinates to SVG canvas coordinates ─────────────
@@ -218,8 +327,10 @@ export function Canvas() {
     }
 
     // Click on background — deselect and clear multi-select
-    if (!clickedNode && !clickedGroup) {
+    const clickedPhase = target.closest('[data-phase-id]');
+    if (!clickedNode && !clickedGroup && !clickedPhase) {
       setSelectedNode(null);
+      setSelectedPhaseId(null);
       if (designMode) clearMultiSelect();
     }
   }
@@ -409,10 +520,26 @@ export function Canvas() {
           {/* Layer order: lanes background → edges → nodes (nodes always on top) */}
           {/* key causes React to remount when view/focus changes, replaying the CSS fade-in */}
           <g key={`${viewMode}-${focusMode ? focusNodeId : 'normal'}`} id="graph-content">
+          {/* Phase bands — rendered first, behind everything else */}
+          <g id="phase-layer">
+            <PhaseLayer
+              phases={phases}
+              nodes={visibleNodes}
+              positions={adjustedPositions}
+              focusedPhaseId={focusedPhaseId}
+              selectedPhaseId={selectedPhaseId}
+              canvasHeight={svgBandHeight}
+              collapsedPhaseIds={collapsedPhaseIds}
+              screenToSvg={screenToSvg}
+              onPhaseClick={(id) => setSelectedPhaseId(id)}
+              onPhaseDoubleClick={(id) => togglePhaseCollapse(id)}
+              onToggleCollapse={togglePhaseCollapse}
+            />
+          </g>
           <g id="lanes-layer">
             <LaneLayer
               nodes={visibleNodes}
-              positions={positions}
+              positions={adjustedPositions}
               laneMetrics={laneMetrics}
               ownerColors={ownerColors}
               viewMode={viewMode}
@@ -426,15 +553,15 @@ export function Canvas() {
             {(() => {
               const hiddenGroupIds = getHiddenGroupIds(groups);
               return groups
-                .filter((g) => !g.collapsed && !hiddenGroupIds.has(g.id))
+                .filter((g) => !g.collapsed && !hiddenGroupIds.has(g.id) && !phaseHiddenGroupIds.has(g.id))
                 .sort((a, b) => computeGroupNestLevel(b.id, groups) - computeGroupNestLevel(a.id, groups));
             })().map((group) => {
               const childNodePositions = getAllDescendantNodeIds(group.id, groups)
-                .map((nid) => positions[nid])
+                .map((nid) => adjustedPositions[nid])
                 .filter(Boolean) as { x: number; y: number }[];
               const groupColor = ownerColors[group.owners[0]] ?? '#4f9eff';
               const nestLevel = computeGroupNestLevel(group.id, groups);
-              const pos = positions[group.id] ?? { x: 0, y: 0 };
+              const pos = adjustedPositions[group.id] ?? { x: 0, y: 0 };
               return (
                 <GroupCard
                   key={group.id}
@@ -454,8 +581,8 @@ export function Canvas() {
 
           <g id="edges-layer">
             <EdgeLayer
-              edges={displayEdges}
-              positions={positions}
+              edges={phaseFilteredEdges}
+              positions={adjustedPositions}
               designMode={designMode}
               ownerColors={ownerColors}
               nodes={visibleNodes}
@@ -464,17 +591,17 @@ export function Canvas() {
             {/* Ghost edge shown while drawing a connection in design mode */}
             {designMode && connectSourceId && ghostTarget && (
               <GhostEdge
-                sourcePosition={positions[connectSourceId]}
+                sourcePosition={adjustedPositions[connectSourceId]}
                 targetPoint={ghostTarget}
               />
             )}
           </g>
           <g id="nodes-layer">
-            {visibleNodes.map((node) => (
+            {visibleNodes.filter((node) => !hiddenNodeIds.has(node.id)).map((node) => (
               <NodeCard
                 key={node.id}
                 node={node}
-                position={positions[node.id] ?? { x: 0, y: 0 }}
+                position={adjustedPositions[node.id] ?? { x: 0, y: 0 }}
                 color={ownerColors[node.owner] ?? '#4f9eff'}
                 screenToSvg={screenToSvg}
                 onFocusRequest={handleFocusRequest}
@@ -486,11 +613,11 @@ export function Canvas() {
           <g id="groups-collapsed-layer">
             {(() => {
               const hiddenGroupIds = getHiddenGroupIds(groups);
-              return groups.filter((g) => g.collapsed && !hiddenGroupIds.has(g.id));
+              return groups.filter((g) => g.collapsed && !hiddenGroupIds.has(g.id) && !phaseHiddenGroupIds.has(g.id));
             })().map((group) => {
               const groupColor = ownerColors[group.owners[0]] ?? '#4f9eff';
               const nestLevel = computeGroupNestLevel(group.id, groups);
-              const pos = positions[group.id] ?? { x: 0, y: 0 };
+              const pos = adjustedPositions[group.id] ?? { x: 0, y: 0 };
               return (
                 <GroupCard
                   key={group.id}
@@ -526,10 +653,33 @@ export function Canvas() {
         </div>
       )}
 
+      {/* Phase Crowns — sticky context bars at top edge when headers scroll out of view */}
+      {hasData && phases.length > 0 && (
+        <PhaseCrowns
+          bands={crownBands}
+          transform={transform}
+          canvasWidth={canvasPixelWidth}
+        />
+      )}
+
+      {/* Phase Navigator — floating pill bar */}
+      {hasData && (
+        <PhaseNavigator
+          phases={phases}
+          focusedPhaseId={focusedPhaseId}
+          designMode={designMode}
+          inViewportPhaseIds={inViewportPhaseIds}
+          collapsedPhaseIds={collapsedPhaseIds}
+          onFocusPhase={setFocusedPhaseId}
+          onCreatePhase={() => document.dispatchEvent(new CustomEvent('flowgraph:create-phase', { detail: {} }))}
+          onToggleCollapse={togglePhaseCollapse}
+        />
+      )}
+
       {/* Minimap — bottom right corner overview */}
       <MiniMap
-        nodes={visibleNodes}
-        positions={positions}
+        nodes={visibleNodes.filter((n) => !hiddenNodeIds.has(n.id))}
+        positions={adjustedPositions}
         transform={transform}
         ownerColors={ownerColors}
         canvasRef={canvasWrapRef}

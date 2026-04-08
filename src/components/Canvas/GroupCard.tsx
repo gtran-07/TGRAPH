@@ -14,7 +14,7 @@
 
 import React, { memo, useRef, useState } from 'react';
 import { useGraphStore } from '../../store/graphStore';
-import { computePolygonPoints, computeBoundingBox, GROUP_R } from '../../utils/grouping';
+import { computePolygonPoints, computeBoundingBox, GROUP_R, getAllDescendantNodeIds } from '../../utils/grouping';
 import { NODE_W, NODE_H } from '../../utils/layout';
 import type { GraphGroup, LaneMetrics, Position, ViewMode } from '../../types/graph';
 
@@ -121,7 +121,51 @@ export const GroupCard = memo(function GroupCard({
     }
 
     function onUp() {
-      if (dragRef.current?.moved) saveLayoutToCache();
+      if (dragRef.current?.moved) {
+        const startX = dragRef.current.startNodeX;
+        const startY = dragRef.current.startNodeY;
+
+        const state = useGraphStore.getState();
+        const { phases, positions, groups: allGroups } = state;
+        const PHASE_PAD_X = 30;
+        const newX = positions[group.id]?.x ?? startX;
+
+        // Find phases the group belongs to via its descendant nodes
+        const descendantIds = new Set(getAllDescendantNodeIds(group.id, allGroups));
+        const myPhaseIds = new Set(
+          phases
+            .filter((ph) => ph.nodeIds.some((nid) => descendantIds.has(nid)))
+            .map((ph) => ph.id)
+        );
+
+        // Check if the group's new polygon position overlaps a foreign phase band
+        let shouldSnapBack = false;
+        for (const phase of phases) {
+          if (myPhaseIds.has(phase.id)) continue;
+          const assignedPositions = phase.nodeIds
+            .map((nid) => positions[nid])
+            .filter((p): p is { x: number; y: number } => !!p);
+          if (assignedPositions.length === 0) continue;
+          const bandMinX = Math.min(...assignedPositions.map((p) => p.x)) - PHASE_PAD_X;
+          const bandMaxX = Math.max(...assignedPositions.map((p) => p.x + NODE_W)) + PHASE_PAD_X;
+          // Group polygon center is at newX; radius is GROUP_R
+          if (newX + GROUP_R > bandMinX && newX - GROUP_R < bandMaxX) {
+            shouldSnapBack = true;
+            break;
+          }
+        }
+
+        if (shouldSnapBack) {
+          const el = groupRef.current;
+          el?.classList.add('node-snapping');
+          useGraphStore.setState((s) => ({
+            positions: { ...s.positions, [group.id]: { x: startX, y: startY } },
+          }));
+          setTimeout(() => el?.classList.remove('node-snapping'), 300);
+        } else {
+          saveLayoutToCache();
+        }
+      }
       groupRef.current?.classList.remove('node-dragging');
       dragRef.current = null;
       window.removeEventListener('mousemove', onMove);

@@ -11,12 +11,16 @@
  * What does NOT belong here: any DOM manipulation, React state, or SVG rendering.
  */
 
-import type { GraphNode, GraphEdge, Position, LaneMetrics } from '../types/graph';
+import type { GraphNode, GraphEdge, GraphPhase, Position, LaneMetrics } from '../types/graph';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 /** Width of each node rectangle in SVG user-space units */
 export const NODE_W = 180;
+/** Horizontal padding applied to each side of a phase band beyond its node bounding box */
+export const PHASE_PAD_X = 30;
+/** Width (in SVG user-space) of a horizontally collapsed phase band */
+export const COLLAPSED_W = 48;
 /** Height of each node rectangle in SVG user-space units */
 export const NODE_H = 72;
 /** Horizontal gap between node columns (the space between layers) */
@@ -393,6 +397,262 @@ export function computeEdgePath(from: Position, to: Position): string {
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 1) + '…';
+}
+
+// ─── PHASE-AWARE LAYOUT UTILITIES ───────────────────────────────────────────
+
+/**
+ * enforcePhaseZones — post-processes DAG positions to push unphased nodes out of phase bands.
+ *
+ * After computeLayout() assigns positions, any node not assigned to a phase may end up
+ * visually inside a phase band. This function detects those violations and relocates
+ * the offending nodes to a "free zone" to the right of all phase bands, preserving
+ * their relative x-ordering.
+ *
+ * Only runs in DAG view (caller responsibility). Phase-owned nodes are never moved.
+ *
+ * @param rawPositions - Output from computeLayout()
+ * @param phases       - All phases (any order)
+ * @param nodeW        - NODE_W constant (passed to avoid circular deps)
+ */
+export function enforcePhaseZones(
+  rawPositions: Record<string, Position>,
+  phases: GraphPhase[],
+  nodeW: number
+): Record<string, Position> {
+  if (phases.length === 0) return rawPositions;
+
+  // Build nodeId → phaseId lookup
+  const nodeToPhaseId = new Map<string, string>();
+  phases.forEach((ph) => ph.nodeIds.forEach((nid) => nodeToPhaseId.set(nid, ph.id)));
+
+  // Compute each phase's x-range from its own assigned nodes' raw positions
+  const sorted = [...phases].sort((a, b) => a.sequence - b.sequence);
+  const phaseRanges: { id: string; minX: number; maxX: number }[] = [];
+  sorted.forEach((ph) => {
+    const pts = ph.nodeIds.map((nid) => rawPositions[nid]).filter((p): p is Position => !!p);
+    if (pts.length === 0) return;
+    const minX = Math.min(...pts.map((p) => p.x)) - PHASE_PAD_X;
+    const maxX = Math.max(...pts.map((p) => p.x + nodeW)) + PHASE_PAD_X;
+    phaseRanges.push({ id: ph.id, minX, maxX });
+  });
+
+  if (phaseRanges.length === 0) return rawPositions;
+
+  const rightEdge = Math.max(...phaseRanges.map((r) => r.maxX));
+
+  // Find unphased nodes whose x overlaps any phase band
+  const violators: { nodeId: string; origX: number }[] = [];
+  Object.entries(rawPositions).forEach(([nodeId, pos]) => {
+    if (nodeToPhaseId.has(nodeId)) return; // phased node — never moved
+    const inside = phaseRanges.some((r) => pos.x + nodeW > r.minX && pos.x < r.maxX);
+    if (inside) violators.push({ nodeId, origX: pos.x });
+  });
+
+  if (violators.length === 0) return rawPositions;
+
+  // Sort violators by original x and assign new x values starting after all phases.
+  // Nodes that shared the same original x column keep the same new x (column preserved).
+  violators.sort((a, b) => a.origX - b.origX);
+  const oldXToNewX = new Map<number, number>();
+  let nextX = rightEdge + GAP_X;
+  violators.forEach(({ origX }) => {
+    if (!oldXToNewX.has(origX)) {
+      oldXToNewX.set(origX, nextX);
+      nextX += nodeW + GAP_X;
+    }
+  });
+
+  const adjusted = { ...rawPositions };
+  violators.forEach(({ nodeId, origX }) => {
+    adjusted[nodeId] = { ...adjusted[nodeId], x: oldXToNewX.get(origX)! };
+  });
+  return adjusted;
+}
+
+/**
+ * pushNodesOutOfPhaseBand — displaces unphased nodes that overlap a newly created phase band.
+ *
+ * Called immediately after createPhase() so that nodes already on the canvas
+ * don't visually sit inside the new phase band. Each violating node is pushed
+ * toward its nearest exit: nodes whose center is left of the band center go left,
+ * others go right. Both directions skip over any other existing phase bands.
+ *
+ * @param positions          - Current stored positions (not mutated)
+ * @param allPhasesAfterCreate - Full phase list including the new phase
+ * @param newPhaseId         - ID of the phase just created
+ * @param nodeW              - NODE_W constant
+ */
+export function pushNodesOutOfPhaseBand(
+  positions: Record<string, Position>,
+  allPhasesAfterCreate: GraphPhase[],
+  newPhaseId: string,
+  nodeW: number
+): Record<string, Position> {
+  const newPhase = allPhasesAfterCreate.find((p) => p.id === newPhaseId);
+  if (!newPhase) return positions;
+
+  // Compute the new phase band boundaries from its assigned nodes
+  const assignedPts = newPhase.nodeIds.map((nid) => positions[nid]).filter((p): p is Position => !!p);
+  if (assignedPts.length === 0) return positions;
+
+  const bandMinX = Math.min(...assignedPts.map((p) => p.x)) - PHASE_PAD_X;
+  const bandMaxX = Math.max(...assignedPts.map((p) => p.x + nodeW)) + PHASE_PAD_X;
+  const bandCenterX = (bandMinX + bandMaxX) / 2;
+
+  // Build set of ALL phased node IDs
+  const phasedNodeIds = new Set<string>();
+  allPhasesAfterCreate.forEach((ph) => ph.nodeIds.forEach((nid) => phasedNodeIds.add(nid)));
+
+  // Compute all other phase bands (for collision avoidance when placing displaced nodes)
+  const otherPhaseRanges: { minX: number; maxX: number }[] = [];
+  allPhasesAfterCreate.forEach((ph) => {
+    if (ph.id === newPhaseId) return;
+    const pts = ph.nodeIds.map((nid) => positions[nid]).filter((p): p is Position => !!p);
+    if (pts.length === 0) return;
+    const minX = Math.min(...pts.map((p) => p.x)) - PHASE_PAD_X;
+    const maxX = Math.max(...pts.map((p) => p.x + nodeW)) + PHASE_PAD_X;
+    otherPhaseRanges.push({ minX, maxX });
+  });
+
+  // Find violators: unphased nodes overlapping the new band
+  const rightGroup: { nodeId: string; origX: number }[] = [];
+  const leftGroup: { nodeId: string; origX: number }[] = [];
+
+  Object.entries(positions).forEach(([nodeId, pos]) => {
+    if (phasedNodeIds.has(nodeId)) return;
+    const overlaps = pos.x < bandMaxX && pos.x + nodeW > bandMinX;
+    if (!overlaps) return;
+    const nodeCenterX = pos.x + nodeW / 2;
+    if (nodeCenterX < bandCenterX) {
+      leftGroup.push({ nodeId, origX: pos.x });
+    } else {
+      rightGroup.push({ nodeId, origX: pos.x });
+    }
+  });
+
+  if (rightGroup.length === 0 && leftGroup.length === 0) return positions;
+
+  const adjusted = { ...positions };
+
+  // Helper: check if a candidate x-range overlaps any other phase band
+  function overlapsOtherPhase(candidateX: number): boolean {
+    return otherPhaseRanges.some(
+      (r) => candidateX < r.maxX && candidateX + nodeW > r.minX
+    );
+  }
+
+  // Push-right: sort by x ascending, place after bandMaxX, skip other phase bands
+  if (rightGroup.length > 0) {
+    rightGroup.sort((a, b) => a.origX - b.origX);
+    const oldXToNewX = new Map<number, number>();
+    let nextX = bandMaxX + GAP_X;
+    rightGroup.forEach(({ origX }) => {
+      if (!oldXToNewX.has(origX)) {
+        while (overlapsOtherPhase(nextX)) {
+          const blocking = otherPhaseRanges.find(
+            (r) => nextX < r.maxX && nextX + nodeW > r.minX
+          )!;
+          nextX = blocking.maxX + GAP_X;
+        }
+        oldXToNewX.set(origX, nextX);
+        nextX += nodeW + GAP_X;
+      }
+    });
+    rightGroup.forEach(({ nodeId, origX }) => {
+      adjusted[nodeId] = { ...adjusted[nodeId], x: oldXToNewX.get(origX)! };
+    });
+  }
+
+  // Push-left: sort by x descending, place before bandMinX, skip other phase bands
+  if (leftGroup.length > 0) {
+    leftGroup.sort((a, b) => b.origX - a.origX);
+    const oldXToNewX = new Map<number, number>();
+    let nextX = bandMinX - GAP_X - nodeW;
+    leftGroup.forEach(({ origX }) => {
+      if (!oldXToNewX.has(origX)) {
+        while (overlapsOtherPhase(nextX)) {
+          const blocking = otherPhaseRanges.find(
+            (r) => nextX < r.maxX && nextX + nodeW > r.minX
+          )!;
+          nextX = blocking.minX - GAP_X - nodeW;
+        }
+        oldXToNewX.set(origX, nextX);
+        nextX -= nodeW + GAP_X;
+      }
+    });
+    leftGroup.forEach(({ nodeId, origX }) => {
+      adjusted[nodeId] = { ...adjusted[nodeId], x: oldXToNewX.get(origX)! };
+    });
+  }
+
+  return adjusted;
+}
+
+/**
+ * computePhaseAdjustedPositions — computes virtual x-offsets for phase collapse/expand.
+ *
+ * When one or more phases are collapsed, their bands shrink to COLLAPSED_W pixels wide.
+ * All nodes (and groups) to the RIGHT of a collapsed band shift left to fill the freed space.
+ * Nodes INSIDE a collapsed band are added to hiddenNodeIds (rendered invisible).
+ *
+ * This is a pure render-time transform — stored positions are never mutated.
+ *
+ * @param phases            - All phases
+ * @param rawPositions      - Stored positions (not mutated)
+ * @param collapsedPhaseIds - IDs of currently collapsed phases
+ * @param nodeW             - NODE_W constant
+ */
+export function computePhaseAdjustedPositions(
+  phases: GraphPhase[],
+  rawPositions: Record<string, Position>,
+  collapsedPhaseIds: string[],
+  nodeW: number
+): {
+  adjustedPositions: Record<string, Position>;
+  hiddenNodeIds: Set<string>;
+} {
+  if (collapsedPhaseIds.length === 0) {
+    return { adjustedPositions: rawPositions, hiddenNodeIds: new Set() };
+  }
+
+  const collapsedSet = new Set(collapsedPhaseIds);
+
+  // Compute each phase's x-range
+  const phaseInfos: { id: string; minX: number; maxX: number; collapsed: boolean }[] = [];
+  phases.forEach((ph) => {
+    const pts = ph.nodeIds.map((nid) => rawPositions[nid]).filter((p): p is Position => !!p);
+    if (pts.length === 0) return;
+    const minX = Math.min(...pts.map((p) => p.x)) - PHASE_PAD_X;
+    const maxX = Math.max(...pts.map((p) => p.x + nodeW)) + PHASE_PAD_X;
+    phaseInfos.push({ id: ph.id, minX, maxX, collapsed: collapsedSet.has(ph.id) });
+  });
+
+  // Nodes inside collapsed phases are hidden
+  const hiddenNodeIds = new Set<string>();
+  phases.forEach((ph) => {
+    if (collapsedSet.has(ph.id)) ph.nodeIds.forEach((nid) => hiddenNodeIds.add(nid));
+  });
+
+  const collapsedInfos = phaseInfos.filter((pi) => pi.collapsed);
+  if (collapsedInfos.length === 0) return { adjustedPositions: rawPositions, hiddenNodeIds };
+
+  // For each position entry (node or group), compute the x shift:
+  // shift = sum of savings from every collapsed phase whose maxX <= this entry's x.
+  // Condition "pos.x >= pi.maxX" ensures only nodes strictly to the right of a collapsed
+  // band are shifted — nodes inside the band itself (hidden) are not shifted.
+  const adjustedPositions: Record<string, Position> = {};
+  Object.entries(rawPositions).forEach(([id, pos]) => {
+    let shift = 0;
+    collapsedInfos.forEach((pi) => {
+      if (pos.x >= pi.maxX) {
+        shift += (pi.maxX - pi.minX) - COLLAPSED_W;
+      }
+    });
+    adjustedPositions[id] = shift === 0 ? pos : { ...pos, x: pos.x - shift };
+  });
+
+  return { adjustedPositions, hiddenNodeIds };
 }
 
 /**

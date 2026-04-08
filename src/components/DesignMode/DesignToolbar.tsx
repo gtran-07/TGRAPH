@@ -2,7 +2,7 @@
  * components/DesignMode/DesignToolbar.tsx — Purple banner toolbar shown when design mode is active.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGraphStore } from '../../store/graphStore';
 import type { DesignTool } from '../../types/graph';
 import styles from './DesignToolbar.module.css';
@@ -19,7 +19,10 @@ export function DesignToolbar() {
     selectedNodeId, selectedGroupId,
     undoStack, redoStack, undo, redo,
     multiSelectIds, clearMultiSelect, groups,
+    phases, assignNodesToPhase,
   } = useGraphStore();
+
+  const [phasePickerOpen, setPhasePickerOpen] = useState(false);
 
   // Ctrl+Z = undo, Ctrl+Y or Ctrl+Shift+Z = redo
   useEffect(() => {
@@ -46,6 +49,25 @@ export function DesignToolbar() {
     document.dispatchEvent(
       new CustomEvent('flowgraph:edit-group', { detail: { groupId: selectedGroupId } })
     );
+  }
+
+  function getSelectedNodeIds() {
+    const groupIds = new Set(groups.map((g) => g.id));
+    if (multiSelectIds.length > 0) {
+      return multiSelectIds.filter((id) => !groupIds.has(id));
+    }
+    return selectedNodeId ? [selectedNodeId] : [];
+  }
+
+  function handleAssignToPhase(phaseId: string) {
+    assignNodesToPhase(getSelectedNodeIds(), phaseId);
+    setPhasePickerOpen(false);
+  }
+
+  function handleAssignNewPhase() {
+    const nodeIds = getSelectedNodeIds();
+    document.dispatchEvent(new CustomEvent('flowgraph:create-phase', { detail: { nodeIds } }));
+    setPhasePickerOpen(false);
   }
 
   function handleCreateGroup() {
@@ -124,6 +146,69 @@ export function DesignToolbar() {
             style={{ opacity: 0.6 }}
           >✕ Clear</button>
         </>
+      )}
+
+      <div className={styles.sep} />
+
+      {/* Assign selected nodes to a phase */}
+      {(multiSelectIds.length >= 1 || !!selectedNodeId) && designTool === 'select' && (
+        <div style={{ position: 'relative' }}>
+          <button
+            className={styles.toolBtn}
+            onClick={() => setPhasePickerOpen((o) => !o)}
+            title="Assign selected nodes to a phase"
+            style={{ background: 'rgba(74,144,217,0.12)', borderColor: '#4A90D9', color: '#4A90D9' }}
+          >
+            ◈ Phase
+          </button>
+          {phasePickerOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '110%',
+              left: 0,
+              background: 'var(--surface1)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+              minWidth: 180,
+              zIndex: 100,
+              padding: '6px 0',
+            }}>
+              {phases.length === 0 ? null : phases.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleAssignToPhase(p.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    width: '100%', padding: '6px 14px',
+                    background: 'none', border: 'none',
+                    cursor: 'pointer', fontSize: 12, color: 'var(--text1)',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface2)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                  {p.name}
+                </button>
+              ))}
+              <button
+                onClick={handleAssignNewPhase}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', padding: '6px 14px',
+                  background: 'none', border: 'none', borderTop: phases.length > 0 ? '1px solid var(--border)' : 'none',
+                  cursor: 'pointer', fontSize: 12, color: 'var(--accent)',
+                  textAlign: 'left', marginTop: phases.length > 0 ? 4 : 0,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+              >
+                + New Phase…
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <div className={styles.sep} />

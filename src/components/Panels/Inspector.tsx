@@ -17,6 +17,7 @@ export function Inspector() {
   const {
     selectedNodeId, allNodes, ownerColors, setSelectedNode, designMode,
     selectedGroupId, groups, setSelectedGroup,
+    selectedPhaseId, phases, setSelectedPhaseId, deletePhase,
   } = useGraphStore();
 
   const selectedNode = selectedNodeId
@@ -27,7 +28,11 @@ export function Inspector() {
     ? groups.find((g) => g.id === selectedGroupId)
     : null;
 
-  const hasSelection = !!selectedNode || !!selectedGroup;
+  const selectedPhase = selectedPhaseId
+    ? phases.find((p) => p.id === selectedPhaseId)
+    : null;
+
+  const hasSelection = !!selectedNode || !!selectedGroup || !!selectedPhase;
 
   // ── userOpen: the user-controlled open state ──────────────────────────
   const [userOpen, setUserOpen] = useState(false);
@@ -48,6 +53,10 @@ export function Inspector() {
     prevGroupIdRef.current = selectedGroupId;
   }, [selectedGroupId]);
 
+  useEffect(() => {
+    if (selectedPhaseId) setUserOpen(true);
+  }, [selectedPhaseId]);
+
   // ── Listen for the header ▣ toggle button ─────────────────────────────
   useEffect(() => {
     function handleToggle() {
@@ -63,6 +72,7 @@ export function Inspector() {
     setUserOpen(false);
     setSelectedNode(null);
     setSelectedGroup(null);
+    setSelectedPhaseId(null);
   }
 
   function handleEditClick() {
@@ -94,7 +104,85 @@ export function Inspector() {
 
       <div className={styles.body}>
         {!hasSelection ? (
-          <div className={styles.empty}>Select a node or group to view its details.</div>
+          <div className={styles.empty}>Select a node, group, or phase to view its details.</div>
+        ) : selectedPhase ? (
+          /* ── Phase details ──────────────────────────────────────────── */
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                width: 12, height: 12, borderRadius: '50%',
+                background: selectedPhase.color, flexShrink: 0, display: 'inline-block',
+              }} />
+              <div className={styles.name}>{selectedPhase.name}</div>
+            </div>
+            <div className={styles.sub}>Phase ID: {selectedPhase.id} · Seq: {selectedPhase.sequence + 1}</div>
+
+            <div className={styles.section}>Description</div>
+            <div className={styles.desc}>
+              {selectedPhase.description || 'No description provided.'}
+            </div>
+
+            <div className={styles.section}>
+              Nodes ({selectedPhase.nodeIds.length})
+            </div>
+            <div className={styles.tags}>
+              {selectedPhase.nodeIds.length === 0 ? (
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>No nodes assigned.</span>
+              ) : (
+                selectedPhase.nodeIds.slice(0, 8).map((nid) => {
+                  const n = allNodes.find((node) => node.id === nid);
+                  return (
+                    <span key={nid} className={`${styles.tag} ${styles.tagDep}`}>
+                      {n ? n.name : nid}
+                    </span>
+                  );
+                })
+              )}
+              {selectedPhase.nodeIds.length > 8 && (
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                  +{selectedPhase.nodeIds.length - 8} more…
+                </span>
+              )}
+            </div>
+
+            {designMode && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                <button
+                  onClick={() => document.dispatchEvent(new CustomEvent('flowgraph:edit-phase', { detail: { phaseId: selectedPhase.id } }))}
+                  style={{
+                    width: '100%', padding: '8px 0', borderRadius: 5,
+                    border: '1px solid #4A90D9',
+                    background: 'rgba(74,144,217,0.1)',
+                    color: '#4A90D9',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11, fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✏️ Edit Phase
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete phase "${selectedPhase.name}"?`)) {
+                      deletePhase(selectedPhase.id);
+                      setSelectedPhaseId(null);
+                    }
+                  }}
+                  style={{
+                    width: '100%', padding: '8px 0', borderRadius: 5,
+                    border: '1px solid var(--danger, #e74c3c)',
+                    background: 'rgba(231,76,60,0.08)',
+                    color: 'var(--danger, #e74c3c)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11, fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🗑 Delete Phase
+                </button>
+              </div>
+            )}
+          </>
         ) : selectedGroup ? (
           /* ── Group details ──────────────────────────────────────────── */
           <>

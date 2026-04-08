@@ -15,6 +15,7 @@ import { Canvas } from './components/Canvas/Canvas';
 import { Inspector } from './components/Panels/Inspector';
 import { NodeEditModal } from './components/DesignMode/NodeEditModal';
 import { GroupEditModal } from './components/DesignMode/GroupEditModal';
+import { PhaseEditModal } from './components/DesignMode/PhaseEditModal';
 import { UserGuideModal } from './components/Modals/UserGuideModal';
 import styles from './App.module.css';
 
@@ -43,6 +44,7 @@ export default function App() {
       {/* Modals — rendered outside the layout flow so they overlay everything */}
       <NodeEditModal />
       <GroupEditModal />
+      <PhaseEditModal />
       <UserGuideModal />
     </div>
   );

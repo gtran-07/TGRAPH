@@ -184,6 +184,46 @@ export interface UndoSnapshot {
   nodes: GraphNode[];
   positions: Record<string, Position>;
   groups: GraphGroup[];
+  phases?: GraphPhase[];
+}
+
+// ─── PHASE TYPES ─────────────────────────────────────────────────────────────
+
+/**
+ * 8 soft pastel colors auto-assigned to phases in order.
+ * Users may override with any hex value.
+ */
+export const PHASE_PALETTE = [
+  '#4A90D9', // Sky Blue
+  '#27AE60', // Emerald Green
+  '#F5A623', // Amber
+  '#9B59B6', // Violet
+  '#E74C3C', // Coral Red
+  '#16A085', // Teal
+  '#E67E22', // Burnt Orange
+  '#2980B9', // Ocean Blue
+] as const;
+
+/**
+ * GraphPhase — a named time/progress band shown as a vertical column on the canvas.
+ *
+ * Phases capture the _when_ dimension (e.g. "Discovery → Design → Build → Deploy").
+ * They are purely visual overlays: they do NOT affect layout, visibility, or dependencies.
+ * A node belongs to at most one phase (flat — no nesting unlike groups).
+ */
+export interface GraphPhase {
+  /** Unique identifier in the format "PHASE-01" */
+  id: string;
+  /** Display name shown in the band header and navigator pill */
+  name: string;
+  /** Optional detail shown in the Inspector */
+  description: string;
+  /** Hex color from PHASE_PALETTE or user-chosen */
+  color: string;
+  /** IDs of nodes assigned to this phase */
+  nodeIds: string[];
+  /** 0, 1, 2… determines left-to-right band order on the canvas */
+  sequence: number;
 }
 
 // ─── GROUP TYPES ─────────────────────────────────────────────────────────────

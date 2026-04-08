@@ -20,6 +20,7 @@ import type {
   GraphNode,
   GraphEdge,
   GraphGroup,
+  GraphPhase,
   Position,
   Transform,
   ViewMode,
@@ -29,10 +30,13 @@ import type {
   LaneMetrics,
   UndoSnapshot,
 } from '../types/graph';
+import { PHASE_PALETTE } from '../types/graph';
 import {
   computeLayout,
   computeLaneLayout,
   rebuildEdgesFromNodes,
+  enforcePhaseZones,
+  pushNodesOutOfPhaseBand,
   NODE_W,
   NODE_H,
   LANE_LABEL_W,
@@ -126,6 +130,16 @@ export interface GraphStore {
   /** ID of the selected group (shown in Inspector). Null when nothing selected. */
   selectedGroupId: string | null;
 
+  // ── Phases ────────────────────────────────────────────────────────────────
+  /** All phases in the graph (vertical time bands on the canvas) */
+  phases: GraphPhase[];
+  /** ID of the phase whose details are shown in the Inspector. Null if nothing selected. */
+  selectedPhaseId: string | null;
+  /** ID of the phase currently spotlit via the Phase Navigator. Null = show all. */
+  focusedPhaseId: string | null;
+  /** IDs of phases currently collapsed to a narrow strip (transient — not serialized) */
+  collapsedPhaseIds: string[];
+
   /** Name of the currently-loaded JSON file, or null if no file is loaded */
   currentFileName: string | null;
   /**
@@ -195,6 +209,28 @@ export interface GraphStore {
   toggleMultiSelect: (id: string) => void;
   /** Clear all multi-selected items */
   clearMultiSelect: () => void;
+
+  // ── Phase actions ──────────────────────────────────────────────────────────
+  /** Create a new phase, optionally pre-assigning nodes */
+  createPhase: (nodeIds: string[], data: { name: string; description: string; color?: string }) => void;
+  /** Collapse a phase band to a narrow strip */
+  collapsePhase: (id: string) => void;
+  /** Expand a previously collapsed phase band */
+  expandPhase: (id: string) => void;
+  /** Toggle the collapsed/expanded state of a phase band */
+  togglePhaseCollapse: (id: string) => void;
+  /** Update one or more fields of an existing phase */
+  updatePhase: (id: string, changes: Partial<Omit<GraphPhase, 'id'>>) => void;
+  /** Delete a phase (nodes are unaffected — they simply no longer belong to a phase) */
+  deletePhase: (id: string) => void;
+  /** Assign a set of nodes to a phase, removing them from any previous phase first */
+  assignNodesToPhase: (nodeIds: string[], phaseId: string) => void;
+  /** Remove a set of nodes from whichever phase they belong to */
+  removeNodesFromPhase: (nodeIds: string[]) => void;
+  /** Set the selected phase ID (Inspector) */
+  setSelectedPhaseId: (id: string | null) => void;
+  /** Set the focused phase ID (Navigator spotlight) */
+  setFocusedPhaseId: (id: string | null) => void;
 }
 
 // ─── HELPER: compute visible nodes/edges from current state ─────────────────
@@ -263,15 +299,17 @@ function derivePositions(
   visibleEdges: GraphEdge[],
   viewMode: ViewMode,
   activeOwners: Set<string>,
-  allNodes: GraphNode[]
+  allNodes: GraphNode[],
+  phases?: GraphPhase[]
 ): { positions: Record<string, Position>; laneMetrics: Record<string, LaneMetrics> } {
   if (viewMode === 'lanes') {
     return computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes);
   } else {
-    return {
-      positions: computeLayout(visibleNodes, visibleEdges),
-      laneMetrics: {},
-    };
+    const raw = computeLayout(visibleNodes, visibleEdges);
+    const positions = phases && phases.length > 0
+      ? enforcePhaseZones(raw, phases, NODE_W)
+      : raw;
+    return { positions, laneMetrics: {} };
   }
 }
 
@@ -305,6 +343,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   groups: [],
   multiSelectIds: [],
   selectedGroupId: null,
+  phases: [],
+  selectedPhaseId: null,
+  focusedPhaseId: null,
+  collapsedPhaseIds: [],
   currentFileName: null,
   fileHandle: null,
 
@@ -337,6 +379,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       groups: [],
       multiSelectIds: [],
       selectedGroupId: null,
+      phases: [],
+      selectedPhaseId: null,
+      focusedPhaseId: null,
+      collapsedPhaseIds: [],
       currentFileName: null,
       fileHandle: null,
     });
@@ -362,6 +408,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     // Extract groups from savedLayout if present
     const groups: GraphGroup[] = (savedLayout as { groups?: GraphGroup[] } | null)?.groups ?? [];
+    // Extract phases from savedLayout if present (backward compat — default empty)
+    const phases: GraphPhase[] = (savedLayout as { phases?: GraphPhase[] } | null)?.phases ?? [];
 
     const { visibleNodes, visibleEdges } = deriveVisibility(
       nodes, allEdges, activeOwners, false, null, groups
@@ -392,7 +440,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     // Compute fresh layout for the active view (used as fallback for missing positions)
     const { positions: freshPositions, laneMetrics } = activeLayout
       ? derivePositions(visibleNodes, visibleEdges, restoredViewMode, activeOwners, nodes)
-      : derivePositions(visibleNodes, visibleEdges, 'dag', activeOwners, nodes);
+      : derivePositions(visibleNodes, visibleEdges, 'dag', activeOwners, nodes, phases);
 
     set({
       allNodes: nodes,
@@ -421,6 +469,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       groups,
       multiSelectIds: [],
       selectedGroupId: null,
+      phases,
+      selectedPhaseId: null,
+      focusedPhaseId: null,
+      collapsedPhaseIds: [],
       transform: activeLayout ? activeLayout.transform : { x: 0, y: 0, k: 1 },
       currentFileName: fileName ?? null,
       fileHandle: null, // caller sets this via setFileHandle after loadData
@@ -643,6 +695,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       // Reset tool to 'select' when toggling design mode on or off
       designTool: 'select',
       connectSourceId: null,
+      // Clear selection when exiting design mode so no red-glow highlights remain
+      ...(on ? {} : {
+        selectedNodeId: null,
+        selectedGroupId: null,
+        selectedPhaseId: null,
+        multiSelectIds: [],
+      }),
     });
   },
 
@@ -707,7 +766,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   // ── setSelectedNode ───────────────────────────────────────────────────────
   setSelectedNode: (id: string | null) => set((s) => ({
     selectedNodeId: id,
-    selectedGroupId: null, // Selecting a node always clears group selection
+    selectedGroupId: null,
+    selectedPhaseId: id !== null ? null : s.selectedPhaseId,
     lastJumpedNodeId: s.lastJumpedNodeId && s.lastJumpedNodeId !== id ? null : s.lastJumpedNodeId,
   })),
 
@@ -881,7 +941,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     );
 
     const { positions, laneMetrics } = derivePositions(
-      visibleNodes, visibleEdges, state.viewMode, state.activeOwners, state.allNodes
+      visibleNodes, visibleEdges, state.viewMode, state.activeOwners, state.allNodes, state.phases
     );
 
     set({ visibleNodes, visibleEdges, positions, laneMetrics });
@@ -1235,7 +1295,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   // ── setSelectedGroup ──────────────────────────────────────────────────────
-  setSelectedGroup: (id) => set({ selectedGroupId: id, selectedNodeId: null }),
+  setSelectedGroup: (id) => set({ selectedGroupId: id, selectedNodeId: null, selectedPhaseId: null }),
 
   // ── toggleMultiSelect ─────────────────────────────────────────────────────
   toggleMultiSelect: (id) => {
@@ -1248,4 +1308,136 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   // ── clearMultiSelect ──────────────────────────────────────────────────────
   clearMultiSelect: () => set({ multiSelectIds: [] }),
+
+  // ── createPhase ───────────────────────────────────────────────────────────
+  createPhase: (nodeIds, data) => {
+    const state = get();
+
+    const undoSnapshot: UndoSnapshot = {
+      nodes: [...state.allNodes],
+      positions: { ...state.positions },
+      groups: [...state.groups],
+      phases: [...state.phases],
+    };
+
+    const nextSeq = state.phases.length > 0
+      ? Math.max(...state.phases.map((p) => p.sequence)) + 1
+      : 0;
+    const colorIdx = state.phases.length % PHASE_PALETTE.length;
+    const id = `PHASE-${String(state.phases.length + 1).padStart(2, '0')}`;
+
+    const newPhase: GraphPhase = {
+      id,
+      name: data.name,
+      description: data.description,
+      color: data.color ?? PHASE_PALETTE[colorIdx],
+      nodeIds,
+      sequence: nextSeq,
+    };
+
+    // Remove these nodes from any existing phase
+    const phases = state.phases.map((p) => ({
+      ...p,
+      nodeIds: p.nodeIds.filter((nid) => !nodeIds.includes(nid)),
+    }));
+
+    const allPhasesAfterCreate = [...phases, newPhase];
+    const adjustedPositions = pushNodesOutOfPhaseBand(
+      state.positions,
+      allPhasesAfterCreate,
+      newPhase.id,
+      NODE_W
+    );
+
+    set({
+      phases: allPhasesAfterCreate,
+      positions: adjustedPositions,
+      designDirty: true,
+      undoStack: [...state.undoStack, undoSnapshot].slice(-50),
+      redoStack: [],
+    });
+  },
+
+  // ── updatePhase ───────────────────────────────────────────────────────────
+  updatePhase: (id, changes) => {
+    const state = get();
+    const phases = state.phases.map((p) => (p.id === id ? { ...p, ...changes } : p));
+    set({ phases, designDirty: true });
+  },
+
+  // ── deletePhase ───────────────────────────────────────────────────────────
+  deletePhase: (id) => {
+    const state = get();
+
+    const undoSnapshot: UndoSnapshot = {
+      nodes: [...state.allNodes],
+      positions: { ...state.positions },
+      groups: [...state.groups],
+      phases: [...state.phases],
+    };
+
+    const phases = state.phases.filter((p) => p.id !== id);
+    set({
+      phases,
+      selectedPhaseId: state.selectedPhaseId === id ? null : state.selectedPhaseId,
+      focusedPhaseId: state.focusedPhaseId === id ? null : state.focusedPhaseId,
+      collapsedPhaseIds: state.collapsedPhaseIds.filter((x) => x !== id),
+      designDirty: true,
+      undoStack: [...state.undoStack, undoSnapshot].slice(-50),
+      redoStack: [],
+    });
+  },
+
+  // ── assignNodesToPhase ────────────────────────────────────────────────────
+  assignNodesToPhase: (nodeIds, phaseId) => {
+    const state = get();
+    const phases = state.phases.map((p) => {
+      if (p.id === phaseId) {
+        // Add without duplication
+        const merged = [...new Set([...p.nodeIds, ...nodeIds])];
+        return { ...p, nodeIds: merged };
+      }
+      // Remove from all other phases
+      return { ...p, nodeIds: p.nodeIds.filter((nid) => !nodeIds.includes(nid)) };
+    });
+    set({ phases, designDirty: true });
+  },
+
+  // ── removeNodesFromPhase ──────────────────────────────────────────────────
+  removeNodesFromPhase: (nodeIds) => {
+    const state = get();
+    const phases = state.phases.map((p) => ({
+      ...p,
+      nodeIds: p.nodeIds.filter((nid) => !nodeIds.includes(nid)),
+    }));
+    set({ phases, designDirty: true });
+  },
+
+  // ── setSelectedPhaseId ────────────────────────────────────────────────────
+  setSelectedPhaseId: (id) => set({ selectedPhaseId: id, selectedNodeId: null, selectedGroupId: null }),
+
+  // ── setFocusedPhaseId ─────────────────────────────────────────────────────
+  setFocusedPhaseId: (id) => set({ focusedPhaseId: id }),
+
+  // ── collapsePhase ─────────────────────────────────────────────────────────
+  collapsePhase: (id) => {
+    const state = get();
+    if (state.collapsedPhaseIds.includes(id)) return;
+    set({ collapsedPhaseIds: [...state.collapsedPhaseIds, id] });
+  },
+
+  // ── expandPhase ───────────────────────────────────────────────────────────
+  expandPhase: (id) => set((s) => ({
+    collapsedPhaseIds: s.collapsedPhaseIds.filter((x) => x !== id),
+  })),
+
+  // ── togglePhaseCollapse ───────────────────────────────────────────────────
+  togglePhaseCollapse: (id) => {
+    const state = get();
+    set({
+      collapsedPhaseIds: state.collapsedPhaseIds.includes(id)
+        ? state.collapsedPhaseIds.filter((x) => x !== id)
+        : [...state.collapsedPhaseIds, id],
+    });
+  },
 }));

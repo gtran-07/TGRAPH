@@ -13,6 +13,7 @@
 import React, { memo, useRef, useState } from 'react';
 import { useGraphStore } from '../../store/graphStore';
 import { NODE_W, NODE_H, truncateText } from '../../utils/layout';
+import { getAllDescendantNodeIds, GROUP_R } from '../../utils/grouping';
 import type { GraphNode, Position } from '../../types/graph';
 
 interface NodeCardProps {
@@ -108,7 +109,102 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
     }
 
     function onMouseUp() {
-      if (dragRef.current?.moved) saveLayoutToCache();
+      if (dragRef.current?.moved) {
+        const startX = dragRef.current.startNodeX;
+        const startY = dragRef.current.startNodeY;
+
+        const state = useGraphStore.getState();
+        const { phases, positions } = state;
+        const PHASE_PAD_X = 30;
+        const newX = positions[node.id]?.x ?? startX;
+
+        // Find which phase this node belongs to (if any)
+        const myPhase = phases.find((ph) => ph.nodeIds.includes(node.id));
+
+        // Check if the dropped position overlaps a foreign phase band
+        let shouldSnapBack = false;
+        for (const phase of phases) {
+          if (myPhase && phase.id === myPhase.id) continue;
+          const assignedPositions = phase.nodeIds
+            .filter((nid) => nid !== node.id)
+            .map((nid) => positions[nid])
+            .filter((p): p is { x: number; y: number } => !!p);
+          if (assignedPositions.length === 0) continue;
+          const bandMinX = Math.min(...assignedPositions.map((p) => p.x)) - PHASE_PAD_X;
+          const bandMaxX = Math.max(...assignedPositions.map((p) => p.x + NODE_W)) + PHASE_PAD_X;
+          if (newX + NODE_W > bandMinX && newX < bandMaxX) {
+            shouldSnapBack = true;
+            break;
+          }
+        }
+
+        if (shouldSnapBack) {
+          const el = groupRef.current;
+          el?.classList.add('node-snapping');
+          useGraphStore.setState((s) => ({
+            positions: { ...s.positions, [node.id]: { x: startX, y: startY } },
+          }));
+          setTimeout(() => el?.classList.remove('node-snapping'), 300);
+        } else {
+          // Valid drop — push any non-member nodes/groups out of the expanded phase band
+          if (myPhase) {
+            const freshState = useGraphStore.getState();
+            const freshPositions = freshState.positions;
+            const freshGroups = freshState.groups;
+            const PUSH_GAP = 20;
+
+            // Recompute band bounds from all nodes in myPhase at their current positions
+            const myPhasePositions = myPhase.nodeIds
+              .map((nid) => freshPositions[nid])
+              .filter((p): p is { x: number; y: number } => !!p);
+
+            if (myPhasePositions.length > 0) {
+              const newBandMinX = Math.min(...myPhasePositions.map((p) => p.x)) - PHASE_PAD_X;
+              const newBandMaxX = Math.max(...myPhasePositions.map((p) => p.x + NODE_W)) + PHASE_PAD_X;
+              const bandCenterX = (newBandMinX + newBandMaxX) / 2;
+              const myPhaseNodeSet = new Set(myPhase.nodeIds);
+              const pushedPositions: Record<string, { x: number; y: number }> = {};
+
+              // Push non-member nodes
+              for (const n of freshState.allNodes) {
+                if (myPhaseNodeSet.has(n.id)) continue;
+                const pos = freshPositions[n.id];
+                if (!pos) continue;
+                if (pos.x + NODE_W > newBandMinX && pos.x < newBandMaxX) {
+                  const nudgeLeft = pos.x + NODE_W / 2 < bandCenterX;
+                  pushedPositions[n.id] = {
+                    x: nudgeLeft ? newBandMinX - NODE_W - PUSH_GAP : newBandMaxX + PUSH_GAP,
+                    y: pos.y,
+                  };
+                }
+              }
+
+              // Push non-member collapsed groups
+              for (const g of freshGroups) {
+                if (!g.collapsed) continue;
+                const pos = freshPositions[g.id];
+                if (!pos) continue;
+                const descendantIds = new Set(getAllDescendantNodeIds(g.id, freshGroups));
+                if (myPhase.nodeIds.some((nid) => descendantIds.has(nid))) continue;
+                if (pos.x + GROUP_R > newBandMinX && pos.x - GROUP_R < newBandMaxX) {
+                  const nudgeLeft = pos.x < bandCenterX;
+                  pushedPositions[g.id] = {
+                    x: nudgeLeft ? newBandMinX - GROUP_R - PUSH_GAP : newBandMaxX + GROUP_R + PUSH_GAP,
+                    y: pos.y,
+                  };
+                }
+              }
+
+              if (Object.keys(pushedPositions).length > 0) {
+                useGraphStore.setState((s) => ({
+                  positions: { ...s.positions, ...pushedPositions },
+                }));
+              }
+            }
+          }
+          saveLayoutToCache();
+        }
+      }
       groupRef.current?.classList.remove('node-dragging');
       dragRef.current = null;
       window.removeEventListener('mousemove', onMouseMove);

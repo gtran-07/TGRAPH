@@ -258,7 +258,9 @@ export function exportToPdf(
   ownerColors?: Record<string, string>,
   nodeOwnerMap?: Record<string, string>,
   _currentTransform?: { x: number; y: number; k: number },
-  viewMode?: string
+  viewMode?: string,
+  onExpandAllPhases?: () => void,
+  onRestoreCollapsed?: () => void
 ): void {
   const svgEl      = document.querySelector('#canvas-wrap > svg') as SVGSVGElement | null;
   const graphRoot  = document.getElementById('graph-root') as SVGGElement | null;
@@ -272,6 +274,9 @@ export function exportToPdf(
   // Read dimensions BEFORE any DOM mutation
   const svgW = canvasWrap.clientWidth  || svgEl.clientWidth  || 1400;
   const svgH = canvasWrap.clientHeight || svgEl.clientHeight || 900;
+
+  // Expand all collapsed phases so bands print in full
+  onExpandAllPhases?.();
 
   // Isolate canvas — hides sidebar, header, inspector, modals
   const restoreIsolation = isolateCanvas(canvasWrap);
@@ -323,6 +328,7 @@ export function exportToPdf(
     bgGrid.remove();
     markerDefs.remove();
     restoreEdges(edgeSnaps);
+    onRestoreCollapsed?.();
 
     if (savedViewBox !== null) svgEl!.setAttribute('viewBox', savedViewBox);
     else svgEl!.removeAttribute('viewBox');

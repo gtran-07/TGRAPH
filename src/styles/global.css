@@ -262,6 +262,23 @@ body {
   animation: graphFadeIn 0.3s ease;
 }
 
+/* ─── PHASE SNAP-BACK ───────────────────────────────────────────────────────
+ * Applied briefly when a node/group is dropped onto a foreign phase band.
+ * The transition on `transform` makes the position revert animate smoothly.
+ * The opacity flash draws attention to the rejection.
+ */
+@keyframes snapBackFlash {
+  0%   { opacity: 0.5; }
+  60%  { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+
+.node-group.node-snapping,
+.group-overlay.node-snapping {
+  transition: transform 220ms ease-out !important;
+  animation: snapBackFlash 220ms ease-out;
+}
+
 /* ─── PRINT / PDF EXPORT ──────────────────────────────────────────────────────
  * DOM isolation, viewBox, background, grid, and edge colorization are all
  * handled programmatically in exportPdf.ts before window.print() is called.

@@ -9,7 +9,7 @@
  * What does NOT belong here: any React state, DOM manipulation beyond the download link.
  */
 
-import type { GraphNode, GraphGroup, Position, Transform } from '../types/graph';
+import type { GraphNode, GraphGroup, GraphPhase, Position, Transform } from '../types/graph';
 
 /** One view's saved layout — positions for every node + the viewport transform. */
 export interface ViewLayout {
@@ -50,6 +50,7 @@ export function buildExportPayload(
   dagLayout?: ViewLayout | null,
   lanesLayout?: ViewLayout | null,
   groups?: GraphGroup[],
+  phases?: GraphPhase[],
 ): object {
   const nodeData = nodes.map((node) => ({
     id: node.id,
@@ -61,11 +62,13 @@ export function buildExportPayload(
 
   const hasLayout = dagLayout || lanesLayout;
   const hasGroups = groups && groups.length > 0;
+  const hasPhases = phases && phases.length > 0;
 
   if (hasLayout) {
     return {
       nodes: nodeData,
       ...(hasGroups ? { groups } : {}),
+      ...(hasPhases ? { phases } : {}),
       _layout: {
         currentView: currentView ?? 'dag',
         dag: dagLayout ?? null,
@@ -74,8 +77,12 @@ export function buildExportPayload(
     };
   }
 
-  if (hasGroups) {
-    return { nodes: nodeData, groups };
+  if (hasGroups || hasPhases) {
+    return {
+      nodes: nodeData,
+      ...(hasGroups ? { groups } : {}),
+      ...(hasPhases ? { phases } : {}),
+    };
   }
 
   return nodeData;
@@ -88,8 +95,9 @@ export function exportGraphToJson(
   lanesLayout?: ViewLayout | null,
   filename = 'flowgraph.json',
   groups?: GraphGroup[],
+  phases?: GraphPhase[],
 ): void {
-  const exportData = buildExportPayload(nodes, currentView, dagLayout, lanesLayout, groups);
+  const exportData = buildExportPayload(nodes, currentView, dagLayout, lanesLayout, groups, phases);
   const jsonString = JSON.stringify(exportData, null, 2);
 
   // Create a downloadable Blob from the JSON string
