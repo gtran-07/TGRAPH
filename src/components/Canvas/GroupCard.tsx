@@ -78,9 +78,12 @@ export const GroupCard = memo(function GroupCard({
 
     const svgPt = screenToSvg(e.clientX, e.clientY);
     wasDraggedRef.current = false;
+    // Read actual store positions (not phase-adjusted visual positions) so the drag
+    // delta is applied in the same coordinate space the store uses.
+    const storePos = useGraphStore.getState().positions[group.id] ?? position;
     dragRef.current = {
       startSvgX: svgPt.x, startSvgY: svgPt.y,
-      startNodeX: position.x, startNodeY: position.y,
+      startNodeX: storePos.x, startNodeY: storePos.y,
       moved: false,
     };
 

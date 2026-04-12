@@ -65,11 +65,16 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
 
     const svgPt = screenToSvg(e.clientX, e.clientY);
     wasDraggedRef.current = false;
+    // Read actual store positions (not phase-adjusted visual positions) so the drag
+    // delta is applied in the same coordinate space the store uses. If we used the
+    // adjusted `position` prop here, the phase offset would be double-counted on
+    // every frame — causing nodes to teleport when any phase is collapsed.
+    const storePos = useGraphStore.getState().positions[node.id] ?? position;
     dragRef.current = {
       startSvgX: svgPt.x,
       startSvgY: svgPt.y,
-      startNodeX: position.x,
-      startNodeY: position.y,
+      startNodeX: storePos.x,
+      startNodeY: storePos.y,
       moved: false,
     };
 
