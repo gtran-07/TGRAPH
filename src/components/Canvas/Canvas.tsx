@@ -24,6 +24,8 @@ import { GhostEdge } from './GhostEdge';
 import { PhaseLayer } from './PhaseLayer';
 import { PhaseNavigator } from './PhaseNavigator';
 import { PhaseCrowns } from './PhaseCrowns';
+import { LaneCrowns } from './LaneCrowns';
+import { PhaseHoverCard } from './PhaseHoverCard';
 import type { CrownBand } from './PhaseCrowns';
 import { NODE_W, LANE_LABEL_W, computePhaseAdjustedPositions } from '../../utils/layout';
 import { DesignToolbar } from '../DesignMode/DesignToolbar';
@@ -101,11 +103,14 @@ export function Canvas() {
   // ── Phase crown bands + viewport-presence set ─────────────────────────
   // Derived from phases + positions + transform. No store state needed.
   const PHASE_PAD_X_C = 30; // matches PhaseLayer constant
-  const { crownBands, inViewportPhaseIds } = useMemo(() => {
+  const PHASE_HEADER_H = 48; // matches PhaseLayer HEADER_H
+  const PHASE_PAD_Y_C  = 20; // matches PhaseLayer PHASE_PAD_Y
+  const { crownBands, inViewportPhaseIds, globalBandTop } = useMemo(() => {
     const sorted = [...phases].sort((a, b) => a.sequence - b.sequence);
     const bands: CrownBand[] = [];
     const inViewport = new Set<string>();
     const { x: tx, y: _ty, k } = transform;
+    const allBandMinYs: number[] = [];
 
     // Viewport rectangle in SVG space
     const vpLeft  = -tx / k;
@@ -114,16 +119,23 @@ export function Canvas() {
     const vpBottom = (canvasPixelHeight - transform.y) / k;
 
     sorted.forEach((phase, idx) => {
-      const assignedPositions = phase.nodeIds
+      const nodePositions = phase.nodeIds
         .map((nid) => adjustedPositions[nid])
         .filter((p): p is { x: number; y: number } => !!p);
+      const groupPositions = (phase.groupIds ?? [])
+        .map((gid) => adjustedPositions[gid])
+        .filter((p): p is { x: number; y: number } => !!p);
+      const assignedPositions = [...nodePositions, ...groupPositions];
       if (assignedPositions.length === 0) return;
 
       const minX = Math.min(...assignedPositions.map((p) => p.x)) - PHASE_PAD_X_C;
       const maxX = Math.max(...assignedPositions.map((p) => p.x + NODE_W)) + PHASE_PAD_X_C;
       bands.push({ phase, idx: idx + 1, minX, maxX });
 
-      // Check if any node in this phase is inside the viewport
+      const minY = Math.min(...assignedPositions.map((p) => p.y));
+      allBandMinYs.push(minY);
+
+      // Check if any member of this phase is inside the viewport
       const hasNodeInView = assignedPositions.some((p) => {
         return p.x + NODE_W > vpLeft && p.x < vpRight &&
                p.y > vpTop - 200 && p.y < vpBottom + 200;
@@ -131,7 +143,12 @@ export function Canvas() {
       if (hasNodeInView) inViewport.add(phase.id);
     });
 
-    return { crownBands: bands, inViewportPhaseIds: inViewport };
+    // globalBandTop mirrors PhaseLayer's calculation: the shared header top for all bands.
+    const gbt = allBandMinYs.length > 0
+      ? Math.min(...allBandMinYs) - PHASE_HEADER_H - PHASE_PAD_Y_C
+      : 0;
+
+    return { crownBands: bands, inViewportPhaseIds: inViewport, globalBandTop: gbt };
   }, [phases, adjustedPositions, transform, canvasPixelWidth, canvasPixelHeight]);
 
   // ── Pan state (local — doesn't need to be in global store) ────────────
@@ -139,6 +156,15 @@ export function Canvas() {
 
   // ── Ghost edge mouse position (for drawing connections) ───────────────
   const [ghostTarget, setGhostTarget] = useState<{ x: number; y: number } | null>(null);
+
+  // ── Collapsed phase hover card ─────────────────────────────────────────
+  const [collapsedPhaseHover, setCollapsedPhaseHover] = useState<{
+    phaseId: string;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const [collapsedPhaseHiding, setCollapsedPhaseHiding] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasData = visibleNodes.length > 0 || allNodes.length > 0;
 
@@ -429,6 +455,21 @@ export function Canvas() {
     }
   }, [designMode, enterFocusMode, fitToScreen]);
 
+  // ── Collapsed phase hover card handlers ───────────────────────────────
+  const handleCollapsedHover = useCallback((phaseId: string, cx: number, cy: number) => {
+    if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+    setCollapsedPhaseHiding(false);
+    setCollapsedPhaseHover({ phaseId, clientX: cx, clientY: cy });
+  }, []);
+
+  const handleCollapsedHoverEnd = useCallback(() => {
+    setCollapsedPhaseHiding(true);
+    hideTimerRef.current = setTimeout(() => {
+      setCollapsedPhaseHover(null);
+      setCollapsedPhaseHiding(false);
+    }, 150);
+  }, []);
+
   // ── Cursor style based on active tool ─────────────────────────────────
   const canvasCursor = designMode && designTool === 'add'
     ? 'cell'
@@ -541,7 +582,11 @@ export function Canvas() {
               onPhaseClick={(id) => setSelectedPhaseId(id)}
               onPhaseDoubleClick={(id) => togglePhaseCollapse(id)}
               onToggleCollapse={togglePhaseCollapse}
+              onCollapsedHover={handleCollapsedHover}
+              onCollapsedHoverEnd={handleCollapsedHoverEnd}
               renderPart="background"
+              transform={transform}
+              canvasPixelHeight={canvasPixelHeight}
             />
           </g>
           <g id="lanes-layer">
@@ -671,7 +716,11 @@ export function Canvas() {
             onPhaseClick={(id) => setSelectedPhaseId(id)}
             onPhaseDoubleClick={(id) => togglePhaseCollapse(id)}
             onToggleCollapse={togglePhaseCollapse}
+            onCollapsedHover={(phaseId, cx, cy) => setCollapsedPhaseHover({ phaseId, clientX: cx, clientY: cy })}
+            onCollapsedHoverEnd={() => setCollapsedPhaseHover(null)}
             renderPart="headers"
+            transform={transform}
+            canvasPixelHeight={canvasPixelHeight}
           />
         </g>
       </svg>
@@ -691,14 +740,25 @@ export function Canvas() {
         </div>
       )}
 
-      {/* Phase Crowns — sticky context bars at top edge when headers scroll out of view.
-          Only active in lanes mode: DAG bands have headers at arbitrary y positions,
-          so the "header scrolled above y=0" logic doesn't apply. */}
-      {hasData && phases.length > 0 && viewMode === 'lanes' && (
+      {/* Phase Crowns — sticky context bars at top edge when headers scroll out of view. */}
+      {hasData && phases.length > 0 && (
         <PhaseCrowns
           bands={crownBands}
           transform={transform}
           canvasWidth={canvasPixelWidth}
+          globalBandTop={globalBandTop}
+        />
+      )}
+
+      {/* Lane Crowns — sticky owner labels on the left edge when lane labels scroll off-screen.
+          Shown in lanes mode whenever the user pans right or zooms in past x=0. */}
+      {hasData && viewMode === 'lanes' && (
+        <LaneCrowns
+          nodes={visibleNodes}
+          laneMetrics={laneMetrics}
+          ownerColors={ownerColors}
+          transform={transform}
+          canvasHeight={canvasPixelHeight}
         />
       )}
 
@@ -717,6 +777,24 @@ export function Canvas() {
           onExpandAll={expandAllPhases}
         />
       )}
+
+      {/* Collapsed phase hover card — shown while hovered or animating out */}
+      {collapsedPhaseHover && canvasWrapRef.current && (collapsedPhaseIds.includes(collapsedPhaseHover.phaseId) || collapsedPhaseHiding) && (() => {
+        const ph = phases.find((p) => p.id === collapsedPhaseHover.phaseId);
+        if (!ph) return null;
+        return (
+          <PhaseHoverCard
+            phase={ph}
+            allNodes={allNodes}
+            groups={groups}
+            clientX={collapsedPhaseHover.clientX}
+            clientY={collapsedPhaseHover.clientY}
+            canvasRect={canvasWrapRef.current.getBoundingClientRect()}
+            isHiding={collapsedPhaseHiding || !collapsedPhaseIds.includes(collapsedPhaseHover.phaseId)}
+            onExpand={() => togglePhaseCollapse(collapsedPhaseHover.phaseId)}
+          />
+        );
+      })()}
 
       {/* Minimap — bottom right corner overview */}
       <MiniMap

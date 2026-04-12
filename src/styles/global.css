@@ -249,6 +249,16 @@ body {
   to { opacity: 1; }
 }
 
+@keyframes phaseCardIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+@keyframes phaseCardOut {
+  from { opacity: 1; transform: translateY(0)   scale(1); }
+  to   { opacity: 0; transform: translateY(4px) scale(0.97); }
+}
+
 /**
  * graphFadeIn — applied to #graph-content which wraps all lanes, edges, and nodes.
  * Triggered on every view/focus-mode switch by changing the React key on the element.

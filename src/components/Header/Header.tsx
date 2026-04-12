@@ -650,13 +650,6 @@ export function Header() {
           onClick={() => { rebuildGraph(); setTimeout(() => fitToScreen(), 50); }}
         >↺</button>
 
-        {/* ▣ — Toggle inspector pane */}
-        <button
-          className={styles.btnIcon}
-          title="Toggle inspector"
-          onClick={() => document.dispatchEvent(new CustomEvent('flowgraph:toggle-inspector'))}
-        >▣</button>
-
         {/* ⊞ — Fit graph to screen */}
         <button
           className={styles.btnIcon}

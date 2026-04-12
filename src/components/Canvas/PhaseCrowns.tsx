@@ -14,7 +14,7 @@ import type { Transform } from '../../types/graph';
 import { NODE_W } from '../../utils/layout';
 
 const PHASE_PAD_X = 30; // must match PhaseLayer
-const HEADER_H = 32;    // must match PhaseLayer
+const PHASE_HEADER_H = 48; // must match PhaseLayer HEADER_H
 const BADGE_R = 10;
 const CROWN_H = 24;
 
@@ -29,16 +29,18 @@ interface PhaseCrownsProps {
   bands: CrownBand[];
   transform: Transform;
   canvasWidth: number;
+  /** SVG-space y-coordinate of the shared phase header top (mirrors PhaseLayer's globalBandTop). */
+  globalBandTop: number;
 }
 
 export type { CrownBand };
 
-export function PhaseCrowns({ bands, transform, canvasWidth }: PhaseCrownsProps) {
+export function PhaseCrowns({ bands, transform, canvasWidth, globalBandTop }: PhaseCrownsProps) {
   if (bands.length === 0) return null;
 
-  // Header strip bottom in pixel space: transform.y + HEADER_H * k
-  // Crown shows when the header has fully scrolled above the top (< 0)
-  const headerPixelBottom = transform.y + HEADER_H * transform.k;
+  // Header strip bottom in pixel space: transform.y + (globalBandTop + PHASE_HEADER_H) * k
+  // Crown shows when the header has fully scrolled above the viewport top (< 0).
+  const headerPixelBottom = transform.y + (globalBandTop + PHASE_HEADER_H) * transform.k;
   const headerOutOfView = headerPixelBottom < 0;
 
   if (!headerOutOfView) return null;

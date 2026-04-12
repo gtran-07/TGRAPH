@@ -25,6 +25,37 @@ No server required — runs entirely in the browser and can be hosted on GitHub 
 
 ---
 
+## Behavioral Rules (Always Apply)
+
+### When to Use Subagents
+- Use an **Explore** agent when the task requires understanding a complex system across multiple files before any code is written.
+- Use a **Plan** agent when the task touches 3+ files or needs an architectural decision before implementation.
+- Use a **general-purpose** agent for deep research, open-ended codebase searches, or tasks where you are not confident a simple Glob/Grep will find the right answer in 1–2 tries.
+- Spawn subagents **in parallel** when multiple independent sub-tasks can run simultaneously — do not serialize work that can be parallelized.
+- Do NOT spawn subagents for simple, directed lookups (known file path, specific symbol) — use Glob/Grep/Read directly.
+
+### Planning Before Coding
+- Read CLAUDE.md and memory files FIRST. Only reach for Explore/Grep/Read if what you need is genuinely not already in context.
+- For multi-file work: build a concrete plan (file order, exact changes, reasoning) before touching any file. Share the plan with the user.
+- Before writing any code, confirm the root cause is understood — not just the symptom.
+
+### Implementation Discipline
+- Work on ONE file at a time, completely finish it, then move to the next. No jumping between files mid-task.
+- Never be ad-hoc or erratic — follow the plan in the stated order.
+- Prefer refactoring to the correct abstraction over layering workarounds.
+- Do not pursue surface-level "just make it work" patches — find and fix the root cause.
+- **Do not be lazy.** Always find the root cause and fix from there. Pursue elegant solutions — not the quickest patch that happens to work. If the clean fix requires more work, do the work.
+
+### Node–Group Parity Principle
+Every feature and bug fix that applies to a node must work identically for a group. Groups are not a separate concept — they are a higher-level unit that behaves like a node from the outside.
+
+- **Connectors**: A group's connectors = union of all connectors of all descendant nodes at every nesting depth.
+- **When node and group are in separate files**: fix node first, verify, then apply the same fix to group. Never leave one broken.
+- **When node and group share co-located code**: fix both in the same pass.
+- **Checklist for every feature/fix touching nodes**: Does it involve connectors? hover/highlight? phase membership? selection? drag? undo? — Apply the same logic to groups.
+
+---
+
 ## Commands
 
 ```bash

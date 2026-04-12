@@ -10,7 +10,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useGraphStore } from '../../store/graphStore';
-import type { GraphPhase, GraphNode, GraphGroup, Position } from '../../types/graph';
+import type { GraphPhase, GraphNode, GraphGroup, Position, Transform } from '../../types/graph';
 import { NODE_W, NODE_H, PHASE_PAD_X, COLLAPSED_W, LANE_LABEL_W } from '../../utils/layout';
 import { GROUP_R } from '../../utils/grouping';
 
@@ -34,10 +34,16 @@ interface PhaseLayerProps {
   onPhaseClick: (id: string) => void;
   onPhaseDoubleClick: (id: string) => void;
   onToggleCollapse: (id: string) => void;
+  onCollapsedHover?: (phaseId: string, clientX: number, clientY: number) => void;
+  onCollapsedHoverEnd?: () => void;
   /** 'background': renders only band fills + borders (no header chrome).
    *  'headers': renders only header strips + badges + text + buttons.
    *  undefined (default): renders everything (legacy / single-pass use). */
   renderPart?: 'background' | 'headers';
+  /** Current pan/zoom transform — used to keep collapsed-phase labels centered in the viewport. */
+  transform?: Transform;
+  /** Canvas pixel height — paired with transform to compute the visible SVG window. */
+  canvasPixelHeight?: number;
 }
 
 interface BandData {
@@ -63,11 +69,19 @@ export function PhaseLayer({
   onPhaseClick,
   onPhaseDoubleClick,
   onToggleCollapse,
+  onCollapsedHover,
+  onCollapsedHoverEnd,
   renderPart,
+  transform,
+  canvasPixelHeight,
 }: PhaseLayerProps) {
   const { saveLayoutToCache, settleAllPhases, reorderPhasesByPosition } = useGraphStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // Folder tab dimensions for collapsed strips
+  const TAB_H = 22;
+  const MAX_TAB_CHARS = 18;
 
   const dragRef = useRef<{
     startSvgX: number;
@@ -208,11 +222,42 @@ export function PhaseLayer({
         if (isCollapsed) {
           // ── Collapsed strip variant ────────────────────────────────────────
           const stripCenterX = minX + COLLAPSED_W / 2;
-          const labelY = bandTop + actualBandH / 2;
-          const expandBtnY = bandTop + 20;
+
+          // Compute the center of the *visible* portion of the strip so the
+          // rotated label always sits in the middle of the screen even when
+          // panning or zooming. Falls back to band center when transform is unknown.
+          let labelY = bandTop + actualBandH / 2;
+          if (transform && canvasPixelHeight) {
+            const k = transform.k;
+            const vpTop    = -transform.y / k;
+            const vpBottom = (canvasPixelHeight - transform.y) / k;
+            const visTop   = Math.max(bandTop, vpTop);
+            const visBot   = Math.min(bandTop + actualBandH, vpBottom);
+            if (visBot > visTop) {
+              const visCenter = (visTop + visBot) / 2;
+              // Clamp so the text never overlaps the tab or gets clipped at the strip bottom
+              labelY = Math.max(bandTop + 70, Math.min(bandTop + actualBandH - 40, visCenter));
+            }
+          }
+
+          // Expand button + count badge track the top of the visible area so
+          // they're always reachable without scrolling up.
+          let expandBtnY = bandTop + 20;
+          if (transform && canvasPixelHeight) {
+            const k = transform.k;
+            const vpTop  = -transform.y / k;
+            const visTop = Math.max(bandTop, vpTop);
+            expandBtnY = Math.min(visTop + 20, bandTop + actualBandH - 36);
+          }
 
           const showFill    = renderPart !== 'headers';
           const showChrome  = renderPart !== 'background';
+
+          // Folder tab sizing: proportional to name length, capped at MAX_TAB_CHARS
+          const tabLabel = phase.name.length > MAX_TAB_CHARS
+            ? phase.name.slice(0, MAX_TAB_CHARS - 1) + '…'
+            : phase.name;
+          const TAB_W = Math.max(COLLAPSED_W, Math.min(tabLabel.length * 7.5 + 20, 160));
 
           return (
             <g
@@ -220,8 +265,14 @@ export function PhaseLayer({
               data-phase-id={phase.id}
               style={{ cursor: 'pointer' }}
               onDoubleClick={() => onToggleCollapse(phase.id)}
-              onMouseEnter={() => setHoveredId(phase.id)}
-              onMouseLeave={() => setHoveredId(null)}
+              onMouseEnter={(e) => {
+                setHoveredId(phase.id);
+                onCollapsedHover?.(phase.id, e.clientX, e.clientY);
+              }}
+              onMouseLeave={() => {
+                setHoveredId(null);
+                onCollapsedHoverEnd?.();
+              }}
               onClick={() => onPhaseClick(phase.id)}
             >
               {showFill && (
@@ -251,7 +302,43 @@ export function PhaseLayer({
               )}
               {showChrome && (
                 <>
-                  {/* Rotated phase name */}
+                  {/* Transparent hit rect — covers strip + tab area so the <g> captures mouse events.
+                      Without this the headers pass has no painted surface and onMouseEnter never fires. */}
+                  <rect
+                    x={minX}
+                    y={bandTop - TAB_H}
+                    width={Math.max(COLLAPSED_W, TAB_W)}
+                    height={actualBandH + TAB_H}
+                    fill="transparent"
+                    style={{ cursor: 'pointer' }}
+                  />
+
+                  {/* Folder tab — horizontal label above the collapsed strip */}
+                  <rect
+                    x={minX}
+                    y={bandTop - TAB_H}
+                    width={TAB_W}
+                    height={TAB_H}
+                    rx={4}
+                    fill={phase.color}
+                    fillOpacity={isGhosted ? 0.05 : isHovered ? 0.85 : 0.65}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                  <text
+                    x={minX + TAB_W / 2}
+                    y={bandTop - TAB_H / 2 + 1}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="#fff"
+                    fillOpacity={isGhosted ? 0.15 : 0.95}
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                  >
+                    {tabLabel}
+                  </text>
+
+                  {/* Rotated phase name inside strip (secondary, smaller) */}
                   <text
                     x={stripCenterX}
                     y={labelY}
