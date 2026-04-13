@@ -8,8 +8,10 @@
  *   ☰  — toggle owner-filter sidebar
  *   ▣  — toggle inspector pane
  *   ?  — open AI Prompt / JSON spec modal  (original btn-help behaviour)
- *   ↺  — reset layout
+ *   ↺  — reload from file (restore last saved state)
+ *   🌳 — reset layout (recalculate positions from scratch, DAG tree SVG)
  *   ⊞  — fit to screen
+ *   📖 — user guide (far right)
  */
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -232,6 +234,18 @@ export function Header() {
       setLastSavedAt(new Date());
     }
   }, [viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases]);
+
+  // ── Reload from file — re-read via fileHandle and restore saved state ───
+  const handleReloadFromFile = useCallback(async () => {
+    if (!fileHandle) return;
+    try {
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      parseAndLoad(text, currentFileName ?? file.name, fileHandle);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') alert('Failed to reload from file.');
+    }
+  }, [fileHandle, currentFileName, parseAndLoad]);
 
   // ── Export PDF ───────────────────────────────────────────────────────────
   const handleExportPdf = useCallback((mode: 'current' | 'full') => {
@@ -637,35 +651,43 @@ export function Header() {
           <span className={styles.btnLabel}>Design</span>
         </button>
 
-        {/* 📖 — How-to User Guide */}
+        {/* Auto-space — resolve overlapping nodes/groups */}
         <button
           className={styles.btnIcon}
-          title="How to use FlowGraph (Shift+?)"
-          onClick={() => setGuidePulse((n) => n + 1)}
-        >📖</button>
+          title="Auto-space — detect and spread apart any overlapping nodes or groups"
+          onClick={() => resolveOverlaps()}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="0.75" y="0.75" width="4" height="4" rx="0.8"/>
+            <rect x="9.25" y="0.75" width="4" height="4" rx="0.8"/>
+            <rect x="0.75" y="9.25" width="4" height="4" rx="0.8"/>
+            <rect x="9.25" y="9.25" width="4" height="4" rx="0.8"/>
+          </svg>
+        </button>
 
-        {/* Auto-space — resolve overlapping nodes/groups */}
-        {hasData && (
-          <button
-            className={styles.btnIcon}
-            title="Auto-space — detect and spread apart any overlapping nodes or groups"
-            onClick={() => resolveOverlaps()}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="0.75" y="0.75" width="4" height="4" rx="0.8"/>
-              <rect x="9.25" y="0.75" width="4" height="4" rx="0.8"/>
-              <rect x="0.75" y="9.25" width="4" height="4" rx="0.8"/>
-              <rect x="9.25" y="9.25" width="4" height="4" rx="0.8"/>
-            </svg>
-          </button>
-        )}
+        {/* ↺ — Reload from file (restore last saved state) */}
+        <button
+          className={styles.btnIcon}
+          title={fileHandle ? 'Reload from file — restore layout to last saved state' : 'Reload from file — not available (no linked file)'}
+          onClick={handleReloadFromFile}
+          disabled={!fileHandle}
+        >↺</button>
 
-        {/* ↺ — Reset layout (recompute positions from scratch) */}
+        {/* Recalculate layout — DAG hierarchy tree icon */}
         <button
           className={styles.btnIcon}
           title="Reset layout — recalculate positions from scratch"
           onClick={() => { rebuildGraph(); setTimeout(() => fitToScreen(), 50); }}
-        >↺</button>
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <rect x="5" y="0.5" width="4" height="3.5" rx="0.7"/>
+            <rect x="0.5" y="10" width="4" height="3.5" rx="0.7"/>
+            <rect x="9.5" y="10" width="4" height="3.5" rx="0.7"/>
+            <line x1="7" y1="4" x2="7" y2="7"/>
+            <line x1="7" y1="7" x2="2.5" y2="10"/>
+            <line x1="7" y1="7" x2="11.5" y2="10"/>
+          </svg>
+        </button>
 
         {/* ⊞ — Fit graph to screen */}
         <button
@@ -673,6 +695,13 @@ export function Header() {
           title="Fit graph to screen"
           onClick={() => fitToScreen()}
         >⊞</button>
+
+        {/* 📖 — How-to User Guide (far right) */}
+        <button
+          className={styles.btnIcon}
+          title="How to use FlowGraph (Shift+?)"
+          onClick={() => setGuidePulse((n) => n + 1)}
+        >📖</button>
 
       </div>
     </header>

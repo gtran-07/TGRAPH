@@ -357,6 +357,64 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
         fill={color} style={{ pointerEvents: 'none' }}>
         {truncateText(node.owner, 24)}
       </text>
+
+      {/* Tag pills — stacked in the right column, up to 4 slots */}
+      {node.tags && node.tags.length > 0 && (() => {
+        const MAX_VISIBLE = 4;
+        const visible = node.tags!.slice(0, node.tags!.length > MAX_VISIBLE ? MAX_VISIBLE - 1 : MAX_VISIBLE);
+        const overflow = node.tags!.length - visible.length;
+        const PILL_H = 13;
+        const PILL_GAP = 15;
+        const PILL_X = 108;
+        const PILL_MAX_W = 66;
+        const CHAR_W = 5.2; // approx px per char at 7.5px monospace
+        const PAD_X = 6;
+
+        return (
+          <g style={{ pointerEvents: 'none' }}>
+            {visible.map((tag, i) => {
+              const label = tag.label.length > 10 ? tag.label.slice(0, 9) + '…' : tag.label;
+              const pillW = Math.min(PILL_MAX_W, Math.max(28, label.length * CHAR_W + PAD_X * 2));
+              const y = 8 + i * PILL_GAP;
+              return (
+                <g key={i}>
+                  <rect
+                    x={PILL_X} y={y}
+                    width={pillW} height={PILL_H} rx={5}
+                    fill={tag.color}
+                    opacity={0.92}
+                  />
+                  <text
+                    x={PILL_X + pillW / 2} y={y + 9}
+                    fontFamily="var(--font-mono)" fontSize={7.5} fontWeight={700}
+                    fill="#fff" textAnchor="middle"
+                    style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            })}
+            {overflow > 0 && (() => {
+              const y = 8 + visible.length * PILL_GAP;
+              const label = `+${overflow}`;
+              const pillW = Math.max(24, label.length * CHAR_W + PAD_X * 2);
+              return (
+                <g>
+                  <rect x={PILL_X} y={y} width={pillW} height={PILL_H} rx={5} fill="var(--border2)" opacity={0.9} />
+                  <text
+                    x={PILL_X + pillW / 2} y={y + 9}
+                    fontFamily="var(--font-mono)" fontSize={7.5} fontWeight={700}
+                    fill="var(--text)" textAnchor="middle"
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            })()}
+          </g>
+        );
+      })()}
     </g>
   );
 });

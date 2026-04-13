@@ -46,6 +46,8 @@ export function Canvas() {
     addEdge, addNode, setSelectedNode,
     allNodes, allEdges, ownerColors, laneMetrics, viewMode,
     enterFocusMode, hoveredNodeId, fitToScreen, clearGraph,
+    selectedNodeId, selectedGroupId, deleteNode, deleteGroup,
+    multiSelectIds, copySelection, pasteClipboard,
     groups, toggleGroupCollapse, clearMultiSelect,
     phases, focusedPhaseId, selectedPhaseId, setFocusedPhaseId, setSelectedPhaseId,
     collapsedPhaseIds, togglePhaseCollapse, collapseAllPhases, expandAllPhases,
@@ -156,6 +158,9 @@ export function Canvas() {
 
   // ── Ghost edge mouse position (for drawing connections) ───────────────
   const [ghostTarget, setGhostTarget] = useState<{ x: number; y: number } | null>(null);
+
+  // ── Node hover tooltip position (screen coords) ───────────────────────
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   // ── Collapsed phase hover card ─────────────────────────────────────────
   const [collapsedPhaseHover, setCollapsedPhaseHover] = useState<{
@@ -273,6 +278,13 @@ export function Canvas() {
       setGhostTarget(pt);
     }
 
+    // Track mouse position for node hover tooltip
+    const wrap = canvasWrapRef.current;
+    if (wrap) {
+      const rect = wrap.getBoundingClientRect();
+      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    }
+
     if (!panState.current) return;
     const dx = e.clientX - panState.current.startX;
     const dy = e.clientY - panState.current.startY;
@@ -373,7 +385,7 @@ export function Canvas() {
     if (focusMode) exitFocusMode();
   }
 
-  // ── Keyboard: Escape cancels connect mode or exits focus ──────────────
+  // ── Keyboard: Escape cancels connect mode or exits focus; Delete removes selection ──
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -383,11 +395,57 @@ export function Canvas() {
         } else if (focusMode) {
           exitFocusMode();
         }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && designMode) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        copySelection();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && designMode) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        pasteClipboard();
+        return;
+      }
+
+      if (e.key === 'Delete' && designMode) {
+        // Don't fire when the user is typing in an input/textarea
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+        if (multiSelectIds.length > 0) {
+          // Multi-select: each id may be a node or a group
+          const nodeIds = multiSelectIds.filter((id) => allNodes.some((n) => n.id === id));
+          const groupIds = multiSelectIds.filter((id) => groups.some((g) => g.id === id));
+          const total = multiSelectIds.length;
+          if (!confirm(`Delete ${total} selected item${total > 1 ? 's' : ''}? This cannot be undone.`)) return;
+          groupIds.forEach((id) => deleteGroup(id, false));
+          nodeIds.forEach((id) => deleteNode(id));
+        } else if (selectedNodeId) {
+          const node = allNodes.find((n) => n.id === selectedNodeId);
+          if (!node) return;
+          if (!confirm(`Delete "${node.name}"? All connections to/from this node will also be removed.`)) return;
+          deleteNode(selectedNodeId);
+        } else if (selectedGroupId) {
+          const group = groups.find((g) => g.id === selectedGroupId);
+          if (!group) return;
+          if (!confirm(`Delete group "${group.name}" and all its contents?`)) return;
+          deleteGroup(selectedGroupId, false);
+        }
       }
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [connectSourceId, focusMode, exitFocusMode, setConnectSource]);
+  }, [connectSourceId, focusMode, exitFocusMode, setConnectSource,
+      designMode, selectedNodeId, selectedGroupId, multiSelectIds,
+      deleteNode, deleteGroup, allNodes, groups,
+      copySelection, pasteClipboard]);
 
   // ── Hover highlight via direct DOM class manipulation ────────────────
   // Positive-only: only the hovered node and its direct neighbors get visual
@@ -848,6 +906,47 @@ export function Canvas() {
       <div id="edge-delete-tip" className={styles.edgeDeleteTip} style={{ display: 'none' }}>
         🗑 Click to delete connection
       </div>
+
+      {/* Node hover tooltip — shows full name + tags when hovering a node */}
+      {(() => {
+        if (!hoveredNodeId || !tooltipPos) return null;
+        const hovNode = allNodes.find((n) => n.id === hoveredNodeId);
+        if (!hovNode) return null;
+        const wrap = canvasWrapRef.current;
+        const wrapW = wrap?.offsetWidth ?? 9999;
+        const wrapH = wrap?.offsetHeight ?? 9999;
+        const TOOLTIP_W = 220;
+        const OFFSET_X = 14;
+        const OFFSET_Y = -12;
+        let left = tooltipPos.x + OFFSET_X;
+        let top  = tooltipPos.y + OFFSET_Y;
+        // Clamp so tooltip never overflows the canvas container
+        if (left + TOOLTIP_W > wrapW - 8) left = tooltipPos.x - TOOLTIP_W - OFFSET_X;
+        if (top < 8) top = tooltipPos.y + 24;
+        if (top + 80 > wrapH - 8) top = tooltipPos.y - 80;
+        return (
+          <div
+            className={styles.nodeTooltip}
+            style={{ left, top, maxWidth: TOOLTIP_W }}
+            // pointer-events:none so it never captures mouse events
+          >
+            <div className={styles.nodeTooltipName}>{hovNode.name}</div>
+            {hovNode.tags && hovNode.tags.length > 0 && (
+              <div className={styles.nodeTooltipTags}>
+                {hovNode.tags.map((tag, i) => (
+                  <span
+                    key={i}
+                    className={styles.nodeTooltipTag}
+                    style={{ background: tag.color }}
+                  >
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Persistent attribution — bottom-left corner */}
       <div className={styles.credit}>

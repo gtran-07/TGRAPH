@@ -239,6 +239,14 @@ export interface GraphStore {
   assignGroupsToPhase: (groupIds: string[], phaseId: string) => void;
   /** Remove a set of groups from whichever phase they belong to */
   removeGroupsFromPhase: (groupIds: string[]) => void;
+
+  // ── Clipboard ─────────────────────────────────────────────────────────────
+  /** Nodes currently on the clipboard (set by copySelection) */
+  clipboard: GraphNode[];
+  /** Copy selected nodes to the clipboard */
+  copySelection: () => void;
+  /** Paste clipboard nodes as new nodes, offset by +80/+80, preserving internal deps */
+  pasteClipboard: () => void;
   /** Run full phase-constraint settlement for all phases in the current view mode and write back positions */
   settleAllPhases: () => void;
   /** Re-assign phase sequence numbers by ascending mean-X of member nodes */
@@ -380,6 +388,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   collapsedPhaseIds: [],
   currentFileName: null,
   fileHandle: null,
+  clipboard: [],
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -610,7 +619,39 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       allNodes, state.allEdges, activeOwners, state.focusMode, state.focusNodeId, state.groups
     );
 
-    set({ allNodes, visibleNodes, visibleEdges, ownerColors, activeOwners, designDirty: true, undoStack, redoStack: [] });
+    // When owner changes in lanes view, snap the node into its new lane and
+    // translate all other nodes by the lane-Y delta (same pattern as toggleOwner).
+    const ownerChanged = changes.owner !== undefined &&
+      changes.owner !== state.allNodes.find((n) => n.id === id)?.owner;
+
+    if (ownerChanged && state.viewMode === 'lanes') {
+      const { positions: freshPositions, laneMetrics } =
+        computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes);
+
+      const positions: Record<string, Position> = { ...state.positions };
+
+      // Translate existing nodes by their lane's Y delta
+      visibleNodes.forEach((n) => {
+        if (n.id === id) return; // handled below
+        const oldLane = state.laneMetrics[n.owner];
+        const newLane = laneMetrics[n.owner];
+        if (oldLane && newLane && state.positions[n.id]) {
+          positions[n.id] = {
+            x: state.positions[n.id].x,
+            y: state.positions[n.id].y + (newLane.y - oldLane.y),
+          };
+        }
+      });
+
+      // Place the changed node at the fresh position in its new lane
+      if (freshPositions[id]) {
+        positions[id] = freshPositions[id];
+      }
+
+      set({ allNodes, visibleNodes, visibleEdges, ownerColors, activeOwners, positions, laneMetrics, designDirty: true, undoStack, redoStack: [] });
+    } else {
+      set({ allNodes, visibleNodes, visibleEdges, ownerColors, activeOwners, designDirty: true, undoStack, redoStack: [] });
+    }
   },
 
   // ── deleteNode ────────────────────────────────────────────────────────────
@@ -1724,4 +1765,104 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   // ── expandAllPhases ───────────────────────────────────────────────────────
   expandAllPhases: () => set({ collapsedPhaseIds: [] }),
+
+  // ── copySelection ─────────────────────────────────────────────────────────
+  copySelection: () => {
+    const state = get();
+    const groupIdSet = new Set(state.groups.map((g) => g.id));
+
+    let nodeIds: string[];
+    if (state.multiSelectIds.length > 0) {
+      nodeIds = state.multiSelectIds.filter((id) => !groupIdSet.has(id));
+    } else if (state.selectedNodeId) {
+      nodeIds = [state.selectedNodeId];
+    } else {
+      return;
+    }
+
+    const clipboard = state.allNodes.filter((n) => nodeIds.includes(n.id));
+    if (clipboard.length > 0) {
+      set({ clipboard });
+    }
+  },
+
+  // ── pasteClipboard ────────────────────────────────────────────────────────
+  pasteClipboard: () => {
+    const state = get();
+    const { clipboard, allNodes, positions } = state;
+    if (clipboard.length === 0) return;
+
+    // Push undo snapshot
+    const undoSnapshot: UndoSnapshot = {
+      nodes: [...allNodes],
+      positions: { ...positions },
+      groups: [...state.groups],
+    };
+    const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
+
+    // Generate unique new IDs for each clipboard node
+    const existingIds = new Set(allNodes.map((n) => n.id));
+    const idMap = new Map<string, string>();
+    const clipboardIdSet = new Set(clipboard.map((n) => n.id));
+    let counter = allNodes.length + 1;
+
+    for (const node of clipboard) {
+      while (existingIds.has(`NODE-${String(counter).padStart(2, '0')}`)) {
+        counter++;
+      }
+      const newId = `NODE-${String(counter).padStart(2, '0')}`;
+      idMap.set(node.id, newId);
+      existingIds.add(newId);
+      counter++;
+    }
+
+    // Create pasted nodes: remap internal deps, keep external deps as-is
+    const PASTE_OFFSET = 80;
+    const newNodes: GraphNode[] = clipboard.map((node) => ({
+      ...node,
+      id: idMap.get(node.id)!,
+      dependencies: node.dependencies.map((dep) =>
+        clipboardIdSet.has(dep) ? idMap.get(dep)! : dep
+      ),
+    }));
+
+    // Compute pasted positions offset from originals
+    const newPositions: Record<string, Position> = {};
+    for (const node of clipboard) {
+      const orig = positions[node.id];
+      const newId = idMap.get(node.id)!;
+      newPositions[newId] = orig
+        ? { x: orig.x + PASTE_OFFSET, y: orig.y + PASTE_OFFSET }
+        : { x: 200, y: 200 };
+    }
+
+    const allNodesNew = [...allNodes, ...newNodes];
+    const allEdges = rebuildEdgesFromNodes(allNodesNew);
+    const ownerColors = assignOwnerColors([...new Set(allNodesNew.map((n) => n.owner))]);
+
+    // Ensure pasted nodes' owners are visible
+    const activeOwners = new Set(state.activeOwners);
+    for (const node of newNodes) activeOwners.add(node.owner);
+
+    const { visibleNodes, visibleEdges } = deriveVisibility(
+      allNodesNew, allEdges, activeOwners, state.focusMode, state.focusNodeId, state.groups
+    );
+
+    const newNodeIds = newNodes.map((n) => n.id);
+    set({
+      allNodes: allNodesNew,
+      allEdges,
+      visibleNodes,
+      visibleEdges,
+      positions: { ...positions, ...newPositions },
+      ownerColors,
+      activeOwners,
+      multiSelectIds: newNodeIds,
+      selectedNodeId: newNodeIds.length === 1 ? newNodeIds[0] : null,
+      selectedGroupId: null,
+      designDirty: true,
+      undoStack,
+      redoStack: [],
+    });
+  },
 }));

@@ -28,7 +28,7 @@ interface EdgeLayerProps {
 }
 
 export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, groups }: EdgeLayerProps) {
-  const { hoveredNodeId, deleteEdge, viewMode, designTool } = useGraphStore();
+  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId } = useGraphStore();
 
   /**
    * Resolve the effective position for an edge endpoint.
@@ -75,33 +75,46 @@ export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, gr
         // Cross-lane edges are rendered dashed and dimmed in LANES view
         const isCrossLane = viewMode === 'lanes' && nodeOwnerMap[edge.from] !== nodeOwnerMap[edge.to];
 
-        // Determine edge highlight state based on hovered node or group.
-        // When hovering a group, any edge connecting to/from one of its descendant
-        // nodes is treated as connected to the group.
+        // Determine edge highlight state based on hovered node or group,
+        // OR any node/group in the current multi-selection.
+        // When hovering/selecting a group, any edge crossing the group boundary is highlighted.
         let isHighlighted = false;
-        let isConnectedToHovered = false;
-        if (hoveredNodeId) {
-          const state = useGraphStore.getState();
-          const hovGroup = state.groups ? state.groups.find((g) => g.id === hoveredNodeId) : null;
 
-          if (hovGroup) {
-            // Hovering a group: highlight edges that cross the group boundary
-            const descendantIds = new Set(getAllDescendantNodeIds(hovGroup.id, state.groups));
-            const fromInGroup = descendantIds.has(edge.from);
-            const toInGroup   = descendantIds.has(edge.to);
-            // Edge is boundary-crossing if exactly one endpoint is inside the group
-            isConnectedToHovered = fromInGroup !== toInGroup;
-          } else {
-            const hovNode = state.allNodes.find((n) => n.id === hoveredNodeId);
-            const directParents = new Set(hovNode?.dependencies ?? []);
-            const directChildren = new Set(
-              state.visibleEdges.filter((e) => e.from === hoveredNodeId).map((e) => e.to)
-            );
-            isConnectedToHovered =
-              (edge.to === hoveredNodeId && directParents.has(edge.from)) ||
-              (edge.from === hoveredNodeId && directChildren.has(edge.to));
+        const state = useGraphStore.getState();
+
+        function edgeTouchesId(id: string): boolean {
+          const grp = state.groups ? state.groups.find((g) => g.id === id) : null;
+          if (grp) {
+            const descendantIds = new Set(getAllDescendantNodeIds(grp.id, state.groups));
+            const fromIn = descendantIds.has(edge.from);
+            const toIn   = descendantIds.has(edge.to);
+            return fromIn !== toIn; // boundary-crossing only
           }
-          isHighlighted = isConnectedToHovered;
+          const node = state.allNodes.find((n) => n.id === id);
+          const directParents = new Set(node?.dependencies ?? []);
+          const directChildren = new Set(
+            state.visibleEdges.filter((e) => e.from === id).map((e) => e.to)
+          );
+          return (
+            (edge.to === id && directParents.has(edge.from)) ||
+            (edge.from === id && directChildren.has(edge.to))
+          );
+        }
+
+        if (hoveredNodeId) {
+          isHighlighted = edgeTouchesId(hoveredNodeId);
+        }
+
+        if (!isHighlighted && multiSelectIds.length > 0) {
+          isHighlighted = multiSelectIds.some(edgeTouchesId);
+        }
+
+        if (!isHighlighted && selectedNodeId) {
+          isHighlighted = edgeTouchesId(selectedNodeId);
+        }
+
+        if (!isHighlighted && selectedGroupId) {
+          isHighlighted = edgeTouchesId(selectedGroupId);
         }
 
         // Highlighted edges use the source node's owner color so they're visually distinct

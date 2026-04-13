@@ -17,6 +17,14 @@
  * This shape is also the canonical JSON format for file import/export
  * and maps directly to SharePoint list columns (see sharepointAdapter.ts).
  */
+/** A single tag attached to a node — a short label with a display color. */
+export interface NodeTag {
+  /** Display label. Keep short (≤60 chars). */
+  label: string;
+  /** Hex color string, e.g. "#ef4444". */
+  color: string;
+}
+
 export interface GraphNode {
   /** Unique identifier. Used as the key for positions, edges, and dependencies. Case-sensitive. */
   id: string;
@@ -32,6 +40,8 @@ export interface GraphNode {
    * This is the prerequisite list, NOT the downstream list.
    */
   dependencies: string[];
+  /** Optional tags for categorising or flagging the node. Each tag has a label and a color. */
+  tags?: NodeTag[];
 }
 
 /**

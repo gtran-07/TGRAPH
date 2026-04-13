@@ -272,6 +272,22 @@ body {
   animation: graphFadeIn 0.3s ease;
 }
 
+/* ─── NODE / GROUP MOVEMENT ANIMATION ───────────────────────────────────────
+ * Smooth CSS transition for all programmatic position changes: owner reassign,
+ * view-mode switch, layout recompute, focus mode enter/exit.
+ * Suppressed during user drag so pointer tracking is instant.
+ */
+.node-group,
+.group-overlay {
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Kill transition during drag — position must track the pointer with zero lag */
+.node-group.node-dragging,
+.group-overlay.node-dragging {
+  transition: none;
+}
+
 /* ─── PHASE SNAP-BACK ───────────────────────────────────────────────────────
  * Applied briefly when a node/group is dropped onto a foreign phase band.
  * The transition on `transform` makes the position revert animate smoothly.

@@ -216,5 +216,48 @@
   box-shadow: 0 4px 14px rgba(0,0,0,.5);
 }
 
+/* Node hover tooltip */
+.nodeTooltip {
+  position: absolute;
+  background: var(--surface2, #1a1a2e);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 11px;
+  pointer-events: none;
+  z-index: 300;
+  box-shadow: 0 6px 20px rgba(0,0,0,.55);
+  animation: tooltipFadeIn 0.1s ease;
+}
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.nodeTooltipName {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.nodeTooltipTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.nodeTooltipTag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* Design mode active state — cursor changes handled inline */
 .designModeActive { /* marker class for CSS specificity if needed */ }
