@@ -37,6 +37,10 @@ export const LANE_GAP = 18;
 export const LEGIBILITY_PAD_X = 24;
 /** Minimum vertical gap enforced between node/group edges for legibility */
 export const LEGIBILITY_PAD_Y = 16;
+/** Extra horizontal spacing injected at each phase boundary for clear visual column separation */
+export const PHASE_INTER_GAP = 80;
+/** Vertical gap between independently laid-out connected components when stacking them */
+export const COMPONENT_GAP = 120;
 
 // ─── INTERNAL TYPES (not exported — only used within this file) ──────────────
 
@@ -52,25 +56,42 @@ type AdjacencyMap = Record<string, string[]>;
 // ─── DAG LAYOUT ─────────────────────────────────────────────────────────────
 
 /**
- * computeLayout — Sugiyama-style layered DAG layout.
+ * computeLayout — Phase-stratified Sugiyama-style layered DAG layout.
  *
  * Produces an x/y position for every node such that:
  *   - Nodes are arranged left-to-right by dependency depth (layer 0 = no dependencies)
- *   - Nodes in the same layer are stacked vertically, centered as a group
- *   - Edge crossings are minimized using the barycenter heuristic
+ *   - Disconnected sub-graphs are laid out independently and stacked vertically
+ *     (largest first) — they no longer pile on top of each other at y=0
+ *   - When phases are provided, phase sequence order is enforced in layer space so each
+ *     phase appears as a clear left-to-right column — no post-hoc zone enforcement needed
+ *   - Group members are kept vertically adjacent within each layer via cohesion sorting
+ *   - Edge crossings are minimized using the barycenter heuristic (3 passes)
+ *   - Y positions use gravity-pull centering: each layer anchors around the mean Y of
+ *     its predecessors' centers so connected nodes align naturally rather than all
+ *     snapping to y=0, eliminating wild long-diagonal edges in unbalanced graphs
+ *   - A PHASE_INTER_GAP offset is added at each phase boundary for visual breathing room
  *
  * Algorithm steps:
- *   1. Assign each node to a layer (longest-path layering via BFS)
- *   2. Sort nodes within each layer to reduce edge crossings (barycenter, 3 passes)
- *   3. Assign (x, y) coordinates based on layer index and position within the layer
+ *   1. Build adjacency structures
+ *   1.5. Detect connected components; recursively lay out each, then stack vertically
+ *   2. Assign layers via longest-path BFS (Kahn's algorithm)
+ *   2.5. Phase-stratified floor pass: lift phase nodes to enforce sequence order,
+ *        propagating forward through topology to preserve all dependency constraints
+ *   3. Group nodes by layer
+ *   4. Minimize edge crossings (barycenter, 3 passes) with group-cohesion secondary sort
+ *   5. Assign (x, y) — x includes phase-boundary gap offsets; y uses gravity-pull centering
  *
- * @param nodes - The nodes to lay out (only nodes in this list are positioned)
- * @param edges - The edges connecting those nodes
- * @returns     - A map of node id → {x, y} position. Nodes not in the input return no entry.
+ * @param nodes  - The nodes to lay out (only nodes in this list are positioned)
+ * @param edges  - The edges connecting those nodes
+ * @param phases - Optional phases; when provided, phase sequence drives layer ordering
+ * @param groups - Optional groups; when provided, group members cluster within each layer
+ * @returns      - A map of node id → {x, y}. Nodes not in the input return no entry.
  */
 export function computeLayout(
   nodes: GraphNode[],
-  edges: GraphEdge[]
+  edges: GraphEdge[],
+  phases?: GraphPhase[],
+  groups?: GraphGroup[]
 ): Record<string, Position> {
   if (nodes.length === 0) return {};
 
@@ -98,6 +119,23 @@ export function computeLayout(
       inAdjacency[edge.to].push(edge.from);
     }
   });
+
+  // ── Step 1.5: Detect and separate disconnected components ───────────────
+  // Without this, nodes from separate sub-graphs (no edges between them) all receive
+  // layers starting from 0 and stack at y≈0, causing them to pile up and overlap.
+  // Each component is laid out independently then stacked vertically, largest first
+  // so the primary flow appears at the top of the canvas.
+  const components = detectComponents(nodeIds, outAdjacency, inAdjacency);
+  if (components.length > 1) {
+    components.sort((a, b) => b.length - a.length); // largest component first
+    const compPositions = components.map((compIds) => {
+      const compSet = new Set(compIds);
+      const compNodes = nodes.filter((n) => compSet.has(n.id));
+      const compEdges = edges.filter((e) => compSet.has(e.from) && compSet.has(e.to));
+      return computeLayout(compNodes, compEdges, phases, groups);
+    });
+    return stackComponentsVertically(compPositions, COMPONENT_GAP);
+  }
 
   // ── Step 2: Assign layers using longest-path layering (Kahn's BFS) ────
   // Each node's layer = the length of the longest path from any root to that node.
@@ -140,6 +178,47 @@ export function computeLayout(
     if (layer[nodeId] === undefined) layer[nodeId] = maxLayer;
   });
 
+  // ── Step 2.5: Phase-stratified layer floors ──────────────────────────────
+  // Enforce phase sequence order in layer space: each phase's nodes must occupy
+  // layers strictly greater than all nodes in earlier phases. This makes phase columns
+  // appear naturally left-to-right without any post-hoc zone pushing.
+  //
+  // Algorithm: single forward pass over sorted phases. For each phase, lift member nodes
+  // to at least `layerFloor`, then propagate the lift forward via BFS so all downstream
+  // nodes maintain the topological invariant (child layer > parent layer). Only increases
+  // layers — never decreases — so no existing dependency constraint is ever broken.
+  if (phases && phases.length > 0) {
+    const sortedPhases = [...phases].sort((a, b) => a.sequence - b.sequence);
+    let layerFloor = 0;
+
+    sortedPhases.forEach((phase) => {
+      const phaseNodeIds = phase.nodeIds.filter((id) => nodeIdSet.has(id));
+      if (phaseNodeIds.length === 0) return;
+
+      phaseNodeIds.forEach((id) => {
+        if ((layer[id] ?? 0) < layerFloor) {
+          layer[id] = layerFloor;
+          // BFS: push all downstream nodes forward to preserve topological order
+          const propagateQueue = [id];
+          while (propagateQueue.length > 0) {
+            const curr = propagateQueue.shift()!;
+            (outAdjacency[curr] ?? []).forEach((child) => {
+              const required = (layer[curr] ?? 0) + 1;
+              if ((layer[child] ?? 0) < required) {
+                layer[child] = required;
+                propagateQueue.push(child);
+              }
+            });
+          }
+        }
+      });
+
+      // Next phase must start strictly after this phase's highest layer
+      const phaseMaxLayer = Math.max(...phaseNodeIds.map((id) => layer[id] ?? 0));
+      layerFloor = phaseMaxLayer + 1;
+    });
+  }
+
   // ── Step 3: Group nodes by layer ────────────────────────────────────────
   const layerGroups: LayerGroups = {};
   nodeIds.forEach((nodeId) => {
@@ -153,47 +232,104 @@ export function computeLayout(
   // position of their neighbors in the adjacent layer. Running it forward (left→right)
   // then backward (right→left) in multiple passes progressively reduces crossings.
   //
-  // Why 3 passes? 1 pass gives a decent result; 3 passes converges close to optimal
-  // without being computationally expensive. More than 3 passes rarely helps.
+  // Group cohesion: nodes in the same group are sorted as a contiguous block using the
+  // group's average barycenter as the block's sort key. This keeps group members adjacent
+  // vertically within each column without any rendering changes.
   const sortedLayerIndices = Object.keys(layerGroups).map(Number).sort((a, b) => a - b);
+
+  // Build node → direct parent group ID map (secondary sort key for cohesion)
+  const nodeToGroupId = new Map<string, string>();
+  if (groups) {
+    groups.forEach((g) => {
+      g.childNodeIds.forEach((nid) => {
+        if (nodeIdSet.has(nid) && !nodeToGroupId.has(nid)) nodeToGroupId.set(nid, g.id);
+      });
+    });
+  }
 
   for (let pass = 0; pass < 3; pass++) {
     // Forward sweep: sort each layer based on positions of nodes in the PREVIOUS layer
     sortedLayerIndices.forEach((layerIndex, positionInSortedList) => {
       if (positionInSortedList === 0) return; // No previous layer to reference
-      layerGroups[layerIndex].sort((nodeA, nodeB) => {
-        const scoreA = computeBarycenter(nodeA, inAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList);
-        const scoreB = computeBarycenter(nodeB, inAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList);
-        return scoreA - scoreB;
+      const barycenters = new Map<string, number>();
+      layerGroups[layerIndex].forEach((nodeId) => {
+        barycenters.set(nodeId, computeBarycenter(nodeId, inAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList));
       });
+      layerGroups[layerIndex] = sortWithGroupCohesion(layerGroups[layerIndex], barycenters, nodeToGroupId);
     });
 
     // Backward sweep: sort each layer based on positions of nodes in the NEXT layer
     for (let positionInSortedList = sortedLayerIndices.length - 2; positionInSortedList >= 0; positionInSortedList--) {
       const layerIndex = sortedLayerIndices[positionInSortedList];
-      layerGroups[layerIndex].sort((nodeA, nodeB) => {
-        const scoreA = computeBarycenter(nodeA, outAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList, true);
-        const scoreB = computeBarycenter(nodeB, outAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList, true);
-        return scoreA - scoreB;
+      const barycenters = new Map<string, number>();
+      layerGroups[layerIndex].forEach((nodeId) => {
+        barycenters.set(nodeId, computeBarycenter(nodeId, outAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList, true));
       });
+      layerGroups[layerIndex] = sortWithGroupCohesion(layerGroups[layerIndex], barycenters, nodeToGroupId);
     }
   }
 
   // ── Step 5: Assign final (x, y) coordinates ─────────────────────────────
-  // X is determined by layer index: layer 0 → x=0, layer 1 → x=(NODE_W + GAP_X), etc.
-  // Y is determined by position within the layer, centered vertically around y=0.
+  // X = layer × (NODE_W + GAP_X) + phase-gap offset.
+  //     The phase-gap offset adds PHASE_INTER_GAP extra pixels for every phase boundary
+  //     crossed before this layer — clear visual column separation between phases.
+  //
+  // Y = gravity-pull centering.
+  //     Instead of centering every layer independently at y=0, each layer anchors around
+  //     the mean center-Y of its predecessors' positions (already computed in prior layers).
+  //     This naturally aligns connected nodes vertically: a node that feeds one child will
+  //     sit at roughly the same Y as that child. Layers with no predecessors default to y=0.
+  //     The result is that edges travel mostly horizontally, not diagonally, giving a
+  //     much cleaner visual flow.
+
+  // Compute how many phase boundaries precede each layer (for X gap offsets).
+  const phaseGapOffsets = new Map<number, number>(); // layerIndex → extra x from phase gaps
+  if (phases && phases.length > 0) {
+    const sortedPhases = [...phases].sort((a, b) => a.sequence - b.sequence);
+    const phaseMaxLayers: number[] = sortedPhases
+      .map((ph) => {
+        const ids = ph.nodeIds.filter((id) => nodeIdSet.has(id));
+        if (ids.length === 0) return -1;
+        return Math.max(...ids.map((id) => layer[id] ?? 0));
+      })
+      .filter((l) => l >= 0);
+
+    sortedLayerIndices.forEach((layerIndex) => {
+      const gapsBefore = phaseMaxLayers.filter((maxL) => maxL < layerIndex).length;
+      phaseGapOffsets.set(layerIndex, gapsBefore * PHASE_INTER_GAP);
+    });
+  }
+
   const positions: Record<string, Position> = {};
+  const STEP = NODE_H + GAP_Y;
 
   sortedLayerIndices.forEach((layerIndex) => {
     const nodesInLayer = layerGroups[layerIndex];
-    const totalGroupHeight = nodesInLayer.length * (NODE_H + GAP_Y) - GAP_Y;
-    // Center the group vertically around y=0 so the graph is centered on the canvas
-    const startY = -totalGroupHeight / 2;
+    const xOffset = phaseGapOffsets.get(layerIndex) ?? 0;
+
+    // Gravity center: collect the center-Y of every predecessor that is already placed.
+    // We gather from ALL nodes in this layer (not per-node) to get one stable anchor for
+    // the whole column — competing per-node pulls would scatter the layer unpredictably.
+    const gravitySamples: number[] = [];
+    nodesInLayer.forEach((id) => {
+      (inAdjacency[id] ?? []).forEach((pid) => {
+        if (positions[pid] !== undefined) {
+          gravitySamples.push(positions[pid].y + NODE_H / 2);
+        }
+      });
+    });
+    const gravityCenterY = gravitySamples.length > 0
+      ? gravitySamples.reduce((a, b) => a + b, 0) / gravitySamples.length
+      : 0; // no predecessors yet (first layer): center at canvas origin
+
+    // Place nodes evenly spaced, centered around the gravity anchor.
+    // Formula: startY positions the midpoint of all node centers at gravityCenterY.
+    const startY = gravityCenterY - NODE_H / 2 - (nodesInLayer.length - 1) * STEP / 2;
 
     nodesInLayer.forEach((nodeId, indexWithinLayer) => {
       positions[nodeId] = {
-        x: layerIndex * (NODE_W + GAP_X),
-        y: startY + indexWithinLayer * (NODE_H + GAP_Y),
+        x: layerIndex * (NODE_W + GAP_X) + xOffset,
+        y: startY + indexWithinLayer * STEP,
       };
     });
   });
@@ -253,6 +389,160 @@ function computeBarycenter(
     0
   );
   return totalIndex / relevantNeighbors.length;
+}
+
+/**
+ * sortWithGroupCohesion — sorts nodes within a layer by barycenter, keeping group members adjacent.
+ *
+ * Primary sort key: barycenter score (average position of neighbors in the adjacent layer).
+ * Secondary key: group membership — nodes in the same group are treated as a single sort
+ * block whose key is the average barycenter of all its members in this layer.
+ *
+ * This ensures group members always cluster together vertically in each column, making groups
+ * visually coherent without any rendering changes. Groups with only one member in this layer
+ * are treated as ordinary nodes (no block needed).
+ *
+ * @param nodes        - Node IDs in this layer (returned in new sorted order)
+ * @param barycenters  - Pre-computed barycenter score for each node
+ * @param nodeToGroupId - Map from nodeId → direct parent group ID (empty if no groups)
+ * @returns            - Sorted array of node IDs
+ */
+function sortWithGroupCohesion(
+  nodes: string[],
+  barycenters: Map<string, number>,
+  nodeToGroupId: Map<string, string>
+): string[] {
+  // No group context — fall back to simple barycenter sort (identical to old behaviour)
+  if (nodeToGroupId.size === 0) {
+    return [...nodes].sort((a, b) => (barycenters.get(a) ?? 0) - (barycenters.get(b) ?? 0));
+  }
+
+  // Count group members present in THIS layer
+  const groupMemberLists = new Map<string, string[]>();
+  nodes.forEach((nid) => {
+    const gid = nodeToGroupId.get(nid);
+    if (gid) {
+      if (!groupMemberLists.has(gid)) groupMemberLists.set(gid, []);
+      groupMemberLists.get(gid)!.push(nid);
+    }
+  });
+
+  // Only apply cohesion to groups with ≥2 members here — a lone member sorts normally
+  const cohesiveGroups = new Map<string, string[]>();
+  groupMemberLists.forEach((members, gid) => {
+    if (members.length >= 2) cohesiveGroups.set(gid, members);
+  });
+
+  if (cohesiveGroups.size === 0) {
+    return [...nodes].sort((a, b) => (barycenters.get(a) ?? 0) - (barycenters.get(b) ?? 0));
+  }
+
+  // Build sort items: each is either a single node or a group block.
+  // Process nodes in barycenter order so group blocks land in a stable position.
+  type SortItem = { sortKey: number; nodes: string[] };
+  const items: SortItem[] = [];
+  const consumed = new Set<string>();
+  const sortedNodes = [...nodes].sort((a, b) => (barycenters.get(a) ?? 0) - (barycenters.get(b) ?? 0));
+
+  sortedNodes.forEach((nid) => {
+    if (consumed.has(nid)) return;
+    const gid = nodeToGroupId.get(nid);
+    const blockKey = gid ? gid + '_emitted' : null;
+    if (gid && cohesiveGroups.has(gid) && blockKey && !consumed.has(blockKey)) {
+      // Emit all group members as one contiguous block, sorted internally by barycenter
+      const members = [...cohesiveGroups.get(gid)!].sort(
+        (a, b) => (barycenters.get(a) ?? 0) - (barycenters.get(b) ?? 0)
+      );
+      const avgKey = members.reduce((sum, m) => sum + (barycenters.get(m) ?? 0), 0) / members.length;
+      members.forEach((m) => consumed.add(m));
+      consumed.add(blockKey);
+      items.push({ sortKey: avgKey, nodes: members });
+    } else if (!consumed.has(nid)) {
+      consumed.add(nid);
+      items.push({ sortKey: barycenters.get(nid) ?? 0, nodes: [nid] });
+    }
+  });
+
+  items.sort((a, b) => a.sortKey - b.sortKey);
+  return items.flatMap((item) => item.nodes);
+}
+
+/**
+ * detectComponents — finds all connected components via undirected DFS.
+ *
+ * Treats every directed edge as bidirectional so that clusters of nodes with no
+ * edges between them are identified as distinct groups. Returns one array of node
+ * IDs per component, in the order they were discovered.
+ */
+function detectComponents(
+  nodeIds: string[],
+  outAdjacency: AdjacencyMap,
+  inAdjacency: AdjacencyMap
+): string[][] {
+  const visited = new Set<string>();
+  const components: string[][] = [];
+
+  nodeIds.forEach((startId) => {
+    if (visited.has(startId)) return;
+    const component: string[] = [];
+    const stack = [startId];
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      component.push(id);
+      // Undirected traversal: follow edges in both directions
+      [...(outAdjacency[id] ?? []), ...(inAdjacency[id] ?? [])].forEach((nb) => {
+        if (!visited.has(nb)) stack.push(nb);
+      });
+    }
+    components.push(component);
+  });
+
+  return components;
+}
+
+/**
+ * stackComponentsVertically — merges independently laid-out components into one map.
+ *
+ * Places each component directly below the previous one with `gap` pixels of clear space
+ * between them, then shifts the entire result so it is centered around y=0.
+ *
+ * @param componentPositions - One position map per connected component (largest first)
+ * @param gap                - Clear vertical space between adjacent components
+ */
+function stackComponentsVertically(
+  componentPositions: Record<string, Position>[],
+  gap: number
+): Record<string, Position> {
+  const merged: Record<string, Position> = {};
+  let currentTop = 0;
+
+  componentPositions.forEach((compPos) => {
+    const ys = Object.values(compPos).map((p) => p.y);
+    if (ys.length === 0) return;
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys) + NODE_H;
+    const shift = currentTop - minY; // align this component's top to currentTop
+
+    Object.entries(compPos).forEach(([id, pos]) => {
+      merged[id] = { ...pos, y: pos.y + shift };
+    });
+
+    currentTop += (maxY - minY) + gap;
+  });
+
+  // Center the combined layout around y=0 so fitToScreen works correctly
+  const allYs = Object.values(merged).map((p) => p.y);
+  if (allYs.length === 0) return merged;
+  const totalMin = Math.min(...allYs);
+  const totalMax = Math.max(...allYs) + NODE_H;
+  const centerShift = -(totalMin + (totalMax - totalMin) / 2);
+  Object.keys(merged).forEach((id) => {
+    merged[id] = { ...merged[id], y: merged[id].y + centerShift };
+  });
+
+  return merged;
 }
 
 // ─── SWIM LANE LAYOUT ────────────────────────────────────────────────────────

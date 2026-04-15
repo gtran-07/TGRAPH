@@ -28,7 +28,7 @@ export function Header() {
     saveNamedLayout, loadNamedLayout, fitToScreen, resolveOverlaps,
     setSelectedNode, setLastJumpedNode, positions, setTransform, transform, flyTo,
     activeOwners, toggleOwner, layoutCache, currentFileName, ownerColors,
-    fileHandle, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry,
+    fileHandle, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta,
   } = useGraphStore();
 
   // True when File System Access API is available (Chrome/Edge 86+)
@@ -103,6 +103,13 @@ export function Header() {
         (savedLayout as Record<string, unknown>).ownerRegistry = obj.ownerRegistry;
       } else if (!savedLayout && Array.isArray(obj.ownerRegistry)) {
         savedLayout = { positions: {}, transform: { x: 0, y: 0, k: 1 }, ownerRegistry: obj.ownerRegistry } as unknown as typeof savedLayout;
+      }
+      if (obj._meta && typeof obj._meta === 'object') {
+        if (savedLayout) {
+          (savedLayout as Record<string, unknown>).meta = obj._meta;
+        } else {
+          savedLayout = { positions: {}, transform: { x: 0, y: 0, k: 1 }, meta: obj._meta } as unknown as typeof savedLayout;
+        }
       }
     } else {
       alert('JSON must be an array of nodes or an object with a "nodes" array.');
@@ -183,7 +190,9 @@ export function Header() {
     return () => document.removeEventListener('flowgraph:load-sample', handleLoadSample);
   }, [parseAndLoad]);
 
-  // ── Save — writes in-place if handle available, downloads otherwise ───
+  // ── Save — writes in-place if handle available; prompts for location when
+  //          unlinked on browsers that support the File System Access API;
+  //          falls back to download only as a last resort. ─────────────────
   const handleSaveJson = useCallback(async () => {
     const dagLayout   = viewMode === 'dag'   ? { positions, transform } : (layoutCache['dag']   ?? null);
     const lanesLayout = viewMode === 'lanes' ? { positions, transform } : (layoutCache['lanes'] ?? null);
@@ -192,7 +201,7 @@ export function Header() {
       try {
         const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
         if (perm !== 'granted') throw new Error('Write permission denied');
-        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry);
+        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta);
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(payload, null, 2));
         await writable.close();
@@ -200,22 +209,46 @@ export function Header() {
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           // Permission denied or write error — fall back to download so no data is lost
-          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry);
+          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta);
+          setLastSavedAt(new Date());
+        }
+      }
+    } else if (window.showSaveFilePicker) {
+      // No linked file yet but browser supports the API — prompt the user to
+      // choose a save location so the chart becomes linked immediately.
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: currentFileName ?? 'flowgraph.json',
+          types: [{ description: 'FlowGraph JSON', accept: { 'application/json': ['.json'] } }],
+        });
+        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta);
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(payload, null, 2));
+        await writable.close();
+        setFileHandle(handle);
+        setCurrentFileName(handle.name);
+        setLastSavedAt(new Date());
+      } catch (err) {
+        // User cancelled the picker — do nothing (no download fallback).
+        if ((err as Error).name !== 'AbortError') {
+          // Unexpected error — fall back to download so no data is lost.
+          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta);
           setLastSavedAt(new Date());
         }
       }
     } else {
-      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry);
+      // Last resort: browser doesn't support File System Access API.
+      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta);
       setLastSavedAt(new Date());
     }
-  }, [fileHandle, viewMode, positions, transform, layoutCache, allNodes, currentFileName, groups, phases, tagRegistry, ownerRegistry]);
+  }, [fileHandle, viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta]);
 
   // ── Save As — pick a new file path, write, and update the handle ────────
   const handleSaveAs = useCallback(async () => {
     setSaveMenuOpen(false);
     const dagLayout   = viewMode === 'dag'   ? { positions, transform } : (layoutCache['dag']   ?? null);
     const lanesLayout = viewMode === 'lanes' ? { positions, transform } : (layoutCache['lanes'] ?? null);
-    const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry);
+    const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta);
     const json = JSON.stringify(payload, null, 2);
 
     if (window.showSaveFilePicker) {
@@ -240,11 +273,11 @@ export function Header() {
       const name = window.prompt('Enter a filename for the saved file:', currentFileName ?? 'flowgraph.json');
       if (!name) return;
       const safeName = name.endsWith('.json') ? name : `${name}.json`;
-      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, safeName, groups, phases, tagRegistry, ownerRegistry);
+      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, safeName, groups, phases, tagRegistry, ownerRegistry, meta);
       setCurrentFileName(safeName);
       setLastSavedAt(new Date());
     }
-  }, [viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry]);
+  }, [viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta]);
 
   // ── Reload from file — re-read via fileHandle and restore saved state ───
   const handleReloadFromFile = useCallback(async () => {

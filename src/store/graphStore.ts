@@ -21,6 +21,7 @@ import type {
   GraphEdge,
   GraphGroup,
   GraphPhase,
+  GraphMeta,
   NodeTag,
   Position,
   Transform,
@@ -315,6 +316,14 @@ export interface GraphStore {
   addOwnerToRegistry: (name: string) => void;
   /** Remove an owner from the registry by name (only registry-only owners; no-op if a node uses it) */
   removeOwnerFromRegistry: (name: string) => void;
+
+  // ── File metadata ────────────────────────────────────────────────────────────
+  /**
+   * Metadata read from `_meta` in the loaded JSON. Preserved on save so the
+   * field survives round-trips. Null for brand-new charts (defaults are injected
+   * by buildExportPayload at save time).
+   */
+  meta: GraphMeta | null;
 }
 
 // ─── HELPER: compute visible nodes/edges from current state ─────────────────
@@ -377,6 +386,11 @@ function deriveVisibility(
 /**
  * derivePositions — computes layout positions for the given nodes and edges.
  * Returns both the positions map and (for lane mode) the lane metrics.
+ *
+ * When phases and groups are provided in DAG mode, they are forwarded into
+ * computeLayout so the phase-stratified layering and group-cohesion sort apply.
+ * enforcePhaseZones still runs afterward as a safety net for any unphased nodes
+ * that topological layering may have placed inside a phase band.
  */
 function derivePositions(
   visibleNodes: GraphNode[],
@@ -384,12 +398,13 @@ function derivePositions(
   viewMode: ViewMode,
   activeOwners: Set<string>,
   allNodes: GraphNode[],
-  phases?: GraphPhase[]
+  phases?: GraphPhase[],
+  groups?: GraphGroup[]
 ): { positions: Record<string, Position>; laneMetrics: Record<string, LaneMetrics> } {
   if (viewMode === 'lanes') {
     return computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes);
   } else {
-    const raw = computeLayout(visibleNodes, visibleEdges);
+    const raw = computeLayout(visibleNodes, visibleEdges, phases, groups);
     const positions = phases && phases.length > 0
       ? enforcePhaseZones(raw, phases, NODE_W)
       : raw;
@@ -437,6 +452,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   clipboard: [],
   tagRegistry: [],
   ownerRegistry: [],
+  meta: null,
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -475,6 +491,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       fileHandle: null,
       tagRegistry: [],
       ownerRegistry: [],
+      meta: null,
     });
   },
 
@@ -504,6 +521,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const tagRegistry: NodeTag[] = (savedLayout as { tagRegistry?: NodeTag[] } | null)?.tagRegistry ?? [];
     // Extract ownerRegistry from savedLayout if present (backward compat — default empty)
     const ownerRegistry: string[] = (savedLayout as { ownerRegistry?: string[] } | null)?.ownerRegistry ?? [];
+    // Extract _meta if present — preserved as-is so it round-trips through saves
+    const meta: GraphMeta | null = (savedLayout as { meta?: GraphMeta } | null)?.meta ?? null;
 
     const { visibleNodes, visibleEdges } = deriveVisibility(
       nodes, allEdges, activeOwners, false, null, groups
@@ -574,6 +593,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       collapsedPhaseIds: [],
       tagRegistry,
       ownerRegistry,
+      meta,
       transform: activeLayout ? activeLayout.transform : { x: 0, y: 0, k: 1 },
       currentFileName: fileName ?? null,
       fileHandle: null, // caller sets this via setFileHandle after loadData
@@ -1104,15 +1124,22 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     );
 
     const { positions: rawPositions, laneMetrics } = derivePositions(
-      visibleNodes, visibleEdges, state.viewMode, state.activeOwners, state.allNodes, state.phases
+      visibleNodes, visibleEdges, state.viewMode, state.activeOwners, state.allNodes, state.phases, state.groups
     );
 
-    const positions = state.phases.length > 0
+    const enforcedPositions = state.phases.length > 0
       ? enforceAllPhaseBoundaries(
           rawPositions, state.phases, state.groups, GROUP_R,
           state.viewMode === 'lanes' ? LANE_LABEL_W : 0
         )
       : rawPositions;
+
+    // Guarantee zero overlaps after a fresh layout.
+    // resolveNodeOverlaps runs up to 120 pairwise-separation passes to push apart any
+    // remaining collisions — residual overlaps can occur when groups are present,
+    // when phase enforcement shifts nodes, or in dense disconnected-component stacks.
+    const collapsedGroupIds = new Set(state.groups.filter((g) => g.collapsed).map((g) => g.id));
+    const positions = resolveNodeOverlaps(enforcedPositions, collapsedGroupIds, GROUP_R);
 
     set({ visibleNodes, visibleEdges, positions, laneMetrics });
   },

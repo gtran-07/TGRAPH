@@ -24,23 +24,23 @@ OUTPUT REQUIREMENT:
 JSON FORMAT:
 - Output must be a JSON array of node objects: [ { ... }, { ... } ].
 - Each node object MUST contain:
-  - "id": string (unique)
-  - "name": string (≤60 chars)
-  - "owner": string (lane/group name)
-  - "description": string (1–3 sentences)
-  - "dependencies": array of string ids (prerequisites — nodes that must complete BEFORE this one)
+  - "id": string (unique, case-sensitive — e.g. "REQ-01", "DES-01")
+  - "name": string (≤60 chars — shown on the node card)
+  - "owner": string (team or group name — determines swim lane and color)
+  - "description": string (1–3 sentences — shown in the Inspector panel)
+  - "dependencies": array of prerequisite node IDs — nodes that must complete BEFORE this one
 
 DEPENDENCY DIRECTION (IMPORTANT):
-- "dependencies" are PREREQUISITES.
+- "dependencies" are PREREQUISITES (upstream steps), not outputs.
 - If step B requires step A to be done first, then B.dependencies includes "A".
 - Do NOT list downstream steps as dependencies.
 
 RULES:
-1) IDs must be unique and stable. Use a consistent scheme like "REQ-01", "DES-02", "TEST-03".
-2) Every dependency id must exist in the output — no dangling references.
+1) IDs must be unique and case-sensitive. Use a consistent scheme like "REQ-01", "DES-02", "TEST-03".
+2) All dependency IDs must reference existing node IDs in the output — no dangling references.
 3) If the diagram contains a loop/cycle, break it by inserting a review/approval/checkpoint node.
-4) Use owner names as lane headers (or infer lanes if not explicitly labeled).
-5) Keep "name" short and "description" 1–3 sentences.
+4) Use owner names as swim lane headers (or infer from the diagram if not explicitly labeled).
+5) Keep "name" ≤60 chars and "description" 1–3 sentences.
 
 FINAL VALIDATION BEFORE OUTPUT:
 - Ensure no duplicate ids.
@@ -184,6 +184,9 @@ const SECTIONS: GuideSection[] = [
         <p>PDFs are rendered from SVG so they are <strong>infinitely sharp</strong> — you can zoom into any detail in your PDF viewer without pixelation. The PDF uses a clean white background with a light engineering-paper "+" grid, and all connectors are drawn in black for crisp print output.</p>
         <Tip>In the system print dialog, choose "Save as PDF" as the destination to get a PDF file. Select <strong>landscape orientation</strong> for best results on wide charts.</Tip>
 
+        <h4 className={styles.subheading}>Reload from File</h4>
+        <p>The <strong>↺</strong> button in the header re-reads the linked file from disk and restores the last saved state, discarding any unsaved changes. Only available in linked mode (Chrome/Edge). Useful when you want to undo a batch of edits back to the last known-good save.</p>
+
         <h4 className={styles.subheading}>New Flowchart (no file)</h4>
         <p>When you create a new flowchart via <strong>+ New</strong>, there is no linked file. The Save button downloads a file called <code>flowgraph.json</code>. After saving, you can re-open that file to get linked mode for future saves.</p>
 
@@ -209,7 +212,13 @@ const SECTIONS: GuideSection[] = [
         <p>Click the <strong>⊞</strong> button in the header to automatically zoom and center the entire graph so all nodes are visible.</p>
 
         <h4 className={styles.subheading}>Reset Layout</h4>
-        <p>Click the <strong>↺</strong> button in the header to recalculate the automatic layout from scratch. Useful if you've dragged nodes around and want to start fresh. Note: this clears your manual arrangement.</p>
+        <p>Click the <strong>tree-diagram icon</strong> in the header to recalculate the automatic layout from scratch. Useful if you've dragged nodes around and want to start fresh. Note: this clears your manual arrangement.</p>
+
+        <h4 className={styles.subheading}>Reload from File</h4>
+        <p>Click the <strong>↺</strong> button to reload the graph from the last saved version of the file, discarding any unsaved changes. Only available when a file is linked (Chrome/Edge).</p>
+
+        <h4 className={styles.subheading}>Auto-Space</h4>
+        <p>Click the <strong>four-squares icon</strong> in the header to detect and spread apart any overlapping nodes or groups. Useful after collapsing groups or rearranging many nodes at once.</p>
 
         <h4 className={styles.subheading}>Minimap</h4>
         <p>The small overview map in the <strong>bottom-right corner</strong> shows the entire graph at reduced scale. The blue rectangle represents your current viewport. Click anywhere on the minimap to jump to that area.</p>
@@ -273,24 +282,32 @@ const SECTIONS: GuideSection[] = [
   {
     id: 'filtering',
     icon: '🏷️',
-    title: 'Filtering by Owner',
+    title: 'Left Panel (Owners / Inspector / Tags)',
     content: (
       <div>
-        <p>The sidebar on the left lists all owners in the loaded graph. You can show or hide nodes by owner to reduce visual clutter.</p>
+        <p>The left panel has three tabs: <strong>Owners</strong>, <strong>Inspector</strong>, and <strong>Tags</strong>. It opens automatically when a file is loaded.</p>
 
-        <h4 className={styles.subheading}>Opening the sidebar</h4>
-        <p>The sidebar opens automatically when you load a file. If it's been collapsed, click the small <strong>floating tab</strong> on the left edge of the canvas to expand it again.</p>
-
-        <h4 className={styles.subheading}>Filtering</h4>
+        <h4 className={styles.subheading}>Opening and closing</h4>
         <ul className={styles.ul}>
-          <li>Each owner row shows a colored dot, the owner name, and a count of their nodes</li>
-          <li>Click any owner row to toggle their nodes on or off</li>
-          <li>Edges are filtered too — if either endpoint is hidden, the edge is hidden</li>
-          <li>The <strong>ALL</strong> button at the top toggles all owners at once</li>
+          <li>If the panel is collapsed, click the <strong>☰</strong> button on the left edge of the canvas to expand it.</li>
+          <li>Click the <strong>«</strong> button inside the panel to collapse it back.</li>
+          <li>Drag the <strong>right edge</strong> of the panel to resize it (220–560 px).</li>
         </ul>
 
-        <h4 className={styles.subheading}>Collapsing the sidebar</h4>
-        <p>Click the <strong>«</strong> button inside the sidebar panel to collapse it to a floating tab so it doesn't block the canvas.</p>
+        <h4 className={styles.subheading}>Owners tab — filter by team</h4>
+        <ul className={styles.ul}>
+          <li>Each row shows a colored dot, the owner name, and a node count.</li>
+          <li>Click any row to toggle those nodes on or off. Edges are filtered too — if either endpoint is hidden, the edge hides.</li>
+          <li>The <strong>ALL</strong> button at the top toggles all owners at once.</li>
+          <li>In Design Mode a <strong>+ owner name</strong> input appears at the bottom to pre-register new owner names before adding nodes.</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Inspector tab — selected item details</h4>
+        <p>When you select a node, group, or phase, the panel automatically switches to the Inspector tab and shows full details. See the <em>Inspecting a Node</em> section for what's shown.</p>
+        <p>If the panel is collapsed when you make a selection, a <strong>floating hint</strong> appears on the left edge — click it to open the panel directly to the Inspector tab.</p>
+
+        <h4 className={styles.subheading}>Tags tab — manage labels</h4>
+        <p>Create and manage colored label tags that can be attached to nodes. See the <em>Tags</em> section for details.</p>
 
         <Warning>Filtering hides nodes from view but does not delete them. All filtered nodes remain in the data and reappear when you re-enable their owner.</Warning>
         <Tip>In LANES view, hiding an owner removes their entire swim lane, giving more space to the visible ones.</Tip>
@@ -342,18 +359,43 @@ const SECTIONS: GuideSection[] = [
   {
     id: 'inspector',
     icon: '🔎',
-    title: 'Inspecting a Node',
+    title: 'Inspecting Nodes, Groups & Phases',
     content: (
       <div>
-        <p>The Inspector panel (right side) shows the full details of any selected node.</p>
+        <p>The <strong>Inspector tab</strong> in the left panel shows full details for any selected node, group, or phase. The panel auto-switches to this tab whenever you make a selection.</p>
 
-        <Step number={1}><strong>Single-click</strong> any node to select it. The Inspector panel slides open.</Step>
-        <Step number={2}>The Inspector shows: full name, ID, owner (as a colored tag), description, and all dependencies listed by name.</Step>
-        <Step number={3}>Click the <strong>«</strong> button inside the Inspector, or the <strong>▣</strong> button in the header, to close it.</Step>
+        <h4 className={styles.subheading}>Selecting items</h4>
+        <ul className={styles.ul}>
+          <li><strong>Single-click a node</strong> to select it and open its details.</li>
+          <li><strong>Single-click a group</strong> to see its members and collapse state.</li>
+          <li><strong>Single-click a phase band</strong> to see its assigned nodes.</li>
+        </ul>
 
-        <p>When Design Mode is active, an <strong>Edit Node</strong> button appears at the bottom of the Inspector for quick editing access.</p>
+        <h4 className={styles.subheading}>What the Inspector shows for a node</h4>
+        <ul className={styles.ul}>
+          <li><strong>Name</strong> — the display label</li>
+          <li><strong>Description</strong> — the detail text</li>
+          <li><strong>Owner</strong> — colored tag showing which team owns this node</li>
+          <li><strong>Dependencies</strong> — names of all prerequisite nodes</li>
+          <li><strong>Tags</strong> — any colored labels attached to the node (if any)</li>
+          <li><strong>Phase</strong> — which phase the node belongs to, or "Unassigned"</li>
+          <li><strong>Groups</strong> — any groups this node is a member of</li>
+        </ul>
 
-        <Tip>The Inspector closes automatically if the selected node's owner is filtered out.</Tip>
+        <h4 className={styles.subheading}>What the Inspector shows for a group</h4>
+        <ul className={styles.ul}>
+          <li>Name, description, owner(s), child node and group counts, collapse status, and phase assignment</li>
+        </ul>
+
+        <h4 className={styles.subheading}>What the Inspector shows for a phase</h4>
+        <ul className={styles.ul}>
+          <li>Name, description, sequence number, and list of all assigned nodes</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Design Mode buttons</h4>
+        <p>When Design Mode is active, <strong>Edit Node / Edit Group / Edit Phase</strong> and <strong>Delete Phase</strong> buttons appear at the bottom of the Inspector for direct editing access.</p>
+
+        <Tip>If the left panel is collapsed when you click a node, a floating hint appears on the left edge — click it to jump straight to the Inspector tab.</Tip>
       </div>
     ),
   },
@@ -392,10 +434,13 @@ const SECTIONS: GuideSection[] = [
 
         <h4 className={styles.subheading}>The Design Toolbar</h4>
         <ul className={styles.ul}>
-          <li><strong>Select</strong> — default; drag nodes, click to inspect</li>
+          <li><strong>Select</strong> — default; drag nodes, click to inspect. Shift+click to multi-select.</li>
           <li><strong>Add Node</strong> — click empty canvas to place a new node</li>
           <li><strong>Connect</strong> — draw a directed connection between two nodes</li>
-          <li><strong>Edit Node</strong> — open the edit dialog for the selected node</li>
+          <li><strong>Edit Node</strong> — open the edit dialog for the selected node (appears when a node is selected)</li>
+          <li><strong>Edit Group</strong> — open the edit dialog for the selected group (appears when a group is selected)</li>
+          <li><strong>⬡ Group (N)</strong> — create a group from N multi-selected items (appears when 2+ items are selected)</li>
+          <li><strong>◈ Phase</strong> — assign selected nodes/groups to a phase, or create a new phase (appears when any item is selected)</li>
         </ul>
 
         <h4 className={styles.subheading}>Undo / Redo</h4>
@@ -497,6 +542,7 @@ const SECTIONS: GuideSection[] = [
           <li><strong>Name</strong> — the display label on the node card</li>
           <li><strong>Owner / Lane</strong> — moves the node to a different team's lane. New owners get a color automatically.</li>
           <li><strong>Description</strong> — the detail text shown in the Inspector</li>
+          <li><strong>Tags</strong> — attach colored label tags. Click the tag dropdown to pick from existing tags or type to create a new one. Tags are visible in the Inspector panel.</li>
         </ul>
 
         <h4 className={styles.subheading}>What you cannot change</h4>
@@ -525,6 +571,154 @@ const SECTIONS: GuideSection[] = [
     ),
   },
   {
+    id: 'tags',
+    icon: '🔖',
+    title: 'Tags',
+    content: (
+      <div>
+        <p>Tags are short colored labels you can attach to nodes to categorize them — for example marking nodes as "Blocked", "In Progress", or "High Priority". Tags are purely visual metadata; they don't affect layout or connections.</p>
+
+        <h4 className={styles.subheading}>Attaching tags to a node</h4>
+        <p>Open the Edit Node dialog (double-click a node in Design Mode), then use the <strong>Tags</strong> field:</p>
+        <ul className={styles.ul}>
+          <li>Click the tag dropdown to see all existing tags in the project.</li>
+          <li>Type to filter the list or enter a new tag name.</li>
+          <li>Select a color from the palette for new tags, then press <strong>Enter</strong> or click to create.</li>
+          <li>Click a tag chip's <strong>✕</strong> to remove it from the node.</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Managing tags globally (Tags tab)</h4>
+        <p>Open the left panel and click the <strong>Tags</strong> tab to see all tags defined in the project:</p>
+        <ul className={styles.ul}>
+          <li>Each row shows the tag color, label, and how many nodes use it.</li>
+          <li>Click a tag row to edit its label or color inline.</li>
+          <li>Click the <strong>✕</strong> next to a tag to remove it from the registry. Tags still in use on nodes cannot be deleted until they are removed from all nodes first.</li>
+          <li>Use the input at the bottom to pre-register a new tag before attaching it to any node.</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Where tags appear</h4>
+        <ul className={styles.ul}>
+          <li><strong>Inspector tab</strong> — shows all tags on a selected node as colored chips.</li>
+          <li><strong>JSON file</strong> — tags are serialized as <code>{`"tags": [{"label": "Blocked", "color": "#ef4444"}]`}</code> inside each node object.</li>
+        </ul>
+
+        <Tip>Tags are great for status tracking — use them alongside phases (which capture time) to show both "when" and "how it's going" on the same chart.</Tip>
+      </div>
+    ),
+  },
+  {
+    id: 'design-multiselect',
+    icon: '🖱️',
+    title: 'Design: Multi-Select',
+    content: (
+      <div>
+        <p>Multi-select lets you pick several nodes and/or groups at once, then act on them together — move them, group them, or assign them to a phase.</p>
+
+        <h4 className={styles.subheading}>Selecting multiple items</h4>
+        <ul className={styles.ul}>
+          <li>Make sure the <strong>Select</strong> tool is active in the design toolbar.</li>
+          <li><strong>Shift+click</strong> any node or group to add it to the selection. Click again to remove it.</li>
+          <li>The toolbar shows a count: e.g. <em>3 items selected</em>.</li>
+          <li>Click empty canvas to clear the selection (or click <strong>✕ Clear</strong> in the toolbar).</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Moving multiple items</h4>
+        <p>Drag any one of the selected items — all selected items move together, preserving their relative positions.</p>
+
+        <h4 className={styles.subheading}>Grouping selected items</h4>
+        <p>When 2 or more items are selected, the <strong>⬡ Group (N)</strong> button appears. Click it to open the Create Group dialog and bundle all selected nodes and groups into a new named group.</p>
+
+        <h4 className={styles.subheading}>Assigning to a phase</h4>
+        <p>With items selected, click the <strong>◈ Phase</strong> button to assign all selected nodes/groups to an existing phase or create a new one.</p>
+
+        <h4 className={styles.subheading}>Copying and pasting</h4>
+        <p>With one or more items selected, press <code>Ctrl+C</code> to copy and <code>Ctrl+V</code> to paste a duplicate set of nodes at a slight offset. Pasted nodes get new IDs automatically.</p>
+
+        <Tip>Shift+click works on both nodes and groups. You can mix them freely in a multi-selection.</Tip>
+      </div>
+    ),
+  },
+  {
+    id: 'design-groups',
+    icon: '⬡',
+    title: 'Design: Groups',
+    content: (
+      <div>
+        <p>Groups are named containers that bundle related nodes (and other groups) together. They appear as a polygon on the canvas and can be collapsed to hide their members or expanded to show them.</p>
+
+        <h4 className={styles.subheading}>Creating a group</h4>
+        <Step number={1}>In Design Mode, use the <strong>Select</strong> tool and <strong>Shift+click</strong> at least two nodes or groups.</Step>
+        <Step number={2}>Click the <strong>⬡ Group (N)</strong> button that appears in the toolbar.</Step>
+        <Step number={3}>Fill in the <strong>Group ID</strong>, <strong>Name</strong>, and optional <strong>Description</strong> in the Create Group dialog, then click <strong>Create Group</strong>.</Step>
+
+        <h4 className={styles.subheading}>Group visual shape</h4>
+        <p>Groups are drawn as <strong>polygons</strong>. The number of sides increases with nesting depth:</p>
+        <ul className={styles.ul}>
+          <li>Top-level group → <strong>pentagon</strong> (5 sides)</li>
+          <li>Group inside a group → <strong>hexagon</strong> (6 sides)</li>
+          <li>Each additional level adds one more side</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Collapsed vs expanded</h4>
+        <ul className={styles.ul}>
+          <li><strong>Expanded</strong> (default) — a translucent bounding box sits behind the member nodes. Members are fully visible and interactive.</li>
+          <li><strong>Collapsed</strong> — members are hidden; the group renders as a single labelled polygon. Any edges that connected to member nodes are rerouted to the polygon boundary.</li>
+        </ul>
+        <p>Click the <strong>collapse/expand toggle</strong> on the group card to switch between states. This also works outside Design Mode.</p>
+
+        <h4 className={styles.subheading}>Editing a group</h4>
+        <p>While Design Mode is active: select the group (single-click), then click <strong>Edit Group</strong> in the toolbar or double-click the group. You can update the name, description, and member list.</p>
+
+        <h4 className={styles.subheading}>Deleting a group</h4>
+        <p>Open the Edit Group dialog and click <strong>Delete Group</strong>. You can choose to delete only the group wrapper (members remain as standalone nodes) or delete the group and all its members.</p>
+
+        <Tip>Groups are a great way to simplify a dense graph. Collapse a finished phase's group to reduce visual noise.</Tip>
+        <Warning>Groups are serialized in the JSON file. When you save and reload, the groups, collapse state, and nesting are all preserved.</Warning>
+      </div>
+    ),
+  },
+  {
+    id: 'design-phases',
+    icon: '◈',
+    title: 'Phases',
+    content: (
+      <div>
+        <p>Phases represent time or progress stages — like Discovery, Build, and Deploy. They appear as <strong>vertical colored bands</strong> behind the nodes, giving each band a distinct color and label.</p>
+
+        <h4 className={styles.subheading}>Creating a phase</h4>
+        <ul className={styles.ul}>
+          <li>Click the <strong>+</strong> pill in the <strong>Phase Navigator</strong> bar at the bottom of the canvas, or</li>
+          <li>In Design Mode, select one or more nodes/groups and click <strong>◈ Phase → + New Phase…</strong> to pre-assign the selection to the new phase</li>
+        </ul>
+        <p>Fill in the phase <strong>Name</strong>, optional <strong>Description</strong>, pick a <strong>Color</strong>, and click <strong>Create Phase</strong>.</p>
+
+        <h4 className={styles.subheading}>Assigning nodes to a phase</h4>
+        <p>In Design Mode, select one or more nodes or groups, then click <strong>◈ Phase</strong> in the toolbar and pick a phase from the dropdown. Each node belongs to at most one phase — assigning it to a new phase removes it from the old one automatically.</p>
+
+        <h4 className={styles.subheading}>Phase bands on the canvas</h4>
+        <p>Each phase band wraps tightly around its assigned nodes in <strong>DAG view</strong>, or spans the full canvas height in <strong>Lanes view</strong>. The band has:</p>
+        <ul className={styles.ul}>
+          <li>A colored header strip with the phase name and a numbered badge</li>
+          <li>A translucent fill area covering all assigned nodes</li>
+        </ul>
+        <p>Clicking a band <strong>selects</strong> the phase and shows its details in the Inspector. Double-clicking it (in Design Mode) opens the Edit Phase dialog.</p>
+
+        <h4 className={styles.subheading}>Phase Navigator bar</h4>
+        <p>The floating pill bar at the bottom of the canvas lists all phases. Click a pill to <strong>spotlight</strong> that phase — its band brightens while all other phases fade out. Click the active pill again (or click <strong>All</strong>) to clear the spotlight.</p>
+
+        <h4 className={styles.subheading}>Collapsing a phase</h4>
+        <p>Double-click a phase band, or click the collapse icon on the band header, to <strong>collapse</strong> the phase. Collapsed phases show as a narrow labeled strip; their nodes are hidden and edges are stubbed. Click again to expand.</p>
+        <p>The Phase Navigator also has <strong>Collapse All</strong> and <strong>Expand All</strong> controls.</p>
+
+        <h4 className={styles.subheading}>Editing or deleting a phase</h4>
+        <p>Select a phase by clicking its band, then use the <strong>Edit Phase</strong> / <strong>Delete Phase</strong> buttons in the Inspector panel. In Design Mode you can also double-click the band to open the Edit Phase dialog directly.</p>
+
+        <Tip>Phases are saved in the JSON file alongside node data. They reload exactly as left when you reopen the file.</Tip>
+        <Warning>Undo/redo do not yet restore phase changes — phase edits are immediately final.</Warning>
+      </div>
+    ),
+  },
+  {
     id: 'saving',
     icon: '💾',
     title: 'Saving Your Work',
@@ -537,6 +731,13 @@ const SECTIONS: GuideSection[] = [
           <li><strong>Teal chain-link chip + "Save" button</strong> — file is linked (Chrome/Edge). Clicking Save writes directly to your file on disk. No download, no dialog.</li>
           <li><strong>Gray broken-chain chip + "Save JSON" button</strong> — file is not linked. Clicking Save downloads a new copy to your Downloads folder.</li>
           <li><strong>No chip (new flowchart)</strong> — no file yet. Clicking Save downloads a file called <code>flowgraph.json</code>.</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Save status indicator</h4>
+        <p>The status chip in the header (showing node and edge counts) also displays save state:</p>
+        <ul className={styles.ul}>
+          <li><strong>✓ HH:MM</strong> — saved successfully at that time, no pending changes.</li>
+          <li><strong>⚠ HH:MM · ●</strong> — saved at that time, but you have unsaved changes since. The orange dot is a visual reminder to save again.</li>
         </ul>
 
         <h4 className={styles.subheading}>Save As</h4>
@@ -568,13 +769,64 @@ const SECTIONS: GuideSection[] = [
         <div className={styles.shortcutTable}>
           <Shortcut keys="⌘K / Ctrl+K" action="Focus the search bar" />
           <Shortcut keys="Shift+?" action="Open this User Guide" />
-          <Shortcut keys="Escape" action="Close search results / exit Focus Mode / cancel connect / close modal" />
+          <Shortcut keys="Escape" action="Close search results / exit Focus Mode / cancel connect / close modal / clear multi-select" />
           <Shortcut keys="Ctrl+Z" action="Undo last change (Design Mode)" />
           <Shortcut keys="Ctrl+Y / Ctrl+Shift+Z" action="Redo (Design Mode)" />
-          <Shortcut keys="Double-click node" action="Enter Focus Mode (view) or open Edit dialog (Design Mode)" />
+          <Shortcut keys="Ctrl+C" action="Copy selected nodes (Design Mode)" />
+          <Shortcut keys="Ctrl+V" action="Paste copied nodes with new IDs (Design Mode)" />
+          <Shortcut keys="Delete" action="Delete selected node, group, or multi-selection (Design Mode)" />
+          <Shortcut keys="Shift+Click" action="Add/remove item from multi-selection (Design Mode, Select tool)" />
+          <Shortcut keys="Double-click node" action="Enter Focus Mode (view) or open Edit Node dialog (Design Mode)" />
+          <Shortcut keys="Double-click group" action="Open Edit Group dialog (Design Mode)" />
+          <Shortcut keys="Double-click phase band" action="Collapse / expand phase (Design Mode)" />
           <Shortcut keys="Double-click background" action="Exit Focus Mode" />
         </div>
         <Tip>Most header buttons have tooltips — hover over them to see what they do.</Tip>
+      </div>
+    ),
+  },
+
+  {
+    id: 'json-format',
+    icon: '📐',
+    title: 'JSON Format',
+    content: (
+      <div>
+        <p>FlowGraph reads and writes a simple JSON format. You can hand-author it, generate it with AI, or let Design Mode build it for you.</p>
+
+        <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800, margin:'14px 0 8px' }}>Required node fields</div>
+        <pre style={{ whiteSpace:'pre', overflow:'auto', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6 }}>{`{
+  "id": "string (unique, case-sensitive)",
+  "name": "string (≤60 chars, shown on node card)",
+  "owner": "string (determines swim lane and color)",
+  "description": "string (1–3 sentences, shown in Inspector)",
+  "dependencies": ["id-of-prereq-1", "id-of-prereq-2"]
+}`}</pre>
+
+        <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800, margin:'14px 0 8px' }}>Optional layout block (auto-generated by FlowGraph)</div>
+        <pre style={{ whiteSpace:'pre', overflow:'auto', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6 }}>{`{
+  "nodes": [ ... ],
+  "_layout": {
+    "currentView": "dag",
+    "dag":   { "positions": { "id": {"x":0,"y":0} }, "transform": {"x":0,"y":0,"k":1} },
+    "lanes": { "positions": { ... }, "transform": { ... } }
+  }
+}`}</pre>
+
+        <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800, margin:'14px 0 8px' }}>Rules</div>
+        <ul style={{ paddingLeft:20, margin:'8px 0 14px', color:'var(--text2)', fontSize:13, lineHeight:1.9 }}>
+          <li>Output must be a <strong>JSON array</strong> or a <strong>{"{"}"nodes"[]{" }"}</strong> object</li>
+          <li><strong>Dependencies are prerequisites</strong>: if B requires A, B.dependencies includes "A"</li>
+          <li>All dependency IDs must exist in the same file</li>
+          <li>No duplicate IDs</li>
+          <li>The <code>_layout</code> block is optional — FlowGraph adds it when you save</li>
+        </ul>
+
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:8 }}>
+          <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800 }}>Minimal example</div>
+          <button onClick={() => copyText(EXAMPLE_JSON)} style={{ padding:'6px 10px', border:'1px solid var(--border2)', background:'transparent', color:'var(--text2)', fontFamily:'var(--font-mono)', fontSize:10, borderRadius:5, cursor:'pointer', whiteSpace:'nowrap' }}>Copy Example</button>
+        </div>
+        <pre style={{ whiteSpace:'pre', overflow:'auto', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6 }}>{EXAMPLE_JSON}</pre>
       </div>
     ),
   },
@@ -595,8 +847,8 @@ const SECTIONS: GuideSection[] = [
         <Step number={5}>Open a plain text editor (Notepad, VS Code, TextEdit), paste the JSON, and save the file with a <code>.json</code> extension (e.g. <code>myprocess.json</code>).</Step>
         <Step number={6}>Load the file into FlowGraph using <strong>Open JSON File</strong>.</Step>
 
-        <Tip>Add "output JSON only, no markdown, no explanation" to your message. This prevents the AI from wrapping the output in code fences, which would cause a parse error.</Tip>
-        <Warning>If the graph loads with no arrows, the dependency IDs don't match the node IDs exactly. Open the JSON in a text editor and verify that values in "dependencies" arrays exactly match "id" fields — they are case-sensitive.</Warning>
+        <Tip>The prompt already instructs the AI to output JSON only with no markdown. If the AI still wraps the output in code fences, remove the fences manually before saving the file.</Tip>
+        <Warning>If the graph loads with no arrows, dependency IDs don't match node IDs exactly. IDs are case-sensitive — open the JSON in a text editor and verify that every value in "dependencies" exactly matches an "id" field. See the <strong>JSON Format</strong> section for the full field reference.</Warning>
       </div>
     ),
   },
@@ -656,42 +908,7 @@ const SECTIONS: GuideSection[] = [
           <button onClick={() => copyText(AI_PROMPT)} style={{ padding:'6px 10px', border:'1px solid var(--border2)', background:'transparent', color:'var(--text2)', fontFamily:'var(--font-mono)', fontSize:10, borderRadius:5, cursor:'pointer', whiteSpace:'nowrap' }}>Copy Prompt</button>
         </div>
         <textarea readOnly value={AI_PROMPT} style={{ width:'100%', minHeight:260, resize:'vertical', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6, outline:'none' }} />
-        <div style={{ marginTop:10, fontSize:11, color:'var(--text3)' }}>Tip: ask the AI to output <strong>JSON only</strong> (no markdown) to avoid parse errors.</div>
-      </div>
-    ),
-  },
-  {
-    id: 'ai-example',
-    icon: '📄',
-    title: 'Example JSON',
-    content: (
-      <div>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:10 }}>
-          <div style={{ fontSize:11, color:'var(--text2)', lineHeight:1.6 }}>A minimal example of the JSON format accepted by FlowGraph.</div>
-          <button onClick={() => copyText(EXAMPLE_JSON)} style={{ padding:'6px 10px', border:'1px solid var(--border2)', background:'transparent', color:'var(--text2)', fontFamily:'var(--font-mono)', fontSize:10, borderRadius:5, cursor:'pointer', whiteSpace:'nowrap' }}>Copy Example</button>
-        </div>
-        <pre style={{ whiteSpace:'pre', overflow:'auto', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6 }}>{EXAMPLE_JSON}</pre>
-      </div>
-    ),
-  },
-  {
-    id: 'ai-spec',
-    icon: '📐',
-    title: 'JSON Spec',
-    content: (
-      <div>
-        <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800, margin:'14px 0 8px' }}>Required node fields</div>
-        <pre style={{ whiteSpace:'pre', overflow:'auto', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6 }}>{`{\n  "id": "string (unique, case-sensitive)",\n  "name": "string (≤60 chars, shown on node card)",\n  "owner": "string (determines swim lane and color)",\n  "description": "string (1–3 sentences, shown in Inspector)",\n  "dependencies": ["id-of-prereq-1", "id-of-prereq-2"]\n}`}</pre>
-        <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800, margin:'14px 0 8px' }}>Optional layout block (auto-generated by FlowGraph)</div>
-        <pre style={{ whiteSpace:'pre', overflow:'auto', padding:12, borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontFamily:'var(--font-mono)', fontSize:11, lineHeight:1.6 }}>{`{\n  "nodes": [ ... ],\n  "_layout": {\n    "currentView": "dag",\n    "dag":   { "positions": { "id": {"x":0,"y":0} }, "transform": {"x":0,"y":0,"k":1} },\n    "lanes": { "positions": { ... }, "transform": { ... } }\n  }\n}`}</pre>
-        <div style={{ fontSize:10, letterSpacing:1, textTransform:'uppercase', color:'var(--text3)', fontWeight:800, margin:'14px 0 8px' }}>Rules</div>
-        <ul style={{ paddingLeft:20, margin:'8px 0', color:'var(--text2)', fontSize:13, lineHeight:1.9 }}>
-          <li>Output must be a <strong>JSON array</strong> or a <strong>{"{"}"nodes"[]{" }"}</strong> object</li>
-          <li><strong>Dependencies are prerequisites</strong>: if B requires A, B.dependencies includes "A"</li>
-          <li>All dependency IDs must exist in the same file</li>
-          <li>No duplicate IDs</li>
-          <li>The <code>_layout</code> block is optional — FlowGraph adds it when you save</li>
-        </ul>
+        <div style={{ marginTop:10, fontSize:11, color:'var(--text3)' }}>The prompt specifies all required fields. See <strong>JSON Format</strong> in this guide for the full field reference and a working example.</div>
       </div>
     ),
   },
@@ -703,16 +920,16 @@ const SECTIONS: GuideSection[] = [
       <div>
         <ol style={{ paddingLeft:20, margin:'8px 0', color:'var(--text2)', fontSize:13, lineHeight:2 }}>
           <li>Start from your process description, PDF, or Visio diagram</li>
-          <li>Go to <strong>AI Prompt</strong> section and click <strong>Copy Prompt</strong></li>
+          <li>Go to the <strong>AI Prompt</strong> section and click <strong>Copy Prompt</strong></li>
           <li>Open Copilot, Claude, or ChatGPT and paste the prompt</li>
-          <li>Follow with your process description (lanes, steps, sequence)</li>
-          <li>The AI outputs a JSON array — save it as <code style={{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:3,padding:'1px 5px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--accent)'}}>myprocess.json</code></li>
+          <li>Describe your process: who does what, in what order, and which steps are prerequisites</li>
+          <li>The AI outputs a JSON array matching the <strong>JSON Format</strong> spec — save it as <code style={{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:3,padding:'1px 5px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--accent)'}}>myprocess.json</code></li>
           <li>Load the file into FlowGraph using <strong>Open JSON File</strong></li>
-          <li>Arrange nodes, switch views, add connections as needed using Design Mode</li>
+          <li>Arrange nodes, switch views, and add connections as needed using Design Mode</li>
           <li>Click <strong>Save</strong> to write back to the file (Chrome/Edge) or download a copy</li>
         </ol>
         <div style={{ marginTop:12, padding:'10px 14px', background:'rgba(245,158,11,.08)', border:'1px solid rgba(245,158,11,.25)', borderRadius:6, fontSize:12, color:'var(--text2)' }}>
-          ⚠️ If edges are missing: dependency IDs don't match node IDs exactly — they are case-sensitive.
+          ⚠️ If edges are missing: <code>"dependencies"</code> values don't exactly match <code>"id"</code> fields — IDs are case-sensitive. See <strong>JSON Format</strong> for the full field reference.
         </div>
       </div>
     ),

@@ -251,6 +251,14 @@ export interface GraphPhase {
  * descendant nodes are hidden from the canvas. When expanded an overlay
  * bounding-box is drawn around the children.
  */
+/** Metadata block written to every saved JSON file as `_meta`. */
+export interface GraphMeta {
+  note: string;
+  app: string;
+  author: string;
+  usage: string;
+}
+
 export interface GraphGroup {
   /** Unique identifier in the format "GROUP-XX" */
   id: string;

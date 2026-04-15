@@ -643,8 +643,8 @@ export function Canvas() {
       ref={canvasWrapRef}
       className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ''}`}
     >
-      {/* Empty state — shown when no JSON has been loaded yet */}
-      {!hasData && (
+      {/* Empty state — shown when no JSON has been loaded yet (hidden in design mode) */}
+      {!hasData && !designMode && (
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}>⬡</div>
           <div className={styles.emptyTitle}>FlowGraph</div>
