@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "note": "This is a FlowGraph chart file. Open it with the FlowGraph app to view and edit the interactive dependency flowchart.",
+    "app": "https://gtran-07.github.io/ProcessFlowChart/",
+    "author": "Giang Tran",
+    "usage": "In the app: click the folder icon (or drag-and-drop this file) to load it. Use Design Mode to edit nodes, groups, and phases."
+  },
+  "nodes": [
+    {
+      "id": "S-01",
+      "name": "Requirements",
+      "owner": "Product",
+      "description": "Gather and document project requirements from stakeholders. Define scope, success criteria, and constraints.",
+      "dependencies": []
+    },
+    {
+      "id": "S-02",
+      "name": "UI Design",
+      "owner": "Design",
+      "description": "Create wireframes and high-fidelity mockups. Establish design system and component library.",
+      "dependencies": [
+        "S-01"
+      ]
+    },
+    {
+      "id": "S-03",
+      "name": "Architecture",
+      "owner": "Engineering",
+      "description": "Define system architecture, data models, and API contracts. Select technology stack.",
+      "dependencies": [
+        "S-01"
+      ]
+    },
+    {
+      "id": "S-04",
+      "name": "Frontend Development",
+      "owner": "Engineering",
+      "description": "Build UI components and integrate with API layer based on approved designs.",
+      "dependencies": [
+        "S-02",
+        "S-03"
+      ]
+    },
+    {
+      "id": "S-05",
+      "name": "Backend Development",
+      "owner": "Engineering",
+      "description": "Implement business logic, database schema, and REST/GraphQL endpoints.",
+      "dependencies": [
+        "S-03"
+      ]
+    },
+    {
+      "id": "S-06",
+      "name": "QA Testing",
+      "owner": "QA",
+      "description": "Execute functional, regression, and performance testing. Report and verify defect fixes.",
+      "dependencies": [
+        "S-04",
+        "S-05"
+      ]
+    },
+    {
+      "id": "S-07",
+      "name": "Deployment",
+      "owner": "DevOps",
+      "description": "Configure CI/CD pipeline, provision infrastructure, and deploy to production environment.",
+      "dependencies": [
+        "S-06"
+      ]
+    }
+  ],
+  "_layout": {
+    "currentView": "dag",
+    "dag": {
+      "positions": {
+        "S-01": {
+          "x": 0,
+          "y": -36
+        },
+        "S-02": {
+          "x": 320,
+          "y": -98
+        },
+        "S-03": {
+          "x": 320,
+          "y": 26
+        },
+        "S-04": {
+          "x": 640,
+          "y": -77.33333333333333
+        },
+        "S-05": {
+          "x": 640,
+          "y": 46.66666666666667
+        },
+        "S-06": {
+          "x": 960,
+          "y": -15.333333333333329
+        },
+        "S-07": {
+          "x": 1280,
+          "y": -15.333333333333329
+        }
+      },
+      "transform": {
+        "x": 60,
+        "y": 385.6835902662582,
+        "k": 0.933847087703339
+      }
+    },
+    "lanes": null
+  }
+}

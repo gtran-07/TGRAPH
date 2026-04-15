@@ -305,6 +305,21 @@
   flex-shrink: 0;
 }
 .btnNew:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
+.btnSample {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btnSample:hover { border-color: #2dd4bf; color: #2dd4bf; background: rgba(45,212,191,.07); }
 
 /* Icon buttons */
 .btnIcon {

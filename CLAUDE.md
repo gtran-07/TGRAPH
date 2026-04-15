@@ -86,6 +86,10 @@ TypeScript compilation (`tsc`) and Vite bundling with no errors, the code is rea
 ## Project Structure
 
 ```
+public/
+└── samples/                    Bundled sample JSON files (imported directly by samples.ts — no fetch needed)
+    ├── starter.json            7-node starter workflow
+    └── bhs-process-map.json    200+ node real-world BHS example
 src/
 ├── App.tsx                     Root layout: Header | (Sidebar + Canvas + Inspector)
 ├── App.module.css
@@ -93,7 +97,8 @@ src/
 ├── styles/
 │   └── global.css              CSS custom properties (design tokens) + keyframes + print CSS
 ├── types/
-│   ├── graph.ts                All TypeScript interfaces: GraphNode, GraphEdge, GraphPhase, Transform, …
+│   ├── graph.ts                All TypeScript interfaces: GraphNode, GraphEdge, GraphPhase, GraphGroup,
+│   │                           GraphMeta, NodeTag, Transform, Position, …
 │   └── fileSystem.d.ts         File System Access API type stubs (showOpenFilePicker, showSaveFilePicker)
 ├── store/
 │   └── graphStore.ts           Single Zustand store — ALL app state and actions live here
@@ -102,18 +107,19 @@ src/
 │   ├── grouping.ts             Group hierarchy queries, connectivity validation, polygon geometry
 │   ├── colors.ts               Owner → hex color assignment
 │   ├── exportJson.ts           JSON serialization: buildExportPayload() + exportGraphToJson()
-│   └── exportPdf.ts            SVG-based PDF export via window.print() — current view or full chart
+│   ├── exportPdf.ts            SVG-based PDF export via window.print() — current view or full chart
+│   └── samples.ts              SAMPLE_FILES registry — bundles sample JSON data for offline use
 ├── adapters/
 │   ├── adapterInterface.ts     GraphAdapter base interface (load / save)
 │   ├── fileAdapter.ts          Local JSON file adapter
 │   └── sharepointAdapter.ts    SharePoint/OneDrive stub (Microsoft Graph API)
 └── components/
-    ├── Header/                 File ops, search, view toggle, save/save-as/export, design mode
+    ├── Header/                 File ops, search, view toggle, save/save-as/reload/export, design mode
     ├── Canvas/                 SVG canvas, pan/zoom, NodeCard, EdgeLayer, GroupCard, LaneLayer, GhostEdge, MiniMap,
     │                           PhaseLayer (vertical bands), PhaseNavigator (floating pill bar), PhaseCrowns
     ├── Panels/                 Sidebar (owner filter) + Inspector (selected node/group/phase details)
     ├── DesignMode/             DesignToolbar + NodeEditModal + GroupEditModal + PhaseEditModal
-    └── Modals/                 UserGuideModal (Shift+?), HelpModal
+    └── Modals/                 UserGuideModal (Shift+?), HelpModal, SamplePickerModal
 ```
 
 ---
@@ -130,20 +136,22 @@ src/
 
 ```json
 {
+  "_meta": {
+    "note": "Created with FlowGraph",
+    "app": "FlowGraph",
+    "author": "Author Name",
+    "usage": "Usage instructions"
+  },
   "nodes": [
     {
       "id": "STEP-01",
       "name": "Step name (≤60 chars)",
       "owner": "Team name (determines swim lane + color)",
       "description": "1–3 sentences.",
-      "dependencies": ["ID-OF-PREREQ"]
+      "dependencies": ["ID-OF-PREREQ"],
+      "tags": [{ "label": "urgent", "color": "#ef4444" }]
     }
   ],
-  "_layout": {
-    "currentView": "dag",
-    "dag":   { "positions": { "STEP-01": { "x": 0, "y": 0 } }, "transform": { "x": 0, "y": 0, "k": 1 } },
-    "lanes": { "positions": { "..." : {} }, "transform": { "x": 0, "y": 0, "k": 1 } }
-  },
   "groups": [
     {
       "id": "GROUP-01",
@@ -162,20 +170,40 @@ src/
       "description": "Optional detail.",
       "color": "#4A90D9",
       "nodeIds": ["STEP-01", "STEP-02"],
+      "groupIds": ["GROUP-01"],
       "sequence": 0
     }
-  ]
+  ],
+  "tagRegistry": [{ "label": "urgent", "color": "#ef4444" }],
+  "ownerRegistry": ["Team A", "Team B"],
+  "_layout": {
+    "currentView": "dag",
+    "dag":   { "positions": { "STEP-01": { "x": 0, "y": 0 } }, "transform": { "x": 0, "y": 0, "k": 1 } },
+    "lanes": { "positions": { "..." : {} }, "transform": { "x": 0, "y": 0, "k": 1 } }
+  }
 }
 ```
 
-Legacy format (plain `[ ... ]` array, no `_layout`) is still accepted on load.
-Files without a `phases` key load fine — phases defaults to `[]`.
+- `_meta` — always written on save; round-trips unchanged; defaults filled from `DEFAULT_META` in `exportJson.ts`.
+- `tags` on nodes — optional; omitted when empty.
+- `groups`, `phases`, `tagRegistry`, `ownerRegistry` — all optional; omitted when empty.
+- `phases[].groupIds` — optional; omitted when empty. Assigns collapsed groups to a phase (parallel to `nodeIds`).
+- `_layout` — omitted when no positions have been saved yet.
+- Legacy format (plain `[ ... ]` array, no `_layout`) is still accepted on load.
 
 ### Serialization
 
 `buildExportPayload()` in `exportJson.ts` is the **single source of truth** for
-serialization. Both the download path and the File System Access API in-place
-write path call this function. Never duplicate the serialization logic.
+serialization. All save paths (in-place write, Save As, and download fallback) call
+this function. Never duplicate the serialization logic.
+
+`buildExportPayload` signature (all params after `phases` are optional):
+```ts
+buildExportPayload(nodes, currentView, dagLayout, lanesLayout, groups?, phases?, tagRegistry?, ownerRegistry?, meta?)
+```
+
+Every call site in `Header.tsx` must pass all optional fields. Update `useCallback`
+dep arrays when adding new fields.
 
 ### File I/O Modes
 
@@ -212,23 +240,27 @@ Print CSS in `global.css` (`@media print`): SVG forced to `100vw × 100vh`; `pri
 
 ### Custom Events (Component Decoupling)
 
-| Event                        | Fired by                                | Handled by     |
-| ---------------------------- | --------------------------------------- | -------------- |
-| `flowgraph:open-guide`       | App.tsx (Shift+?) / Header              | UserGuideModal |
-| `flowgraph:guide-state`      | Header (📖 button)                      | UserGuideModal |
-| `flowgraph:help-state`       | Header (📋 button)                      | HelpModal      |
-| `flowgraph:toggle-sidebar`   | Header                                  | Sidebar        |
-| `flowgraph:toggle-inspector` | Header (▣ button)                       | Inspector      |
-| `flowgraph:open-file-picker` | Canvas empty state                      | Header         |
-| `flowgraph:add-node`         | Canvas click (add tool)                 | NodeEditModal  |
-| `flowgraph:create-group`     | DesignToolbar (multi-select)            | GroupEditModal |
-| `flowgraph:edit-group`       | GroupCard dblclick / Inspector          | GroupEditModal |
-| `flowgraph:create-phase`     | DesignToolbar / PhaseNavigator "+" pill | PhaseEditModal |
-| `flowgraph:edit-phase`       | PhaseLayer dblclick / Inspector         | PhaseEditModal |
+| Event                        | Fired by                                | Handled by        |
+| ---------------------------- | --------------------------------------- | ----------------- |
+| `flowgraph:open-guide`       | App.tsx (Shift+?) / Header              | UserGuideModal    |
+| `flowgraph:guide-state`      | Header (📖 button)                      | UserGuideModal    |
+| `flowgraph:help-state`       | Header (📋 button)                      | HelpModal         |
+| `flowgraph:toggle-sidebar`   | Header                                  | Sidebar           |
+| `flowgraph:toggle-inspector` | Header (▣ button)                       | Inspector         |
+| `flowgraph:open-file-picker` | Canvas empty state                      | Header            |
+| `flowgraph:add-node`         | Canvas click (add tool)                 | NodeEditModal     |
+| `flowgraph:create-group`     | DesignToolbar (multi-select)            | GroupEditModal    |
+| `flowgraph:edit-group`       | GroupCard dblclick / Inspector          | GroupEditModal    |
+| `flowgraph:create-phase`     | DesignToolbar / PhaseNavigator "+" pill | PhaseEditModal    |
+| `flowgraph:edit-phase`       | PhaseLayer dblclick / Inspector         | PhaseEditModal    |
+| `flowgraph:pick-sample`      | Canvas empty state "Try Sample" button  | SamplePickerModal |
+| `flowgraph:load-sample`      | SamplePickerModal (on selection)        | Header            |
 
-`flowgraph:create-phase` carries `detail: { nodeIds?: string[] }` — when fired from "Assign to Phase → New Phase…", `nodeIds` is pre-populated with the currently multi-selected node IDs.
+`flowgraph:create-phase` carries `detail: { nodeIds?: string[], groupIds?: string[] }`.
 
 `flowgraph:edit-phase` carries `detail: { phaseId: string }`.
+
+`flowgraph:load-sample` carries `detail: { file: string, data: unknown }` — `data` is the pre-bundled JSON object (no fetch needed, works offline/file://).
 
 ### Responsive Header
 
@@ -276,6 +308,8 @@ Phases are flat (non-nested) time/progress bands rendered as **vertical columns*
 - **Selection**: clicking a band sets `selectedPhaseId` and clears `selectedNodeId` / `selectedGroupId`.
 - **Edit flow**: double-clicking a band (design mode only) fires `flowgraph:edit-phase`. Inspector shows "Edit Phase" and "Delete Phase" buttons in design mode.
 - **Node assignment**: a node belongs to at most one phase. `assignNodesToPhase()` removes the node from all other phases first. `createPhase()` does the same for pre-selected nodeIds.
+- **Group membership** (`groupIds`): `GraphPhase` carries an optional `groupIds?: string[]` for collapsed groups assigned to the phase. `assignGroupsToPhase()` / `removeGroupsFromPhase()` mirror the node variants. Band bounds computation in `PhaseLayer` includes group positions. Serialization omits `groupIds` when empty.
+- **Collapse/Expand**: `collapsePhase` / `expandPhase` / `togglePhaseCollapse` store actions exist. `collapsedPhaseIds: string[]` in store state. `computePhaseAdjustedPositions()` in `layout.ts` shifts non-collapsed content left at render time without mutating stored positions. Collapsed strip = `COLLAPSED_W` px wide. `hiddenNodeIds` suppresses rendering of member nodes.
 - **Sequence**: auto-assigned as `max(existing sequences) + 1`. Gaps are allowed. Bands render left-to-right by sequence regardless of node x-positions.
 - **ID format**: `PHASE-01`, `PHASE-02`, … (not guaranteed contiguous after deletes).
 - **Color palette**: `PHASE_PALETTE` in `types/graph.ts` — 8 hex strings `as const`. Auto-assigned round-robin (`phases.length % 8`). Always use `useState<string>(PHASE_PALETTE[0])` — the explicit generic prevents TypeScript literal-type narrowing errors.
@@ -327,13 +361,12 @@ Use **positive-only hover styling**: apply `.hovered` and `.neighbor` CSS classe
 
 ### New serialized top-level field
 
-Apply the same pattern used for groups and phases:
+Apply the same pattern used for `tagRegistry` / `ownerRegistry` / `_meta`:
 
 1. `types/graph.ts` — define the interface.
-2. `graphStore.ts` — add to state, `clearGraph`, `loadData` (extract with cast + `?? []`), and all relevant actions.
-3. `exportJson.ts` — add to `buildExportPayload()` signature and output (conditional, same as groups/phases).
-4. `exportGraphToJson()` — add the param and pass through.
-5. `Header.tsx` — add to `parseAndLoad()` (attach `obj.field` to `savedLayout`) and to all `buildExportPayload` / `exportGraphToJson` call sites. Update `useCallback` dep arrays.
+2. `graphStore.ts` — add to state, `clearGraph`, `loadData` (extract from `savedLayout` cast with `?? []` / `?? null`), and all relevant actions.
+3. `exportJson.ts` — add param to `buildExportPayload()` and `exportGraphToJson()`. Emit conditionally (omit when empty), same pattern as other optional fields.
+4. `Header.tsx` — extract from `obj` in `parseAndLoad()` and attach to `savedLayout` cast; add to every `buildExportPayload` / `exportGraphToJson` call site; update `useCallback` dep arrays.
 
 ### Updating the User Guide
 
@@ -354,6 +387,8 @@ Edit the `SECTIONS` array in `UserGuideModal.tsx`. The search box uses `extractT
 | Phase bands don't cover full canvas after zoom | Band height must be in SVG user-space, not pixels | Height = `pixelH / k + |offsetY / k| + 200` via `ResizeObserver` in `Canvas.tsx` |
 | Undo does not restore phases | `undo`/`redo` store actions don't apply `phases` from the snapshot | Known gap — to fix: add `phases: prev.phases ?? state.phases` in the `undo`/`redo` `set(...)` calls |
 | Phase band invisible when phase has no positioned nodes | `PhaseLayer` skips rendering when `assignedPositions.length === 0` | Expected — band appears once at least one assigned node has a computed position |
+| Phase accordion only works in DAG mode | `adjustedPositions` in `Canvas.tsx` has a `viewMode !== 'dag'` guard | Known gap — remove the guard to extend accordion to Lane view |
+| Stale phase positions after view-mode switch | `setViewMode()` cache-hit path does not re-run `enforcePhaseZones` | Known gap — re-run `enforcePhaseZones` on cached positions before committing |
 
 ---
 

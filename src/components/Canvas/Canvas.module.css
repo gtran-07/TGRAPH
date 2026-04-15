@@ -112,6 +112,7 @@
 .emptyActionHint {
   font-size: 10px; color: var(--text3); line-height: 1.4;
 }
+
 .emptyFootnote {
   display: flex; align-items: flex-start; gap: 6px;
   font-size: 10px; color: var(--text3);

@@ -173,15 +173,24 @@ export function Header() {
     return () => document.removeEventListener('flowgraph:open-file-picker', handleOpenFile);
   }, [handleOpenFile]);
 
-  // ── Load sample flowchart from public/sample.json ─────────────────────
+  // ── Load sample flowchart — detail.file selects which sample to load ────
   useEffect(() => {
-    const handleLoadSample = async () => {
+    const handleLoadSample = (e: Event) => {
       try {
-        const base = (import.meta as unknown as { env: { BASE_URL: string } }).env.BASE_URL;
-        const res = await fetch(`${base}sample.json`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        parseAndLoad(text, 'sample.json', null);
+        const detail = (e as CustomEvent<{ file?: string; data?: unknown }>).detail;
+        const file = detail?.file ?? 'sample.json';
+        const fileName = file.split('/').pop() ?? file;
+        if (detail?.data !== undefined) {
+          // Bundled data — no fetch needed; works offline and via file://
+          parseAndLoad(JSON.stringify(detail.data), fileName, null);
+        } else {
+          // Fallback: fetch from server (hosted deployment)
+          const base = (import.meta as unknown as { env: { BASE_URL: string } }).env.BASE_URL;
+          fetch(`${base}${file}`)
+            .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); })
+            .then((text) => parseAndLoad(text, fileName, null))
+            .catch((err) => alert(`Failed to load sample: ${(err as Error).message}`));
+        }
       } catch (err) {
         alert(`Failed to load sample: ${(err as Error).message}`);
       }
@@ -489,6 +498,19 @@ export function Header() {
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
         <span className={styles.btnLabel}>New</span>
+      </button>
+
+      {/* Sample picker button — always available, opens SamplePickerModal */}
+      <button
+        className={styles.btnSample}
+        title="Load a sample flowchart"
+        onClick={() => document.dispatchEvent(new CustomEvent('flowgraph:pick-sample'))}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span className={styles.btnLabel}>Samples</span>
       </button>
 
       {/* Search */}

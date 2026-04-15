@@ -16,6 +16,7 @@ import { NodeEditModal } from './components/DesignMode/NodeEditModal';
 import { GroupEditModal } from './components/DesignMode/GroupEditModal';
 import { PhaseEditModal } from './components/DesignMode/PhaseEditModal';
 import { UserGuideModal } from './components/Modals/UserGuideModal';
+import { SamplePickerModal } from './components/Modals/SamplePickerModal';
 import styles from './App.module.css';
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
       <GroupEditModal />
       <PhaseEditModal />
       <UserGuideModal />
+      <SamplePickerModal />
     </div>
   );
 }
