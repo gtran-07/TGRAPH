@@ -46,13 +46,14 @@ export function Canvas() {
     designMode, designTool, connectSourceId, setConnectSource,
     addEdge, addNode, setSelectedNode,
     allNodes, allEdges, ownerColors, laneMetrics, viewMode,
-    enterFocusMode, hoveredNodeId, fitToScreen, clearGraph,
+    enterFocusMode, hoveredNodeId, fitToScreen, clearGraph, pathHighlightNodeId,
     selectedNodeId, selectedGroupId, deleteNode, deleteGroup,
     multiSelectIds, copySelection, pasteClipboard,
     groups, toggleGroupCollapse, clearMultiSelect,
     phases, focusedPhaseId, selectedPhaseId, setFocusedPhaseId, setSelectedPhaseId,
     collapsedPhaseIds, togglePhaseCollapse, collapseAllPhases, expandAllPhases,
     focusedOwner, enterOwnerFocus, exitOwnerFocus,
+    discoveryActive,
   } = useGraphStore();
 
 
@@ -198,6 +199,9 @@ export function Canvas() {
   // ── Pan state (local — doesn't need to be in global store) ────────────
   const panState = useRef<{ startX: number; startY: number; startTX: number; startTY: number } | null>(null);
 
+  // ── Mouse-button state — suppresses node/group tooltip while dragging ──
+  const [isMouseDown, setIsMouseDown] = useState(false);
+
   // ── Space-key pan mode ────────────────────────────────────────────────
   // Holding Space activates a temporary pan mode: cursor changes to grab/grabbing
   // and mousedown anywhere on the canvas (even over nodes) starts panning.
@@ -214,11 +218,17 @@ export function Canvas() {
       if (e.code !== 'Space') return;
       setSpaceHeld(false);
     }
+    function onMouseDown() { setIsMouseDown(true); }
+    function onMouseUp()   { setIsMouseDown(false); }
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+    document.addEventListener('mousedown', onMouseDown, true); // capture: fires before stopPropagation
+    document.addEventListener('mouseup', onMouseUp, true);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener('mousedown', onMouseDown, true);
+      document.removeEventListener('mouseup', onMouseUp, true);
     };
   }, []);
 
@@ -649,6 +659,71 @@ export function Canvas() {
     });
   }, [hoveredNodeId, allNodes, visibleEdges, groups]);
 
+  // ── Path highlight — ancestor paths to selected node ─────────────────
+  // Backward BFS from pathHighlightNodeId through allEdges builds the full
+  // ancestor set. Nodes in that set (+ the target) get path classes; everything
+  // else is ghosted. Edges on the path are brightened via inline style.
+  useEffect(() => {
+    const graphRoot = document.getElementById('graph-root');
+    if (!graphRoot) return;
+
+    // Clear all path classes and edge overrides
+    graphRoot.querySelectorAll('.path-focus, .path-ancestor, .path-ghost').forEach((el) => {
+      el.classList.remove('path-focus', 'path-ancestor', 'path-ghost');
+    });
+    graphRoot.querySelectorAll('g[data-edge-from] .edge-vis').forEach((el) => {
+      const e = el as SVGPathElement;
+      e.style.opacity = '';
+      e.style.strokeWidth = '';
+      e.style.stroke = '';
+    });
+
+    if (!pathHighlightNodeId) return;
+
+    // Backward BFS: collect every ancestor that can reach pathHighlightNodeId
+    const ancestors = new Set<string>();
+    const queue = [pathHighlightNodeId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const edge of allEdges) {
+        if (edge.to === current && !ancestors.has(edge.from)) {
+          ancestors.add(edge.from);
+          queue.push(edge.from);
+        }
+      }
+    }
+
+    // Apply node classes
+    graphRoot.querySelectorAll('.node-group, .group-overlay').forEach((el) => {
+      const id = el.getAttribute('data-id') ?? el.getAttribute('data-group-id');
+      if (!id) return;
+      if (id === pathHighlightNodeId) {
+        el.classList.add('path-focus');
+      } else if (ancestors.has(id)) {
+        el.classList.add('path-ancestor');
+      } else {
+        el.classList.add('path-ghost');
+      }
+    });
+
+    // Apply edge styles — on-path edges are cyan + bright; off-path are dimmed
+    graphRoot.querySelectorAll('g[data-edge-from]').forEach((el) => {
+      const from = el.getAttribute('data-edge-from');
+      const to = el.getAttribute('data-edge-to');
+      if (!from || !to) return;
+      const onPath = ancestors.has(from) && (to === pathHighlightNodeId || ancestors.has(to));
+      const visEl = el.querySelector('.edge-vis') as SVGPathElement | null;
+      if (!visEl) return;
+      if (onPath) {
+        visEl.style.stroke = '#22d3ee';
+        visEl.style.strokeWidth = '2.5';
+        visEl.style.opacity = '1';
+      } else {
+        visEl.style.opacity = '0.06';
+      }
+    });
+  }, [pathHighlightNodeId, allEdges]);
+
   // ── Stable focus-request handler (prevents NodeCard memo invalidation) ─
   const handleFocusRequest = useCallback((id: string) => {
     if (!designMode) {
@@ -685,8 +760,13 @@ export function Canvas() {
     <div
       id="canvas-wrap"
       ref={canvasWrapRef}
-      className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ''}`}
+      className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ''} ${discoveryActive ? styles.cinemaModeActive : ''}`}
     >
+      {/* Cinema mode badge */}
+      {discoveryActive && (
+        <div className={styles.cinemaBadge}>🎬 Cinema</div>
+      )}
+
       {/* Empty state — shown when no JSON has been loaded yet (hidden in design mode) */}
       {!hasData && !designMode && (
         <div className={styles.emptyState}>
@@ -1078,7 +1158,7 @@ export function Canvas() {
 
       {/* Node hover tooltip — shows full name + tags when hovering a node */}
       {(() => {
-        if (!hoveredNodeId || !tooltipPos) return null;
+        if (!hoveredNodeId || !tooltipPos || isMouseDown) return null;
         const hovNode = allNodes.find((n) => n.id === hoveredNodeId);
         if (!hovNode) return null;
         const wrap = canvasWrapRef.current;

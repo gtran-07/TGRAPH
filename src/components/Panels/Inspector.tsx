@@ -18,6 +18,7 @@ export function InspectorContent() {
     selectedGroupId, groups, setSelectedGroup,
     selectedPhaseId, phases, setSelectedPhaseId, deletePhase,
     multiSelectIds, updateNodeCinemaFields, updateGroupCinemaFields,
+    pathHighlightNodeId, setPathHighlight, allEdges,
   } = useGraphStore();
 
   // Local draft for cinemaScript textarea — committed onBlur to avoid store thrash
@@ -366,6 +367,54 @@ export function InspectorContent() {
                 )}
               </div>
             </>
+          );
+        })()}
+
+        {/* Path highlight — view mode only */}
+        {!designMode && (() => {
+          const isActive = pathHighlightNodeId === selectedNode.id;
+
+          // Count ancestor nodes via backward BFS
+          let ancestorCount = 0;
+          if (isActive) {
+            const visited = new Set<string>();
+            const queue = [selectedNode.id];
+            while (queue.length > 0) {
+              const cur = queue.shift()!;
+              for (const edge of allEdges) {
+                if (edge.to === cur && !visited.has(edge.from)) {
+                  visited.add(edge.from);
+                  queue.push(edge.from);
+                }
+              }
+            }
+            ancestorCount = visited.size;
+          }
+
+          return (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button
+                onClick={() => setPathHighlight(isActive ? null : selectedNode.id)}
+                style={{
+                  width: '100%', padding: '8px 0', borderRadius: 5,
+                  border: `1px solid ${isActive ? '#22d3ee' : 'var(--accent3)'}`,
+                  background: isActive ? 'rgba(34,211,238,.15)' : 'rgba(34,211,238,.05)',
+                  color: isActive ? '#22d3ee' : 'var(--accent3)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {isActive ? '✕ Clear Path View' : '⇤ Show Ancestor Paths'}
+              </button>
+              {isActive && (
+                <div style={{ fontSize: 11, color: 'var(--text3)', textAlign: 'center' }}>
+                  {ancestorCount === 0
+                    ? 'No ancestors — this is a root node'
+                    : `${ancestorCount} ancestor node${ancestorCount !== 1 ? 's' : ''} on path`}
+                </div>
+              )}
+            </div>
           );
         })()}
 

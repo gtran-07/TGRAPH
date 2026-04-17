@@ -149,7 +149,7 @@ export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, gr
           const fromRole = discoveryRoleMap[edge.from] ?? (fromGroup ? discoveryRoleMap[fromGroup.id] : undefined) ?? 'ghost';
           const toRole   = discoveryRoleMap[edge.to]   ?? (toGroup   ? discoveryRoleMap[toGroup.id]   : undefined) ?? 'ghost';
 
-          const isFocusEdge = fromRole === 'focus' || fromRole === 'danger' || toRole === 'focus' || toRole === 'danger';
+          const isFocusEdge = toRole === 'focus' || toRole === 'danger';
           const isLitEdge   = !isFocusEdge && (fromRole === 'lit' || toRole === 'lit');
 
           if (isFocusEdge) {

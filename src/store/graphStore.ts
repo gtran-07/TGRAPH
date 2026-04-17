@@ -101,6 +101,8 @@ export interface GraphStore {
   hoveredNodeId: string | null;
   /** ID of the node most recently jumped to via search. Used for the pulsing glow animation. */
   lastJumpedNodeId: string | null;
+  /** ID of the target node for ancestor-path highlighting. All nodes/edges on any path from a root to this node are highlighted; others are ghosted. */
+  pathHighlightNodeId: string | null;
 
   // ── Focus mode ───────────────────────────────────────────────────────────
   /** True when focus mode is active (user double-clicked a node in view mode) */
@@ -197,6 +199,7 @@ export interface GraphStore {
   setSelectedNode: (id: string | null) => void;
   setHoveredNode: (id: string | null) => void;
   setLastJumpedNode: (id: string | null) => void;
+  setPathHighlight: (id: string | null) => void;
   toggleOwner: (owner: string) => void;
   toggleAllOwners: () => void;
   rebuildGraph: (animated?: boolean) => void;
@@ -476,6 +479,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   selectedNodeId: null,
   hoveredNodeId: null,
   lastJumpedNodeId: null,
+  pathHighlightNodeId: null,
   focusMode: false,
   focusNodeId: null,
   preFocusSnapshot: null,
@@ -525,6 +529,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       selectedNodeId: null,
       hoveredNodeId: null,
       lastJumpedNodeId: null,
+      pathHighlightNodeId: null,
       focusMode: false,
       focusNodeId: null,
       preFocusSnapshot: null,
@@ -638,6 +643,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       selectedNodeId: null,
       hoveredNodeId: null,
       lastJumpedNodeId: null,
+      pathHighlightNodeId: null,
       focusMode: false,
       focusNodeId: null,
       preFocusSnapshot: null,
@@ -1016,10 +1022,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     selectedPhaseId: id !== null ? null : s.selectedPhaseId,
     lastJumpedNodeId: s.lastJumpedNodeId && s.lastJumpedNodeId !== id ? null : s.lastJumpedNodeId,
     multiSelectIds: [],
+    // Clear path highlight when selection changes to a different node
+    pathHighlightNodeId: s.pathHighlightNodeId === id ? s.pathHighlightNodeId : null,
   })),
 
   // ── setHoveredNode ────────────────────────────────────────────────────────
   setHoveredNode: (id: string | null) => set({ hoveredNodeId: id }),
+
+  // ── setPathHighlight ──────────────────────────────────────────────────────
+  setPathHighlight: (id: string | null) => set({ pathHighlightNodeId: id }),
 
   // ── setLastJumpedNode ─────────────────────────────────────────────────────
   setLastJumpedNode: (id: string | null) => set({ lastJumpedNodeId: id }),

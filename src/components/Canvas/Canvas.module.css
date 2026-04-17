@@ -275,3 +275,32 @@
 
 /* Design mode active state — cursor changes handled inline */
 .designModeActive { /* marker class for CSS specificity if needed */ }
+
+/* Cinema mode — animated inset border glow */
+@keyframes cinemaPulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--cinema-focus-color), inset 0 0 24px rgba(79,158,255,0.10); }
+  50%       { box-shadow: inset 0 0 0 2px var(--cinema-focus-color), inset 0 0 40px rgba(79,158,255,0.22); }
+}
+.cinemaModeActive {
+  animation: cinemaPulse 3s ease-in-out infinite;
+}
+
+/* Cinema badge — floating pill in top-right of canvas */
+.cinemaBadge {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 20;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--cinema-focus-color);
+  background: rgba(15, 20, 30, 0.75);
+  border: 1px solid var(--cinema-focus-color);
+  border-radius: 20px;
+  padding: 4px 10px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  opacity: 0.9;
+}

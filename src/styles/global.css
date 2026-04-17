@@ -428,3 +428,37 @@ body {
     display: none !important;
   }
 }
+
+/* ─── PATH HIGHLIGHT — ancestor paths to selected node ───────────────────── */
+
+.path-focus,
+.path-ancestor,
+.path-ghost {
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+/* Target node — cyan glow, fully opaque */
+.path-focus .node-main-rect,
+.path-focus .group-polygon {
+  stroke: #22d3ee !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 8px #22d3ee80);
+}
+.path-focus {
+  opacity: 1;
+}
+
+/* Ancestor nodes — lighter cyan border, near-full opacity */
+.path-ancestor .node-main-rect,
+.path-ancestor .group-polygon {
+  stroke: #22d3ee !important;
+  stroke-width: 2 !important;
+}
+.path-ancestor {
+  opacity: 0.85;
+}
+
+/* Unrelated nodes — strongly dimmed */
+.path-ghost {
+  opacity: 0.08;
+}

@@ -277,6 +277,25 @@
   background: var(--bg3); color: var(--text2);
 }
 
+/* ─── Smart-fly toggle ───────────────────────────────────────────────────── */
+.flyToggleRow {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.flyToggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  cursor: pointer;
+  user-select: none;
+}
+.flyToggleLabel:hover { color: var(--text2); }
+.flyToggleCheck { accent-color: var(--cinema-focus-color); cursor: pointer; }
+
 /* ─── Nav bar (inside scroll body, at bottom of content) ─────────────────── */
 .navBar {
   display: flex;

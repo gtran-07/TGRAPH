@@ -664,7 +664,11 @@ export function Sidebar() {
             </div>
           )}
           {activeTab === 'tags' && <TagsPanel />}
-          {activeTab === 'cinema' && <CinemaTabContent />}
+          {discoveryActive && (
+            <div style={activeTab !== 'cinema' ? { display: 'none' } : { height: '100%' }}>
+              <CinemaTabContent />
+            </div>
+          )}
         </div>
 
         {/* Resize handle */}

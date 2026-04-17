@@ -133,17 +133,35 @@ export function CinemaOverlay(): React.ReactElement | null {
 export function CinemaTabContent(): React.ReactElement | null {
   const {
     discoveryActive, discoverySequence, discoverySceneIndex, discoveryVisited,
-    allNodes, allEdges, phases, positions,
+    allNodes, allEdges, phases, positions, transform,
     exitDiscovery, advanceScene, retreatScene, visitNode, recordEngagement,
     setDiscoveryRoleMap, flyTo,
   } = useGraphStore();
 
   const [showPreview, setShowPreview] = useState(true);
   const [answeredOptionId, setAnsweredOptionId] = useState<string | null>(null);
+  const [smartFly, setSmartFly] = useState(true);
   const sceneStartRef = useRef<number>(Date.now());
   const clickCountRef = useRef<Record<string, number>>({});
 
+  const isSceneVisible = useCallback((scene: CinemaScene): boolean => {
+    const el = document.getElementById('canvas-wrap');
+    if (!el) return false;
+    const { width: W, height: H } = el.getBoundingClientRect();
+    const pts = scene.nodeIds.map((id) => positions[id]).filter(Boolean) as { x: number; y: number }[];
+    if (!pts.length) return false;
+    const { x: tx, y: ty, k } = transform;
+    return pts.every((p) => {
+      const sx = p.x * k + tx;
+      const sy = p.y * k + ty;
+      const ex = (p.x + NODE_W) * k + tx;
+      const ey = (p.y + NODE_H) * k + ty;
+      return ex > 0 && sx < W && ey > 0 && sy < H;
+    });
+  }, [positions, transform]);
+
   const flyToScene = useCallback((scene: CinemaScene) => {
+    if (smartFly && isSceneVisible(scene)) return;
     const el = document.getElementById('canvas-wrap');
     if (!el) return;
     const { width: W, height: H } = el.getBoundingClientRect();
@@ -152,7 +170,7 @@ export function CinemaTabContent(): React.ReactElement | null {
     const cx = pts.reduce((s, p) => s + p.x + NODE_W / 2, 0) / pts.length;
     const cy = pts.reduce((s, p) => s + p.y + NODE_H / 2, 0) / pts.length;
     flyTo({ x: W / 2 - cx * 0.75, y: H / 2 - cy * 0.75, k: 0.75 });
-  }, [positions, flyTo]);
+  }, [smartFly, isSceneVisible, positions, flyTo]);
 
   // Reset on cinema start
   useEffect(() => {
@@ -392,6 +410,19 @@ export function CinemaTabContent(): React.ReactElement | null {
             {scene.insight}
           </div>
         )}
+
+        {/* Smart-fly toggle */}
+        <div className={styles.flyToggleRow}>
+          <label className={styles.flyToggleLabel}>
+            <input
+              type="checkbox"
+              checked={smartFly}
+              onChange={(e) => setSmartFly(e.target.checked)}
+              className={styles.flyToggleCheck}
+            />
+            Skip pan if node is visible
+          </label>
+        </div>
 
         {/* Nav controls — inside scroll area, always at bottom of content */}
         <div className={styles.navBar}>
