@@ -29,6 +29,8 @@ export function OwnerFocusBar({
   return (
     <div className={styles.bar}>
       <span className={styles.dot} style={{ background: ownerColor }} />
+      <span className={styles.modeLabel}>Owner Focus</span>
+      <span className={styles.separator}>·</span>
       <span className={styles.ownerName}>{focusedOwner}</span>
 
       {upstreamCount > 0 && (

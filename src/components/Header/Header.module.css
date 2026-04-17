@@ -289,10 +289,11 @@
 }
 .fileChipUnlinked .fileChipName { color: var(--text2); }
 
-/* New flowchart button */
-.btnNew {
+/* File menu dropdown */
+.fileMenuWrap { position: relative; flex-shrink: 0; }
+.btnFileMenu {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: transparent;
   border: 1px solid var(--border2);
   border-radius: 5px;
@@ -304,22 +305,95 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.btnNew:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
-.btnSample {
+.btnFileMenu:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
+.btnFileMenuOpen { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
+.chevron { opacity: .6; flex-shrink: 0; }
+
+.fileMenuDropdown {
+  position: absolute;
+  top: calc(100% + 5px); left: 0;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  z-index: 400;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn .12s ease;
+}
+.fileMenuDivider { height: 1px; background: var(--border); }
+.fileMenuItem {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 14px;
+  background: transparent; border: none;
+  color: var(--text2);
+  font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; text-align: left;
+  transition: background .1s, color .1s;
+}
+.fileMenuItem:hover { background: var(--surface2); color: var(--text); }
+.fileMenuItem:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Mode dropdown */
+.modeMenuWrap { position: relative; flex-shrink: 0; }
+.btnModeMenu {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: transparent;
   border: 1px solid var(--border2);
   border-radius: 5px;
   color: var(--text2);
   font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
   flex-shrink: 0;
 }
-.btnSample:hover { border-color: #2dd4bf; color: #2dd4bf; background: rgba(45,212,191,.07); }
+.btnModeMenu:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
+.btnModeMenuOpen { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
+.btnModeMenuDesign { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.1) !important; }
+
+.modeMenuDropdown {
+  position: absolute;
+  top: calc(100% + 5px); right: 0; left: auto;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  z-index: 400;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn .12s ease;
+}
+.modeMenuSection {
+  padding: 6px 14px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+.modeMenuDivider { height: 1px; background: var(--border); margin: 3px 0; }
+.modeMenuItem {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 14px;
+  background: transparent; border: none;
+  color: var(--text2);
+  font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; text-align: left;
+  transition: background .1s, color .1s;
+}
+.modeMenuItem:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
+.modeMenuItem:disabled { opacity: .35; cursor: not-allowed; }
+.modeMenuItemActive { color: var(--accent) !important; }
+.modeMenuItemDesign { color: var(--design) !important; }
+.modeMenuCheck { margin-left: auto; font-size: 11px; }
 
 /* Icon buttons */
 .btnIcon {
@@ -418,7 +492,7 @@
 .saveMenu {
   position: absolute;
   top: calc(100% + 5px);
-  right: 0;
+  left: 0;
   min-width: 210px;
   background: var(--surface);
   border: 1px solid var(--border2);
@@ -482,6 +556,23 @@
 .btnDesign:hover { border-color: var(--design); color: var(--design); background: rgba(167,139,250,.07); }
 .btnDesignActive { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.13) !important; }
 
+/* Exit Design Mode button — visible shortcut when design mode is active */
+.btnExitDesign {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: rgba(167,139,250,.1);
+  border: 1px solid var(--design);
+  border-radius: 5px;
+  color: var(--design);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btnExitDesign:hover { background: rgba(167,139,250,.22); }
+
 /* Discover / Cinema tour button */
 .btnDiscover {
   display: flex; align-items: center; gap: 6px;
@@ -524,12 +615,13 @@
   .btnLabel { display: none; }
   .statusChip { display: none; }
   /* Shrink padded buttons to icon-only squares */
-  .btnUpload, .btnNew, .btnSaveJson, .btnDesign, .btnDiscover, .btnLayouts {
+  .btnUpload, .btnFileMenu, .btnModeMenu, .btnSaveJson, .btnDesign, .btnExitDesign, .btnDiscover, .btnLayouts {
     padding: 6px 8px !important;
     gap: 0 !important;
     min-width: 32px;
     justify-content: center;
   }
+  .chevron { display: none; }
   /* Search bar gets a bit narrower */
   .searchWrap { max-width: 200px; }
 }

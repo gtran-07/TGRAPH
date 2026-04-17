@@ -132,15 +132,19 @@ export function CinemaOverlay(): React.ReactElement | null {
 
 export function CinemaTabContent(): React.ReactElement | null {
   const {
-    discoveryActive, discoverySequence, discoverySceneIndex, discoveryVisited,
+    discoveryActive, discoveryPhase, discoverySequence, discoverySceneIndex, discoveryVisited,
     allNodes, allEdges, phases, positions, transform,
-    exitDiscovery, advanceScene, retreatScene, visitNode, recordEngagement,
+    exitDiscovery, startHeatmap, exitCinemaExperience, completeDiscovery,
+    advanceScene, retreatScene, visitNode, recordEngagement,
     setDiscoveryRoleMap, flyTo,
+    startReconstruction, reconstructionAccuracy, selectedReconstructionChip,
+    selectReconstructionChip, completeReconstruction, heatTiers,
   } = useGraphStore();
 
   const [showPreview, setShowPreview] = useState(true);
   const [answeredOptionId, setAnsweredOptionId] = useState<string | null>(null);
   const [smartFly, setSmartFly] = useState(true);
+  const [shuffledChips, setShuffledChips] = useState<{ nodeId: string; name: string }[]>([]);
   const sceneStartRef = useRef<number>(Date.now());
   const clickCountRef = useRef<Record<string, number>>({});
 
@@ -174,12 +178,12 @@ export function CinemaTabContent(): React.ReactElement | null {
 
   // Reset on cinema start
   useEffect(() => {
-    if (discoveryActive) {
+    if (discoveryPhase === 'cinema') {
       setShowPreview(true);
       setAnsweredOptionId(null);
       clickCountRef.current = {};
     }
-  }, [discoveryActive]);
+  }, [discoveryPhase]);
 
   // Reset prediction on scene change
   useEffect(() => {
@@ -214,6 +218,61 @@ export function CinemaTabContent(): React.ReactElement | null {
     return () => document.getElementById('canvas-wrap')?.removeEventListener('click', handle);
   }, [discoveryActive]);
 
+  // Reconstruction: apply blank classes + initialize chip pool on phase entry
+  useEffect(() => {
+    if (discoveryPhase !== 'reconstruction') return;
+
+    // Build shuffled chip pool from the nodes that appeared in focus
+    const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+    const chips = discoveryVisited.map((id) => ({
+      nodeId: id,
+      name: nodeMap.get(id)?.name ?? id,
+    }));
+    // Fisher-Yates shuffle
+    const arr = [...chips];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    setShuffledChips(arr);
+
+    // Blank out every visited node on the canvas
+    for (const id of discoveryVisited) {
+      document.querySelector(`.node-group[data-id="${id}"]`)
+        ?.classList.add('reconstruction-blank');
+    }
+
+    return () => {
+      // Remove all reconstruction styling when leaving this phase
+      for (const id of discoveryVisited) {
+        document.querySelector(`.node-group[data-id="${id}"]`)
+          ?.classList.remove('reconstruction-blank', 'reconstruction-correct', 'reconstruction-wrong');
+      }
+    };
+  // discoveryVisited and allNodes are stable during reconstruction; dep on discoveryPhase only.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoveryPhase]);
+
+  // Heatmap tier classes are now applied via NodeCard's className prop (heatClass) so they
+  // survive React re-renders. No imperative DOM writes needed here.
+  // Cleanup of non-React-managed classes (reconstruction-*) still happens via the
+  // reconstruction useEffect's cleanup above.
+
+  // Reconstruction: auto-advance to Phase 3 when all nodes are placed
+  const placedCount = discoveryVisited.filter((id) => reconstructionAccuracy[id] === true).length;
+  const reconstructionTotal = discoveryVisited.length;
+  const isReconstructionComplete = reconstructionTotal > 0 && placedCount === reconstructionTotal;
+  const isPerfectReconstruction = isReconstructionComplete &&
+    Object.values(reconstructionAccuracy).every((v) => v === true);
+
+  useEffect(() => {
+    if (!isReconstructionComplete) return;
+    const timer = setTimeout(() => completeReconstruction(), 2000);
+    return () => clearTimeout(timer);
+  // completeReconstruction is a stable store reference; isReconstructionComplete is derived.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReconstructionComplete]);
+
   // Engagement scoring
   const commitEngagement = useCallback(() => {
     if (!discoverySequence) return;
@@ -229,11 +288,16 @@ export function CinemaTabContent(): React.ReactElement | null {
   const handleNext = useCallback(() => {
     commitEngagement();
     const scenes = discoverySequence?.scenes ?? [];
-    if (discoverySceneIndex >= scenes.length - 1) { exitDiscovery(); return; }
+    if (discoverySceneIndex >= scenes.length - 1) {
+      // completeDiscovery() is a single set() call: sets discoveryPhase='transition'
+      // AND clears discoveryRoleMap atomically — one render, no batching race.
+      completeDiscovery();
+      return;
+    }
     const next = scenes[discoverySceneIndex + 1];
     advanceScene();
     flyToScene(next);
-  }, [commitEngagement, discoverySceneIndex, discoverySequence, exitDiscovery, advanceScene, flyToScene]);
+  }, [commitEngagement, discoverySceneIndex, discoverySequence, completeDiscovery, advanceScene, flyToScene]);
 
   const handleBack = useCallback(() => {
     commitEngagement();
@@ -254,6 +318,8 @@ export function CinemaTabContent(): React.ReactElement | null {
 
   if (!discoveryActive || !discoverySequence || !discoverySequence.scenes.length) return null;
 
+
+
   const scenes = discoverySequence.scenes;
   const scene = scenes[discoverySceneIndex];
   if (!scene) return null;
@@ -273,6 +339,223 @@ export function CinemaTabContent(): React.ReactElement | null {
   const primaryNode = allNodes.find((n) => n.id === scene.nodeIds[0]);
   const phaseName = phases.find((p) => p.nodeIds.includes(scene.nodeIds[0]))?.name;
   const predCount = scenes.filter((s) => s.type === 'prediction').length;
+
+  // ── Transition screen — shown when discoveryPhase === 'transition' ──────────
+  // discoveryPhase is set atomically by completeDiscovery() in a single store
+  // write, so this is guaranteed to render in the same React commit as the
+  // roleMap clear. Both buttons call exitDiscovery() as Phase 2/3 placeholders.
+  if (discoveryPhase === 'transition') {
+    return (
+      <div className={styles.tabWrap}>
+        <div className={styles.cinemaHeader}>
+          <span className={styles.cinemaTitle}>🎬 Process Cinema</span>
+          <button className={styles.exitTourBtn} onClick={exitDiscovery}>
+            ✕ Exit Tour
+          </button>
+        </div>
+        <div className={styles.tabBody}>
+          <div className={styles.transitionCheck}>✓</div>
+          <div className={styles.transitionHeadline}>You've seen the full story</div>
+          <p className={styles.transitionDesc}>
+            Would you like to test your memory of this process, or jump straight to the engagement summary?
+          </p>
+          <div className={styles.transitionActions}>
+            {/* Phase 2 — Reconstruction entry point */}
+            <button className={styles.transitionBtnPrimary} onClick={startReconstruction}>
+              Test memory
+            </button>
+            {/* Phase 3 — Heatmap entry point: startHeatmap sets discoveryPhase to 'heatmap' */}
+            <button className={styles.transitionBtnSecondary} onClick={startHeatmap}>
+              Skip to summary
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Reconstruction ────────────────────────────────────────────────────────
+  if (discoveryPhase === 'reconstruction') {
+    const hintVisible = Object.values(reconstructionAccuracy).some((v) => v === false);
+    const visibleChips = shuffledChips.filter((c) => reconstructionAccuracy[c.nodeId] !== true);
+
+    return (
+      <div className={styles.tabWrap}>
+        <div className={styles.cinemaHeader}>
+          <span className={styles.cinemaTitle}>🎬 Process Cinema</span>
+          <button className={styles.exitTourBtn} onClick={exitDiscovery}>
+            ✕ Exit Tour
+          </button>
+        </div>
+
+        <div className={styles.tabBody}>
+          {isReconstructionComplete ? (
+            <>
+              <div className={styles.reconstructionCheck}>✓</div>
+              <div className={styles.reconstructionDone}>You rebuilt the graph from memory.</div>
+              {isPerfectReconstruction && (
+                <div className={styles.reconstructionPerfect}>Perfect reconstruction.</div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className={styles.reconstructionHeadline}>Reconstruct the graph</div>
+              <p className={styles.reconstructionDesc}>
+                Select a label chip below, then click the blank node where it belongs.
+              </p>
+
+              <div className={styles.reconstructionProgress}>
+                <span className={styles.reconstructionProgressCount}>
+                  {placedCount} of {reconstructionTotal} placed
+                </span>
+                <button className={styles.reconstructionSkip} onClick={() => completeReconstruction()}>
+                  Skip →
+                </button>
+              </div>
+
+              <div className={styles.reconstructionBar}>
+                <div
+                  className={styles.reconstructionBarFill}
+                  style={{ width: `${reconstructionTotal > 0 ? (placedCount / reconstructionTotal) * 100 : 0}%` }}
+                />
+              </div>
+
+              {hintVisible && (
+                <div className={styles.reconstructionHint}>
+                  Think about where this node sat in the process flow.
+                </div>
+              )}
+
+              <div className={styles.reconstructionChips}>
+                {visibleChips.map((chip) => (
+                  <button
+                    key={chip.nodeId}
+                    className={[
+                      styles.reconstructionChip,
+                      selectedReconstructionChip === chip.nodeId ? styles.reconstructionChipSelected : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => selectReconstructionChip(
+                      selectedReconstructionChip === chip.nodeId ? null : chip.nodeId
+                    )}
+                  >
+                    {chip.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Heatmap — Phase 3 ────────────────────────────────────────────────────
+  if (discoveryPhase === 'heatmap') {
+    const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+
+    // Build structural role map: for each node, use the first non-prediction scene
+    // it appears in as the primary role label. Prediction scenes are used only as fallback.
+    const nodeRoleMap: Record<string, string> = {};
+    if (discoverySequence) {
+      for (const s of discoverySequence.scenes) {
+        for (const id of s.nodeIds) {
+          if (!(id in nodeRoleMap) || (nodeRoleMap[id] === TYPE_LABELS.prediction && s.type !== 'prediction')) {
+            nodeRoleMap[id] = TYPE_LABELS[s.type];
+          }
+        }
+      }
+    }
+
+    const coldNodes = Object.entries(heatTiers)
+      .filter(([, tier]) => tier === 'cold' || tier === 'ice')
+      .map(([id, tier]) => ({
+        id,
+        tier: tier as 'cold' | 'ice',
+        name: nodeMap.get(id)?.name ?? id,
+        role: nodeRoleMap[id] ?? '—',
+      }));
+
+    const sceneCount = discoverySequence?.scenes.length ?? 0;
+    const bottleneckCount = discoverySequence?.scenes.filter((s) => s.type === 'bottleneck').length ?? 0;
+    const wasSkipped = Object.keys(reconstructionAccuracy).length === 0;
+    const correctCount = Object.values(reconstructionAccuracy).filter(Boolean).length;
+
+    return (
+      <div className={styles.tabWrap}>
+        <div className={styles.cinemaHeader}>
+          <span className={styles.cinemaTitle}>🎬 Process Cinema</span>
+          <button className={styles.exitTourBtn} onClick={exitCinemaExperience}>
+            ✕ Exit Tour
+          </button>
+        </div>
+
+        <div className={styles.tabBody}>
+          <div className={styles.heatmapHeadline}>Your attention map</div>
+          <p className={styles.heatmapDesc}>
+            This shows where your focus went — not a score, a mirror.
+          </p>
+
+          {/* Legend */}
+          <div className={styles.heatmapLegend}>
+            <div className={styles.heatmapLegendRow}>
+              <span className={`${styles.heatmapSwatch} ${styles.heatmapSwatchHot}`} />
+              <span className={styles.heatmapLegendLabel}><strong>Hot</strong> — deeply engaged, dwelled and clicked</span>
+            </div>
+            <div className={styles.heatmapLegendRow}>
+              <span className={`${styles.heatmapSwatch} ${styles.heatmapSwatchWarm}`} />
+              <span className={styles.heatmapLegendLabel}><strong>Warm</strong> — solid attention, at or above average</span>
+            </div>
+            <div className={styles.heatmapLegendRow}>
+              <span className={`${styles.heatmapSwatch} ${styles.heatmapSwatchCold}`} />
+              <span className={styles.heatmapLegendLabel}><strong>Cold</strong> — seen but not lingered on</span>
+            </div>
+            <div className={styles.heatmapLegendRow}>
+              <span className={`${styles.heatmapSwatch} ${styles.heatmapSwatchIce}`} />
+              <span className={styles.heatmapLegendLabel}><strong>Ice</strong> — barely registered</span>
+            </div>
+          </div>
+
+          {/* Cold node list */}
+          {coldNodes.length > 0 && (
+            <div className={styles.heatmapColdSection}>
+              <div className={styles.heatmapSectionTitle}>Nodes you barely touched</div>
+              <div className={styles.heatmapColdList}>
+                {coldNodes.map((n) => (
+                  <div key={n.id} className={styles.heatmapColdRow}>
+                    <span className={`${styles.heatmapTierDot} ${n.tier === 'ice' ? styles.heatmapTierDotIce : styles.heatmapTierDotCold}`} />
+                    <span className={styles.heatmapColdName}>{n.name}</span>
+                    <span className={styles.heatmapColdRole}>{n.role.toLowerCase()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stats strip */}
+          <div className={styles.heatmapStats}>
+            <div className={styles.heatmapStat}>
+              <span className={styles.heatmapStatValue}>{sceneCount}</span>
+              <span className={styles.heatmapStatLabel}>Scenes absorbed</span>
+            </div>
+            <div className={styles.heatmapStat}>
+              <span className={styles.heatmapStatValue}>{bottleneckCount}</span>
+              <span className={styles.heatmapStatLabel}>Bottlenecks found</span>
+            </div>
+            <div className={styles.heatmapStat}>
+              <span className={styles.heatmapStatValue}>
+                {wasSkipped ? 'skipped' : `${correctCount}/${discoveryVisited.length}`}
+              </span>
+              <span className={styles.heatmapStatLabel}>Rebuilt correctly</span>
+            </div>
+            <div className={styles.heatmapStat}>
+              <span className={styles.heatmapStatValue}>{coldNodes.length}</span>
+              <span className={styles.heatmapStatLabel}>Cold nodes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Preview ────────────────────────────────────────────────────────────────
   if (showPreview) {

@@ -45,6 +45,8 @@ export function Header() {
   const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>([]);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
   // Modal open flag — numeric counter so every button click triggers the effect.
   const [guidePulse, setGuidePulse] = useState(0);
@@ -53,6 +55,8 @@ export function Header() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const layoutsRef = useRef<HTMLDivElement>(null);
   const saveMenuRef = useRef<HTMLDivElement>(null);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
 
   // ── Load saved layouts from localStorage on mount / dropdown open ─────
   useEffect(() => {
@@ -330,7 +334,7 @@ export function Header() {
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
-  // ── Close layouts dropdown when clicking outside ──────────────────────
+  // ── Close dropdowns when clicking outside ──────────────────────
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {
       if (layoutsRef.current && !layoutsRef.current.contains(e.target as Node)) {
@@ -338,6 +342,12 @@ export function Header() {
       }
       if (saveMenuRef.current && !saveMenuRef.current.contains(e.target as Node)) {
         setSaveMenuOpen(false);
+      }
+      if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
+        setFileMenuOpen(false);
+      }
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setModeMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleOutsideClick);
@@ -466,20 +476,128 @@ export function Header() {
         className={styles.fileInput}
       />
 
-      {/* File loader button — uses File System Access API when available */}
-      <button
-        className={styles.btnUpload}
-        title={fsApiSupported
-          ? 'Open a JSON file — saves will write back to this file directly (no download)'
-          : 'Open a JSON file — your browser does not support direct file saving, saves will download a copy'}
-        onClick={handleOpenFile}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <span className={styles.btnLabel}>{currentFileName ? 'Open JSON' : 'Open JSON File'}</span>
-      </button>
+      {/* File menu dropdown — Open JSON, New, Samples, Reload */}
+      {!discoveryActive && (
+        <div className={styles.fileMenuWrap} ref={fileMenuRef}>
+          <button
+            className={`${styles.btnFileMenu} ${fileMenuOpen ? styles.btnFileMenuOpen : ''}`}
+            title="File operations — open, new, samples, reload"
+            onClick={() => setFileMenuOpen((v) => !v)}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span className={styles.btnLabel}>File</span>
+            <svg className={styles.chevron} width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {fileMenuOpen && (
+            <div className={styles.fileMenuDropdown}>
+              <button className={styles.fileMenuItem} onClick={() => { setFileMenuOpen(false); handleOpenFile(); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Open JSON…
+              </button>
+              <button className={styles.fileMenuItem} onClick={() => {
+                setFileMenuOpen(false);
+                if (allNodes.length > 0 && !window.confirm('Start a new flowchart? Unsaved changes will be lost.')) return;
+                clearGraph(); setLastSavedAt(null);
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                New
+              </button>
+              <button className={styles.fileMenuItem} onClick={() => { setFileMenuOpen(false); document.dispatchEvent(new CustomEvent('flowgraph:pick-sample')); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Samples…
+              </button>
+              {fileHandle && <>
+                <div className={styles.fileMenuDivider} />
+                <button className={styles.fileMenuItem} onClick={() => { setFileMenuOpen(false); handleReloadFromFile(); }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                  </svg>
+                  Reload from File
+                </button>
+              </>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Save — split button: primary action + chevron opens save/export menu */}
+      {hasData && !discoveryActive && (
+        <div className={styles.saveSplit} ref={saveMenuRef}>
+          <button
+            className={`${styles.btnSaveJson} ${fileHandle ? styles.btnSaveJsonLinked : ''} ${!designDirty && !fileHandle ? styles.btnSaveJsonQuiet : ''}`}
+            title={fileHandle
+              ? `Save — writes directly to "${currentFileName}" on your disk (no download)`
+              : `Download JSON — saves a copy to your Downloads folder${currentFileName ? ` as "${currentFileName}"` : ''}\nTo save in-place, re-open the file using the Open button (Chrome/Edge only)`}
+            onClick={handleSaveJson}
+          >
+            {fileHandle ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            )}
+            <span className={styles.btnLabel}>{fileHandle ? 'Save' : 'Save JSON'}</span>
+          </button>
+          <button
+            className={`${styles.btnSaveChevron} ${fileHandle ? styles.btnSaveChevronLinked : ''} ${!designDirty && !fileHandle ? styles.btnSaveChevronQuiet : ''} ${saveMenuOpen ? styles.btnSaveChevronOpen : ''}`}
+            title="More save options"
+            onClick={() => setSaveMenuOpen((v) => !v)}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {saveMenuOpen && (
+            <div className={styles.saveMenu}>
+              <button className={styles.saveMenuItem} onClick={handleSaveAs}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Save As…
+              </button>
+              <div className={styles.saveMenuDivider} />
+              <button className={styles.saveMenuItem} onClick={() => handleExportPdf('current')}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                Export PDF — Current View
+              </button>
+              <button className={styles.saveMenuItem} onClick={() => handleExportPdf('full')}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/>
+                </svg>
+                Export PDF — Full Chart
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Current file name chip — shows linked (green) vs unlinked (gray) status */}
       {currentFileName && (
@@ -490,13 +608,11 @@ export function Header() {
             : `"${currentFileName}" loaded as a copy — Save will download a new file. Re-open with the button above to enable direct saving (Chrome/Edge only)`}
         >
           {fileHandle ? (
-            /* Chain-link icon — file is linked, saves go in-place */
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
           ) : (
-            /* Broken-link icon — no handle, saves will download */
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
@@ -507,37 +623,8 @@ export function Header() {
         </div>
       )}
 
-      {/* New flowchart button */}
-      <button
-        className={styles.btnNew}
-        title="New flowchart — clears the current graph and enters design mode"
-        onClick={() => {
-          if (allNodes.length > 0 && !window.confirm('Start a new flowchart? Unsaved changes will be lost.')) return;
-          clearGraph();
-          setLastSavedAt(null);
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        <span className={styles.btnLabel}>New</span>
-      </button>
-
-      {/* Sample picker button — always available, opens SamplePickerModal */}
-      <button
-        className={styles.btnSample}
-        title="Load a sample flowchart"
-        onClick={() => document.dispatchEvent(new CustomEvent('flowgraph:pick-sample'))}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-        </svg>
-        <span className={styles.btnLabel}>Samples</span>
-      </button>
-
       {/* Search */}
-      <div className={styles.searchWrap}>
+      {!discoveryActive && <div className={styles.searchWrap}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
@@ -565,7 +652,7 @@ export function Header() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Right-side toolbar */}
       <div className={styles.toolbarRight}>
@@ -589,22 +676,52 @@ export function Header() {
           {designDirty && <span className={styles.unsavedDot} title="Unsaved changes">●</span>}
         </div>
 
-        {/* DAG / LANES view toggle */}
-        <div className={styles.viewToggle}>
-          <button
-            className={`${styles.viewBtn} ${viewMode === 'dag' ? styles.viewBtnActive : ''}`}
-            onClick={() => setViewMode('dag')}
-            title="Free DAG layout — nodes arranged left-to-right by dependency depth"
-          >DAG</button>
-          <button
-            className={`${styles.viewBtn} ${viewMode === 'lanes' ? styles.viewBtnActive : ''}`}
-            onClick={() => setViewMode('lanes')}
-            title="Swim lane layout — nodes grouped horizontally by owner"
-          >LANES</button>
-        </div>
+        {/* Auto-space */}
+        <button
+          className={styles.btnIcon}
+          title="Auto-space — detect and spread apart any overlapping nodes or groups"
+          onClick={() => resolveOverlaps()}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="0.75" y="0.75" width="4" height="4" rx="0.8"/>
+            <rect x="9.25" y="0.75" width="4" height="4" rx="0.8"/>
+            <rect x="0.75" y="9.25" width="4" height="4" rx="0.8"/>
+            <rect x="9.25" y="9.25" width="4" height="4" rx="0.8"/>
+          </svg>
+        </button>
+
+        {/* Recalculate layout */}
+        <button
+          className={styles.btnIcon}
+          title="Reset layout — recalculate positions from scratch"
+          onClick={() => { rebuildGraph(); setTimeout(() => fitToScreen(), 50); }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <rect x="5" y="0.5" width="4" height="3.5" rx="0.7"/>
+            <rect x="0.5" y="10" width="4" height="3.5" rx="0.7"/>
+            <rect x="9.5" y="10" width="4" height="3.5" rx="0.7"/>
+            <line x1="7" y1="4" x2="7" y2="7"/>
+            <line x1="7" y1="7" x2="2.5" y2="10"/>
+            <line x1="7" y1="7" x2="11.5" y2="10"/>
+          </svg>
+        </button>
+
+        {/* Fit to screen */}
+        <button
+          className={styles.btnIcon}
+          title="Fit graph to screen"
+          onClick={() => fitToScreen()}
+        >⊞</button>
+
+        {/* User guide */}
+        <button
+          className={styles.btnIcon}
+          title="How to use FlowGraph (Shift+?)"
+          onClick={() => setGuidePulse((n) => n + 1)}
+        >📖</button>
 
         {/* Saved Layouts dropdown */}
-        <div className={styles.layoutsWrap} ref={layoutsRef}>
+        {!discoveryActive && <div className={styles.layoutsWrap} ref={layoutsRef}>
           <button
             className={`${styles.btnLayouts} ${layoutsOpen ? styles.btnLayoutsOpen : ''}`}
             onClick={() => setLayoutsOpen(!layoutsOpen)}
@@ -659,156 +776,119 @@ export function Header() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
-        {/* Save — split button: primary action + chevron opens save/export menu */}
-        {hasData && (
-          <div className={styles.saveSplit} ref={saveMenuRef}>
-            <button
-              className={`${styles.btnSaveJson} ${fileHandle ? styles.btnSaveJsonLinked : ''} ${!designDirty && !fileHandle ? styles.btnSaveJsonQuiet : ''}`}
-              title={fileHandle
-                ? `Save — writes directly to "${currentFileName}" on your disk (no download)`
-                : `Download JSON — saves a copy to your Downloads folder${currentFileName ? ` as "${currentFileName}"` : ''}\nTo save in-place, re-open the file using the Open button (Chrome/Edge only)`}
-              onClick={handleSaveJson}
-            >
-              {fileHandle ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-              )}
-              <span className={styles.btnLabel}>{fileHandle ? 'Save' : 'Save JSON'}</span>
-            </button>
-            <button
-              className={`${styles.btnSaveChevron} ${fileHandle ? styles.btnSaveChevronLinked : ''} ${!designDirty && !fileHandle ? styles.btnSaveChevronQuiet : ''} ${saveMenuOpen ? styles.btnSaveChevronOpen : ''}`}
-              title="More save options"
-              onClick={() => setSaveMenuOpen((v) => !v)}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            {saveMenuOpen && (
-              <div className={styles.saveMenu}>
-                <button className={styles.saveMenuItem} onClick={handleSaveAs}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline points="17 21 17 13 7 13 7 21"/>
-                    <polyline points="7 3 7 8 15 8"/>
-                  </svg>
-                  Save As…
-                </button>
-                <div className={styles.saveMenuDivider} />
-                <button className={styles.saveMenuItem} onClick={() => handleExportPdf('current')}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                    <polyline points="10 9 9 9 8 9"/>
-                  </svg>
-                  Export PDF — Current View
-                </button>
-                <button className={styles.saveMenuItem} onClick={() => handleExportPdf('full')}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/>
-                  </svg>
-                  Export PDF — Full Chart
-                </button>
-              </div>
-            )}
-          </div>
+        {/* Design exit button — shown only when design mode is active */}
+        {designMode && !discoveryActive && (
+          <button
+            className={styles.btnExitDesign}
+            title="Exit Design Mode"
+            onClick={handleDesignToggle}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            <span className={styles.btnLabel}>Exit Design</span>
+          </button>
         )}
 
-        {/* Discover — Process Cinema guided tour — hidden in design mode */}
-        {!designMode && (
+        {/* Discover exit button — shown only when cinema is active */}
+        {discoveryActive && (
           <button
-            className={`${styles.btnDiscover} ${discoveryActive ? styles.btnDiscoverActive : ''}`}
-            title={discoveryActive ? 'Exit the Process Cinema tour' : 'Discover — guided story tour of this graph\'s structure'}
+            className={`${styles.btnDiscover} ${styles.btnDiscoverActive}`}
+            title="Exit the Process Cinema tour"
             onClick={handleDiscover}
-            disabled={!hasData}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10"/>
               <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
             </svg>
-            <span className={styles.btnLabel}>{discoverLabel}</span>
+            <span className={styles.btnLabel}>Exit Tour</span>
           </button>
         )}
 
-        {/* Design mode toggle — hidden in cinema mode */}
-        {!discoveryActive && (
+        {/* Mode dropdown — view layout + Design + Discover */}
+        <div className={styles.modeMenuWrap} ref={modeMenuRef}>
           <button
-            className={`${styles.btnDesign} ${designMode ? styles.btnDesignActive : ''}`}
-            title="Toggle Design Mode — add nodes, draw connections, edit graph"
-            onClick={handleDesignToggle}
+            className={`${styles.btnModeMenu} ${modeMenuOpen ? styles.btnModeMenuOpen : ''} ${designMode ? styles.btnModeMenuDesign : ''}`}
+            title="Switch view layout or interaction mode"
+            onClick={() => setModeMenuOpen((v) => !v)}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            {designMode ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            ) : viewMode === 'lanes' ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="8" width="5" height="5" rx="1"/><rect x="16" y="4" width="5" height="5" rx="1"/>
+                <rect x="16" y="14" width="5" height="5" rx="1"/><rect x="10" y="11" width="5" height="5" rx="1"/>
+                <line x1="8" y1="10.5" x2="10" y2="12"/><line x1="15" y1="13.5" x2="21" y2="11.5"/>
+              </svg>
+            )}
+            <span className={styles.btnLabel}>
+              {designMode ? 'Design' : viewMode === 'lanes' ? 'Lanes' : 'DAG'}
+            </span>
+            <svg className={styles.chevron} width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="6 9 12 15 18 9"/>
             </svg>
-            <span className={styles.btnLabel}>Design</span>
           </button>
-        )}
-
-        {/* Auto-space — resolve overlapping nodes/groups */}
-        <button
-          className={styles.btnIcon}
-          title="Auto-space — detect and spread apart any overlapping nodes or groups"
-          onClick={() => resolveOverlaps()}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="0.75" y="0.75" width="4" height="4" rx="0.8"/>
-            <rect x="9.25" y="0.75" width="4" height="4" rx="0.8"/>
-            <rect x="0.75" y="9.25" width="4" height="4" rx="0.8"/>
-            <rect x="9.25" y="9.25" width="4" height="4" rx="0.8"/>
-          </svg>
-        </button>
-
-        {/* ↺ — Reload from file (restore last saved state) */}
-        <button
-          className={styles.btnIcon}
-          title={fileHandle ? 'Reload from file — restore layout to last saved state' : 'Reload from file — not available (no linked file)'}
-          onClick={handleReloadFromFile}
-          disabled={!fileHandle}
-        >↺</button>
-
-        {/* Recalculate layout — DAG hierarchy tree icon */}
-        <button
-          className={styles.btnIcon}
-          title="Reset layout — recalculate positions from scratch"
-          onClick={() => { rebuildGraph(); setTimeout(() => fitToScreen(), 50); }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
-            <rect x="5" y="0.5" width="4" height="3.5" rx="0.7"/>
-            <rect x="0.5" y="10" width="4" height="3.5" rx="0.7"/>
-            <rect x="9.5" y="10" width="4" height="3.5" rx="0.7"/>
-            <line x1="7" y1="4" x2="7" y2="7"/>
-            <line x1="7" y1="7" x2="2.5" y2="10"/>
-            <line x1="7" y1="7" x2="11.5" y2="10"/>
-          </svg>
-        </button>
-
-        {/* ⊞ — Fit graph to screen */}
-        <button
-          className={styles.btnIcon}
-          title="Fit graph to screen"
-          onClick={() => fitToScreen()}
-        >⊞</button>
-
-        {/* 📖 — How-to User Guide (far right) */}
-        <button
-          className={styles.btnIcon}
-          title="How to use FlowGraph (Shift+?)"
-          onClick={() => setGuidePulse((n) => n + 1)}
-        >📖</button>
+          {modeMenuOpen && (
+            <div className={styles.modeMenuDropdown}>
+              <div className={styles.modeMenuSection}>LAYOUT</div>
+              <button
+                className={`${styles.modeMenuItem} ${viewMode === 'dag' && !designMode ? styles.modeMenuItemActive : ''}`}
+                onClick={() => { setViewMode('dag'); if (designMode) setDesignMode(false); setModeMenuOpen(false); }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="8" width="5" height="5" rx="1"/><rect x="16" y="4" width="5" height="5" rx="1"/>
+                  <rect x="16" y="14" width="5" height="5" rx="1"/><rect x="10" y="11" width="5" height="5" rx="1"/>
+                  <line x1="8" y1="10.5" x2="10" y2="12"/><line x1="15" y1="13.5" x2="21" y2="11.5"/>
+                </svg>
+                DAG View
+                {viewMode === 'dag' && !designMode && <span className={styles.modeMenuCheck}>✓</span>}
+              </button>
+              <button
+                className={`${styles.modeMenuItem} ${viewMode === 'lanes' && !designMode ? styles.modeMenuItemActive : ''}`}
+                onClick={() => { setViewMode('lanes'); if (designMode) setDesignMode(false); setModeMenuOpen(false); }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+                </svg>
+                Lanes View
+                {viewMode === 'lanes' && !designMode && <span className={styles.modeMenuCheck}>✓</span>}
+              </button>
+              {!discoveryActive && <>
+                <div className={styles.modeMenuDivider} />
+                <div className={styles.modeMenuSection}>MODE</div>
+                <button
+                  className={`${styles.modeMenuItem} ${designMode ? styles.modeMenuItemDesign : ''}`}
+                  onClick={() => { handleDesignToggle(); setModeMenuOpen(false); }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  Design Mode
+                  {designMode && <span className={styles.modeMenuCheck}>✓</span>}
+                </button>
+                <button
+                  className={`${styles.modeMenuItem}`}
+                  onClick={() => { handleDiscover(); setModeMenuOpen(false); }}
+                  disabled={!hasData}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
+                  </svg>
+                  {discoverLabel}
+                </button>
+              </>}
+            </div>
+          )}
+        </div>
 
       </div>
     </header>

@@ -54,6 +54,7 @@ export function Canvas() {
     collapsedPhaseIds, togglePhaseCollapse, collapseAllPhases, expandAllPhases,
     focusedOwner, enterOwnerFocus, exitOwnerFocus,
     discoveryActive,
+    fadingOutNodeIds, fadingOutPositions, fadingInNodeIds,
   } = useGraphStore();
 
 
@@ -760,11 +761,17 @@ export function Canvas() {
     <div
       id="canvas-wrap"
       ref={canvasWrapRef}
-      className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ''} ${discoveryActive ? styles.cinemaModeActive : ''}`}
+      className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ''} ${discoveryActive ? styles.cinemaModeActive : ''} ${focusedOwner ? styles.ownerFocusModeActive : ''}`}
+      style={focusedOwner ? { '--owner-focus-color': ownerColors[focusedOwner] ?? '#4f9eff' } as React.CSSProperties : undefined}
     >
       {/* Cinema mode badge */}
       {discoveryActive && (
         <div className={styles.cinemaBadge}>🎬 Cinema</div>
+      )}
+
+      {/* Owner Focus badge — top-left, visible in all modes including cinema */}
+      {focusedOwner && (
+        <div className={styles.ownerFocusBadge}>◎ {focusedOwner}</div>
       )}
 
       {/* Empty state — shown when no JSON has been loaded yet (hidden in design mode) */}
@@ -961,8 +968,25 @@ export function Canvas() {
                 screenToSvg={screenToSvg}
                 onFocusRequest={handleFocusRequest}
                 laneFocusRole={getOwnerFocusRole(node.id, node.owner)}
+                fadingIn={fadingInNodeIds.includes(node.id)}
               />
             ))}
+            {fadingOutNodeIds.map((id) => {
+              const node = allNodes.find((n) => n.id === id);
+              const pos = fadingOutPositions[id];
+              if (!node || !pos) return null;
+              return (
+                <NodeCard
+                  key={`fading-${id}`}
+                  node={node}
+                  position={pos}
+                  color={ownerColors[node.owner] ?? '#4f9eff'}
+                  screenToSvg={screenToSvg}
+                  onFocusRequest={handleFocusRequest}
+                  fadingOut
+                />
+              );
+            })}
           </g>
 
           {/* Collapsed group polygons — drawn above nodes */}

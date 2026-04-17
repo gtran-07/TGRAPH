@@ -288,6 +288,21 @@ body {
   transition: none;
 }
 
+/* ─── OWNER FILTER FADE ANIMATIONS ─────────────────────────────────────────
+ * Triggered only when an owner is toggled in the sidebar — not on view-mode
+ * switches (those use graphFadeIn on #graph-content instead).
+ */
+@keyframes nodeFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes nodeFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.node-fading-in  { animation: nodeFadeIn  280ms ease-out; }
+.node-fading-out { animation: nodeFadeOut 300ms ease-out forwards; pointer-events: none; }
+
 /* ─── PHASE SNAP-BACK ───────────────────────────────────────────────────────
  * Applied briefly when a node/group is dropped onto a foreign phase band.
  * The transition on `transform` makes the position revert animate smoothly.
@@ -429,6 +444,98 @@ body {
   }
 }
 
+/* ─── HEATMAP PHASE — Phase 3 of Process Cinema ─────────────────────────────
+ * Four tier classes applied directly to .node-group elements via DOM manipulation
+ * in CinemaOverlay.tsx, using the same pattern as cinema and reconstruction.
+ * heatmap-missed is additive — applied alongside cold or ice, never alone.
+ */
+:root {
+  --heatmap-hot-color:    #f97316;   /* vivid orange-red — deeply engaged */
+  --heatmap-warm-color:   #f59e0b;   /* amber — moderate engagement */
+  --heatmap-cold-color:   #60a5fa;   /* sky blue — low engagement */
+  --heatmap-ice-color:    #93c5fd;   /* pale blue — barely seen */
+  --heatmap-missed-color: #fbbf24;   /* muted amber — cold node missed in reconstruction */
+}
+
+/* Smooth fade when entering/leaving heatmap state */
+.heatmap-hot,
+.heatmap-warm,
+.heatmap-cold,
+.heatmap-ice {
+  transition: opacity 500ms ease;
+}
+
+/* Hot — vivid orange-red, slowly pulsing glow. Full presence. */
+@keyframes heatmap-hot-pulse {
+  0%, 100% { filter: drop-shadow(0 0 5px var(--heatmap-hot-color)); }
+  50%       { filter: drop-shadow(0 0 13px var(--heatmap-hot-color)); }
+}
+
+.heatmap-hot .node-main-rect,
+.heatmap-hot .group-polygon {
+  stroke: var(--heatmap-hot-color) !important;
+  stroke-width: 2.5 !important;
+  stroke-dasharray: none;
+  animation: heatmap-hot-pulse 2.4s ease-in-out infinite;
+}
+
+.heatmap-hot {
+  opacity: 1;
+}
+
+/* Warm — amber, present but not glowing */
+.heatmap-warm .node-main-rect,
+.heatmap-warm .group-polygon {
+  stroke: var(--heatmap-warm-color) !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: none;
+}
+
+.heatmap-warm {
+  opacity: 0.88;
+}
+
+/* Cold — cool blue, clearly subdued */
+.heatmap-cold .node-main-rect,
+.heatmap-cold .group-polygon {
+  stroke: var(--heatmap-cold-color) !important;
+  stroke-width: 1.5 !important;
+  stroke-dasharray: none;
+}
+
+.heatmap-cold {
+  opacity: 0.55;
+}
+
+/* Ice — pale blue, barely visible */
+.heatmap-ice .node-main-rect,
+.heatmap-ice .group-polygon {
+  stroke: var(--heatmap-ice-color) !important;
+  stroke-width: 1 !important;
+  stroke-dasharray: none;
+}
+
+.heatmap-ice {
+  opacity: 0.28;
+}
+
+/* Missed — dashed amber ring with a slow gentle pulse.
+ * Placed after cold/ice rules so its stroke wins the cascade when both classes
+ * are present on the same element. Opacity is intentionally not set here —
+ * the tier's own opacity (0.55 or 0.28) remains in effect. */
+@keyframes heatmap-missed-pulse {
+  0%, 100% { stroke-opacity: 0.35; }
+  50%       { stroke-opacity: 0.72; }
+}
+
+.heatmap-missed .node-main-rect,
+.heatmap-missed .group-polygon {
+  stroke: var(--heatmap-missed-color) !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: 4 4;
+  animation: heatmap-missed-pulse 2.8s ease-in-out infinite;
+}
+
 /* ─── PATH HIGHLIGHT — ancestor paths to selected node ───────────────────── */
 
 .path-focus,
@@ -461,4 +568,69 @@ body {
 /* Unrelated nodes — strongly dimmed */
 .path-ghost {
   opacity: 0.08;
+}
+
+/* ─── RECONSTRUCTION PHASE ────────────────────────────────────────────────── */
+:root {
+  --reconstruction-blank-border: #6b7280;    /* muted slate — empty slot outline */
+  --reconstruction-blank-fill-opacity: 0.25; /* ghost fill so slot shape is visible */
+  --reconstruction-correct-color: #22c55e;   /* green — successful placement */
+  --reconstruction-wrong-color: #ef4444;     /* red — incorrect attempt flash */
+}
+
+/* Blank slot — shape visible, all label text hidden */
+.reconstruction-blank text {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reconstruction-blank .node-main-rect {
+  stroke: var(--reconstruction-blank-border) !important;
+  stroke-width: 1.5 !important;
+  stroke-dasharray: 6 4;
+  fill-opacity: var(--reconstruction-blank-fill-opacity);
+}
+
+.reconstruction-blank {
+  opacity: 0.6;
+  cursor: pointer !important;
+}
+
+/* Correct placement — green drop-shadow pop, spring curve */
+@keyframes reconstruction-correct-pop {
+  0%   { stroke-width: 1.5; filter: drop-shadow(0 0 0px  var(--reconstruction-correct-color)); }
+  45%  { stroke-width: 4;   filter: drop-shadow(0 0 12px var(--reconstruction-correct-color)); }
+  100% { stroke-width: 2;   filter: drop-shadow(0 0 4px  var(--reconstruction-correct-color)); }
+}
+
+.reconstruction-correct .node-main-rect {
+  stroke: var(--reconstruction-correct-color) !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: none;
+  fill-opacity: 1;
+  animation: reconstruction-correct-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.reconstruction-correct {
+  opacity: 1 !important;
+  cursor: default !important;
+}
+
+/* Wrong placement — horizontal shake on the rect, returns to blank border color */
+@keyframes reconstruction-wrong-shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-5px); }
+  45%  { transform: translateX(5px); }
+  65%  { transform: translateX(-3px); }
+  82%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+.reconstruction-wrong .node-main-rect {
+  transform-box: fill-box;
+  transform-origin: center;
+  stroke: var(--reconstruction-wrong-color) !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: none;
+  animation: reconstruction-wrong-shake 0.38s ease-out both;
 }

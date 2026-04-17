@@ -205,10 +205,10 @@
 }
 
 /* ── Owner Focus Mode row annotations ───────────────────────────────────── */
-.focusedRow  { background: rgba(79, 158, 255, 0.08); outline: 1px solid rgba(79,158,255,0.35); outline-offset: -1px; }
-.upstreamRow { background: rgba(79, 158, 255, 0.04); }
-.downstreamRow { background: rgba(245, 166, 35, 0.04); }
-.isolatedRow { opacity: 0.35; pointer-events: none; }
+.focusedRow  { background: rgba(79, 158, 255, 0.16); outline: 1.5px solid rgba(79,158,255,0.6); outline-offset: -1px; font-weight: 600; }
+.upstreamRow { background: rgba(79, 158, 255, 0.06); }
+.downstreamRow { background: rgba(245, 166, 35, 0.06); }
+.isolatedRow { opacity: 0.28; pointer-events: none; }
 
 .dirBadge {
   font-size: 9px;

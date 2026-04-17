@@ -319,7 +319,7 @@ export const GroupCard = memo(function GroupCard({
 
     const laneFocusOpacityExpanded =
       laneFocusRole === 'upstream' || laneFocusRole === 'downstream' ? 0.8
-      : laneFocusRole === 'partial' ? 0.15
+      : laneFocusRole === 'partial' ? 0.08
       : 1;
 
     const discoveryRoleExpanded = discoveryActive ? (discoveryRoleMap[group.id] ?? 'ghost') : '';
@@ -347,6 +347,19 @@ export const GroupCard = memo(function GroupCard({
             style={{ pointerEvents: 'none' }}
           />
         )}
+        {/* Owner focus glow — colored outline ring on owned groups */}
+        {laneFocusRole === 'owned' && (
+          <rect
+            x={bb.x - 4} y={bb.y - 4} width={bb.w + 8} height={bb.h + 8}
+            rx={15} ry={15}
+            fill="none"
+            stroke={color}
+            strokeWidth={2.5}
+            opacity={0.85}
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
+
         {/* Background fill — pointer-events:none so inner groups/nodes get their own clicks */}
         <rect
           x={bb.x} y={bb.y} width={bb.w} height={bb.h}
@@ -401,7 +414,7 @@ export const GroupCard = memo(function GroupCard({
 
   const collapsedFocusOpacity =
     laneFocusRole === 'upstream' || laneFocusRole === 'downstream' ? 0.8
-    : laneFocusRole === 'partial' ? 0.15
+    : laneFocusRole === 'partial' ? 0.08
     : 1;
 
   const discoveryRoleCollapsed = discoveryActive ? (discoveryRoleMap[group.id] ?? 'ghost') : '';
@@ -438,6 +451,18 @@ export const GroupCard = memo(function GroupCard({
           fill="none"
           stroke="#ef4444"
           strokeWidth={2}
+        />
+      )}
+
+      {/* Owner focus glow — colored outline ring on owned collapsed groups */}
+      {laneFocusRole === 'owned' && (
+        <polygon
+          points={computePolygonPoints(0, 0, GROUP_R + 6, sides)}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          opacity={0.85}
+          style={{ pointerEvents: 'none' }}
         />
       )}
 

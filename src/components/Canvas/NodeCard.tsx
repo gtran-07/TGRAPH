@@ -16,6 +16,10 @@ import { NODE_W, NODE_H, LANE_LABEL_W, truncateText, clampXOutOfPhaseBands } fro
 import { GROUP_R } from '../../utils/grouping';
 import type { GraphNode, Position } from '../../types/graph';
 
+// Milliseconds to display the wrong-attempt flash before restoring blank state.
+// Must exceed the reconstruction-wrong-shake animation duration (0.38s).
+const WRONG_CLASS_DURATION_MS = 420;
+
 interface NodeCardProps {
   node: GraphNode;
   position: Position;
@@ -23,15 +27,18 @@ interface NodeCardProps {
   screenToSvg: (clientX: number, clientY: number) => Position;
   onFocusRequest: (id: string) => void;
   laneFocusRole?: 'owned' | 'upstream' | 'downstream' | 'partial' | null;
+  fadingOut?: boolean;
+  fadingIn?: boolean;
 }
 
-export const NodeCard = memo(function NodeCard({ node, position, color, screenToSvg, onFocusRequest, laneFocusRole }: NodeCardProps) {
+export const NodeCard = memo(function NodeCard({ node, position, color, screenToSvg, onFocusRequest, laneFocusRole, fadingOut, fadingIn }: NodeCardProps) {
   const {
     selectedNodeId, lastJumpedNodeId,
     designMode, designTool, connectSourceId,
     setSelectedNode, setHoveredNode, setConnectSource, addEdge,
     saveLayoutToCache, settleAndResolve, multiSelectIds, toggleMultiSelect,
-    discoveryActive, discoveryRoleMap,
+    discoveryActive, discoveryPhase, discoveryRoleMap, discoveryVisited, heatTiers,
+    selectedReconstructionChip, selectReconstructionChip, recordReconstructionAttempt,
   } = useGraphStore();
 
   const groupRef = useRef<SVGGElement>(null);
@@ -63,6 +70,8 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
   // ── Drag handling ─────────────────────────────────────────────────────
   function handleMouseDown(e: React.MouseEvent) {
     e.stopPropagation();
+    // Spatial positions are memory anchors during reconstruction — block all dragging
+    if (discoveryPhase === 'reconstruction') return;
     if (designMode && designTool === 'connect') return;
 
     const svgPt = screenToSvg(e.clientX, e.clientY);
@@ -257,12 +266,53 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
     window.addEventListener('mouseup', onMouseUp);
   }
 
+  // ── Reconstruction: chip-to-node placement ───────────────────────────
+  function handleReconstructionClick() {
+    // Read freshest state — closures over discoveryVisited / selectedReconstructionChip
+    // can be stale if the user clicks quickly; getState() is always current.
+    const s = useGraphStore.getState();
+    const chip = s.selectedReconstructionChip;
+
+    // No chip held — clicking a blank slot without selecting a chip is a no-op
+    if (!chip) return;
+    // This node was not in the cinema — not a valid placement target
+    if (!s.discoveryVisited.includes(node.id)) return;
+    // Already correctly placed — ignore further clicks
+    if (s.reconstructionAccuracy[node.id] === true) return;
+
+    const el = groupRef.current;
+    if (!el) return;
+
+    // Deselect chip regardless of outcome
+    selectReconstructionChip(null);
+
+    if (chip === node.id) {
+      // ── Correct placement ──────────────────────────────────────────────
+      recordReconstructionAttempt(node.id, true);
+      el.classList.remove('reconstruction-blank');
+      el.classList.add('reconstruction-correct');
+    } else {
+      // ── Wrong placement ────────────────────────────────────────────────
+      // recordReconstructionAttempt guards against double-recording if the
+      // user clicks multiple blank nodes before the animation clears.
+      recordReconstructionAttempt(node.id, false);
+      el.classList.add('reconstruction-wrong');
+      setTimeout(() => el.classList.remove('reconstruction-wrong'), WRONG_CLASS_DURATION_MS);
+    }
+  }
+
   // ── Click: select node or complete connection ─────────────────────────
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
     // Block click if this mousedown-mouseup was actually a drag
     if (wasDraggedRef.current) {
       wasDraggedRef.current = false;
+      return;
+    }
+
+    // Reconstruction phase — all clicks route to chip placement, never to selection
+    if (discoveryPhase === 'reconstruction') {
+      handleReconstructionClick();
       return;
     }
 
@@ -295,6 +345,7 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
   // ── Double-click: focus mode (view) or edit (design) ─────────────────
   function handleDoubleClick(e: React.MouseEvent) {
     e.stopPropagation();
+    if (discoveryPhase === 'reconstruction') return;
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
 
     if (designMode) {
@@ -307,18 +358,27 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
   // ── Owner focus role visuals ───────────────────────────────────────────
   const laneFocusOpacity =
     laneFocusRole === 'upstream' || laneFocusRole === 'downstream' ? 0.8
-    : laneFocusRole === 'partial' ? 0.15
+    : laneFocusRole === 'partial' ? 0.08
     : 1;
 
-  // During cinema, inline opacity is suppressed so CSS discovery classes control opacity
+  // During cinema/reconstruction, inline opacity is suppressed so CSS classes control opacity
   const inlineOpacity = discoveryActive ? undefined : laneFocusOpacity;
 
-  const discoveryRole = discoveryActive ? (discoveryRoleMap[node.id] ?? 'ghost') : '';
+  // Only apply discovery roles during the cinema narration phase.
+  // heatmap/reconstruction/transition phases manage visuals via other class paths.
+  const discoveryRole = (discoveryActive && discoveryPhase === 'cinema')
+    ? (discoveryRoleMap[node.id] ?? 'ghost')
+    : '';
+
+  // Heatmap tier class — owned by React so it survives re-renders (avoids imperative classList drift).
+  const heatClass = (discoveryActive && discoveryPhase === 'heatmap')
+    ? (heatTiers[node.id] ? `heatmap-${heatTiers[node.id]}` : '')
+    : '';
 
   return (
     <g
       ref={groupRef}
-      className={`node-group${isJumped ? ' node-jumped' : ''}${(isSelected || isMultiSelected) && designMode ? ' node-selected' : ''}${discoveryRole ? ` discovery-${discoveryRole}` : ''}`}
+      className={`node-group${isJumped ? ' node-jumped' : ''}${(isSelected || isMultiSelected) && designMode ? ' node-selected' : ''}${discoveryRole ? ` discovery-${discoveryRole}` : ''}${heatClass ? ` ${heatClass}` : ''}${fadingOut ? ' node-fading-out' : ''}${fadingIn ? ' node-fading-in' : ''}`}
       data-id={node.id}
       // CSS transform (not SVG attribute) enables CSS transitions for view/focus switches
       style={{ cursor: 'grab', transform: `translate(${position.x}px,${position.y}px)`, opacity: inlineOpacity }}
@@ -349,6 +409,18 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
         stroke={strokeColor} strokeWidth={strokeWidth}
         style={{ transition: 'fill .15s, stroke .15s' }}
       />
+
+      {/* Owner focus glow — colored outline ring on owned nodes */}
+      {laneFocusRole === 'owned' && (
+        <rect
+          x={-3} y={-3} width={NODE_W + 6} height={NODE_H + 6} rx={8}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          opacity={0.85}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
 
       {/* Left accent bar */}
       <rect x={0} y={0} width={4} height={NODE_H} rx={3} fill={color} />

@@ -34,8 +34,11 @@ import type {
   UndoSnapshot,
   CinemaSequence,
   CinemaEngagementMap,
+  DiscoveryPhase,
+  HeatTier,
 } from '../types/graph';
 import { PHASE_PALETTE } from '../types/graph';
+import { computeNormalizedEngagement, assignHeatTier } from '../utils/cinema';
 import {
   computeLayout,
   computeLaneLayout,
@@ -162,6 +165,12 @@ export interface GraphStore {
   focusedOwner: string | null;
   /** Snapshot of state captured before entering owner focus — restored on exit. */
   preLaneFocusSnapshot: OwnerFocusSnapshot | null;
+  /** Node IDs fading out after their owner was toggled off — still rendered during exit animation */
+  fadingOutNodeIds: string[];
+  /** Pre-toggle positions for fading-out nodes so they stay in place during the exit animation */
+  fadingOutPositions: Record<string, Position>;
+  /** Node IDs fading in after their owner was toggled on */
+  fadingInNodeIds: string[];
 
   /** Name of the currently-loaded JSON file, or null if no file is loaded */
   currentFileName: string | null;
@@ -344,20 +353,45 @@ export interface GraphStore {
   // ── Cinema / Discovery ────────────────────────────────────────────────────
   /** True while the cinema overlay is displayed */
   discoveryActive: boolean;
+  /**
+   * Which phase of the discovery session is active.
+   * null = inactive. 'cinema' = narration playing. 'transition' = end screen.
+   * 'reconstruction'/'heatmap' = Phase 2/3 (not yet implemented).
+   */
+  discoveryPhase: DiscoveryPhase;
   /** The generated scene sequence; kept after exit for Phase 2 (Reconstruction) */
   discoverySequence: CinemaSequence | null;
   /** Index of the currently displayed scene */
   discoverySceneIndex: number;
   /** Ordered list of nodeIds that appeared in focus; Phase 2 uses these as blanks */
   discoveryVisited: string[];
-  /** Normalized engagement score per nodeId — Phase 3 (Heatmap) reads this */
+  /** Raw accumulated engagement score per nodeId — integers, grows across sessions */
   discoveryEngagement: CinemaEngagementMap;
+  /**
+   * Normalized engagement scores — set by startHeatmap at tier-assignment time.
+   * Values are ratios relative to the per-run baseline (1.0 = exactly average).
+   * Empty until startHeatmap is called after a cinema run completes.
+   * Phase 3 (Heatmap) reads this to assign hot/warm/cold/ice tiers.
+   */
+  discoveryHeatmap: CinemaEngagementMap;
   /** Per-node role during cinema: 'focus'|'lit'|'ghost'|'visited'|'danger'. Empty when cinema is inactive. */
   discoveryRoleMap: Record<string, string>;
-
+  /** First-attempt placement result per nodeId in reconstruction mode. Only first attempt is recorded. */
+  reconstructionAccuracy: Record<string, boolean>;
+  /** NodeId of the label chip currently selected for placement. Null when no chip is held. */
+  selectedReconstructionChip: string | null;
+  /** Heat tier per nodeId after startHeatmap runs. Empty until Phase 3 starts. */
+  heatTiers: Record<string, HeatTier>;
   // ── Cinema actions ─────────────────────────────────────────────────────────
   /** Start the cinema with the given pre-built sequence */
   startDiscovery: (sequence: CinemaSequence) => void;
+  /**
+   * Called when the user clicks Finish on the last scene.
+   * Atomically clears the canvas role map and sets discoveryPhase to 'transition'
+   * in a single set() call — guarantees one React render, no race between
+   * the roleMap clear and the phase state update.
+   */
+  completeDiscovery: () => void;
   /** Exit the cinema, preserving sequence and engagement for Phase 2/3 */
   exitDiscovery: () => void;
   /** Overwrite the full role map (called by CinemaOverlay on every scene change) */
@@ -370,6 +404,30 @@ export interface GraphStore {
   visitNode: (nodeId: string) => void;
   /** Merge a new engagement measurement into the running totals */
   recordEngagement: (nodeId: string, score: number) => void;
+  /**
+   * Normalize raw engagement scores, assign heat tiers, and advance to the heatmap phase.
+   * Called from two paths: completeReconstruction() (after reconstruction) and the
+   * transition screen's "Skip to summary" button (direct skip). In both cases it sets
+   * discoveryPhase to 'heatmap'. reconstructionAccuracy is NOT touched here — the skip
+   * path leaves it as {} (never populated), which the stats strip reads as "skipped".
+   */
+  startHeatmap: () => void;
+  /** Enter reconstruction phase — sets discoveryPhase to 'reconstruction', clears prior accuracy data */
+  startReconstruction: () => void;
+  /** Select or deselect a label chip by its nodeId (null deselects) */
+  selectReconstructionChip: (nodeId: string | null) => void;
+  /** Record first-attempt placement result; no-op if the nodeId already has a recorded result */
+  recordReconstructionAttempt: (nodeId: string, correct: boolean) => void;
+  /** All nodes placed — calls startHeatmap (which sets discoveryPhase to 'heatmap') then clears chip selection */
+  completeReconstruction: () => void;
+  /**
+   * Full cinema exit from the heatmap phase. Sets discoveryActive to false and
+   * discoveryPhase to null. DOM class cleanup (heatmap-*, reconstruction-*, discovery-*)
+   * is handled by CinemaOverlay's useEffect cleanup when discoveryActive flips to false.
+   * Preserves discoveryEngagement, discoverySequence, and reconstructionAccuracy for
+   * second-visit differential cinema.
+   */
+  exitCinemaExperience: () => void;
   /** Update cinema author fields on a node */
   updateNodeCinemaFields: (id: string, fields: { cinemaScript?: string; cinemaBottleneck?: boolean; cinemaSkip?: boolean }) => void;
   /** Update cinema author fields on a group */
@@ -500,6 +558,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   collapsedPhaseIds: [],
   focusedOwner: null,
   preLaneFocusSnapshot: null,
+  fadingOutNodeIds: [],
+  fadingOutPositions: {},
+  fadingInNodeIds: [],
   currentFileName: null,
   fileHandle: null,
   clipboard: [],
@@ -507,11 +568,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   ownerRegistry: [],
   meta: null,
   discoveryActive: false,
+  discoveryPhase: null,
   discoverySequence: null,
   discoverySceneIndex: 0,
   discoveryVisited: [],
   discoveryEngagement: {},
+  discoveryHeatmap: {},
   discoveryRoleMap: {},
+  reconstructionAccuracy: {},
+  selectedReconstructionChip: null,
+  heatTiers: {},
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -555,12 +621,17 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       ownerRegistry: [],
       meta: null,
       discoveryActive: false,
+      discoveryPhase: null,
       discoverySequence: null,
       discoverySceneIndex: 0,
       discoveryVisited: [],
       discoveryEngagement: {},
+      discoveryHeatmap: {},
       discoveryRoleMap: {},
-    });
+      reconstructionAccuracy: {},
+      selectedReconstructionChip: null,
+      heatTiers: {},
+        });
   },
 
   // ── setFileHandle ─────────────────────────────────────────────────────────
@@ -672,10 +743,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       discoveryEngagement: (savedLayout as { discoveryEngagement?: CinemaEngagementMap } | null)?.discoveryEngagement ?? {},
       // Reset transient cinema state on every file load
       discoveryActive: false,
+      discoveryPhase: null,
       discoverySequence: null,
       discoverySceneIndex: 0,
       discoveryVisited: [],
-    });
+      discoveryHeatmap: {},
+      reconstructionAccuracy: {},
+      selectedReconstructionChip: null,
+      heatTiers: {},
+        });
   },
 
   // ── addNode ───────────────────────────────────────────────────────────────
@@ -1111,25 +1187,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     );
     const positions: Record<string, Position> = { ...freshPositions };
 
-    if (state.viewMode === 'lanes') {
-      // In lanes view, lane Y positions shift when lanes are added/removed.
-      // Translate each preserved node position by (newLaneY - oldLaneY) so nodes
-      // stay in the correct vertical position within their lane.
-      visibleNodes.forEach((n) => {
-        const oldLane = state.laneMetrics[n.owner];
-        const newLane = laneMetrics[n.owner];
-        if (oldLane && newLane && state.positions[n.id]) {
-          positions[n.id] = {
-            x: state.positions[n.id].x,
-            y: state.positions[n.id].y + (newLane.y - oldLane.y),
-          };
-        }
-      });
-    } else {
-      visibleNodes.forEach((n) => {
-        if (state.positions[n.id]) positions[n.id] = state.positions[n.id];
-      });
-    }
+    // Always use freshPositions for all visible nodes — full reflow on every toggle
+    // gives the optimal layout for the current visible set, whether hiding or revealing.
 
     // Clear selection if the selected node's owner was just hidden
     const selectedNodeId =
@@ -1143,7 +1202,25 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       ? enforceAllPhaseBoundaries(positions, state.phases, state.groups, GROUP_R, LANE_LABEL_W)
       : positions;
 
-    set({ activeOwners, visibleNodes, visibleEdges, positions: finalPositions, laneMetrics, selectedNodeId });
+    // Compute fading-out and fading-in node sets for animation
+    const newVisibleIds = new Set(visibleNodes.map((n) => n.id));
+    const oldVisibleIds = new Set(state.visibleNodes.map((n) => n.id));
+
+    const fadingOutNodeIds = state.visibleNodes
+      .filter((n) => !newVisibleIds.has(n.id))
+      .map((n) => n.id);
+    const fadingOutPositions: Record<string, Position> = {};
+    fadingOutNodeIds.forEach((id) => { if (state.positions[id]) fadingOutPositions[id] = state.positions[id]; });
+
+    const fadingInNodeIds = visibleNodes
+      .filter((n) => !oldVisibleIds.has(n.id))
+      .map((n) => n.id);
+
+    set({ activeOwners, visibleNodes, visibleEdges, positions: finalPositions, laneMetrics, selectedNodeId,
+      fadingOutNodeIds, fadingOutPositions, fadingInNodeIds });
+
+    if (fadingOutNodeIds.length > 0) setTimeout(() => set({ fadingOutNodeIds: [], fadingOutPositions: {} }), 350);
+    if (fadingInNodeIds.length > 0) setTimeout(() => set({ fadingInNodeIds: [] }), 300);
   },
 
   // ── toggleAllOwners ───────────────────────────────────────────────────────
@@ -1167,28 +1244,30 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       visibleNodes, visibleEdges, state.viewMode, activeOwners, state.allNodes
     );
     const positions: Record<string, Position> = { ...freshPositions };
-    if (state.viewMode === 'lanes') {
-      visibleNodes.forEach((n) => {
-        const oldLane = state.laneMetrics[n.owner];
-        const newLane = laneMetrics[n.owner];
-        if (oldLane && newLane && state.positions[n.id]) {
-          positions[n.id] = {
-            x: state.positions[n.id].x,
-            y: state.positions[n.id].y + (newLane.y - oldLane.y),
-          };
-        }
-      });
-    } else {
-      visibleNodes.forEach((n) => {
-        if (state.positions[n.id]) positions[n.id] = state.positions[n.id];
-      });
-    }
+    // Always use freshPositions for all visible nodes — full reflow in both directions.
 
     const finalPositions = state.viewMode === 'lanes' && state.phases.length > 0
       ? enforceAllPhaseBoundaries(positions, state.phases, state.groups, GROUP_R, LANE_LABEL_W)
       : positions;
 
-    set({ activeOwners, visibleNodes, visibleEdges, positions: finalPositions, laneMetrics, selectedNodeId: null });
+    const newVisibleIds = new Set(visibleNodes.map((n) => n.id));
+    const oldVisibleIds = new Set(state.visibleNodes.map((n) => n.id));
+
+    const fadingOutNodeIds = state.visibleNodes
+      .filter((n) => !newVisibleIds.has(n.id))
+      .map((n) => n.id);
+    const fadingOutPositions: Record<string, Position> = {};
+    fadingOutNodeIds.forEach((id) => { if (state.positions[id]) fadingOutPositions[id] = state.positions[id]; });
+
+    const fadingInNodeIds = visibleNodes
+      .filter((n) => !oldVisibleIds.has(n.id))
+      .map((n) => n.id);
+
+    set({ activeOwners, visibleNodes, visibleEdges, positions: finalPositions, laneMetrics, selectedNodeId: null,
+      fadingOutNodeIds, fadingOutPositions, fadingInNodeIds });
+
+    if (fadingOutNodeIds.length > 0) setTimeout(() => set({ fadingOutNodeIds: [], fadingOutPositions: {} }), 350);
+    if (fadingInNodeIds.length > 0) setTimeout(() => set({ fadingInNodeIds: [] }), 300);
   },
 
   // ── rebuildGraph ──────────────────────────────────────────────────────────
@@ -2274,14 +2353,21 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   startDiscovery: (sequence) => {
     set({
       discoveryActive: true,
+      discoveryPhase: 'cinema',
       discoverySequence: sequence,
       discoverySceneIndex: 0,
       discoveryVisited: [],
+      discoveryHeatmap: {},
     });
   },
 
+  completeDiscovery: () => {
+    // Single set() call — one render, no race between roleMap clear and phase update.
+    set({ discoveryPhase: 'transition', discoveryRoleMap: {} });
+  },
+
   exitDiscovery: () => {
-    set({ discoveryActive: false, discoveryRoleMap: {} });
+    set({ discoveryActive: false, discoveryPhase: null, discoveryRoleMap: {} });
     // discoverySequence, discoveryVisited, and discoveryEngagement are
     // intentionally preserved after exit — Phase 2 (Reconstruction) and
     // Phase 3 (Heatmap) read them in a subsequent session.
@@ -2314,6 +2400,47 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         [nodeId]: (s.discoveryEngagement[nodeId] ?? 0) + score,
       },
     }));
+  },
+
+  startHeatmap: () => {
+    set((s) => {
+      const normalized = computeNormalizedEngagement(s.discoveryEngagement, s.discoveryVisited);
+      const tiers: Record<string, HeatTier> = {};
+      for (const id of s.discoveryVisited) {
+        tiers[id] = assignHeatTier(normalized[id]);
+      }
+      return { discoveryHeatmap: normalized, heatTiers: tiers, discoveryPhase: 'heatmap' };
+    });
+    setTimeout(() => get().fitToScreen(), 60);
+  },
+
+  startReconstruction: () => {
+    set({ discoveryPhase: 'reconstruction', reconstructionAccuracy: {}, selectedReconstructionChip: null });
+  },
+
+  selectReconstructionChip: (nodeId) => {
+    set({ selectedReconstructionChip: nodeId });
+  },
+
+  recordReconstructionAttempt: (nodeId, correct) => {
+    set((s) => {
+      // Only record the first attempt — do not overwrite
+      if (nodeId in s.reconstructionAccuracy) return s;
+      return { reconstructionAccuracy: { ...s.reconstructionAccuracy, [nodeId]: correct } };
+    });
+  },
+
+  completeReconstruction: () => {
+    // startHeatmap() sets discoveryPhase: 'heatmap' — no redundant set() needed
+    get().startHeatmap();
+    set({ selectedReconstructionChip: null });
+  },
+
+  exitCinemaExperience: () => {
+    // State-only: set flags that CinemaOverlay's useEffect watches.
+    // DOM cleanup (removing heatmap-*, reconstruction-*, discovery-* classes) runs
+    // in the component's useEffect cleanup when discoveryActive flips to false.
+    set({ discoveryActive: false, discoveryPhase: null, discoveryRoleMap: {} });
   },
 
   updateNodeCinemaFields: (id, fields) => {

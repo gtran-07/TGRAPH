@@ -16,6 +16,7 @@ import type {
   CinemaSequence,
   CinemaPredictionOption,
   CinemaEngagementMap,
+  HeatTier,
 } from '../types/graph';
 
 // ─── READING TIME WEIGHTS (seconds per scene type) ────────────────────────────
@@ -824,4 +825,47 @@ export function buildTourSequence(
     actBoundaries: { act2Start: act2SceneStart, act3Start: act3SceneStart },
     usedPhaseOverride,
   };
+}
+
+// ─── NORMALIZATION UTILITIES (used by startHeatmap in graphStore) ──────────────
+
+/**
+ * computeNormalizedEngagement — converts raw accumulated scores to normalized ratios.
+ *
+ * Baseline = mean raw score across all nodes that appeared in focus during the run.
+ * Normalized score per node = raw score / baseline.
+ *
+ * Called at tier-assignment time (startHeatmap), never at accumulation time.
+ * This ensures two users with identical relative attention patterns get identical
+ * tier assignments regardless of how long each spent in the cinema.
+ */
+export function computeNormalizedEngagement(
+  raw: CinemaEngagementMap,
+  visitedNodeIds: string[]
+): CinemaEngagementMap {
+  if (visitedNodeIds.length === 0) return {};
+  const total = visitedNodeIds.reduce((sum, id) => sum + (raw[id] ?? 0), 0);
+  const baseline = total / visitedNodeIds.length;
+  if (baseline === 0) return {};
+  const normalized: CinemaEngagementMap = {};
+  for (const id of visitedNodeIds) {
+    normalized[id] = (raw[id] ?? 0) / baseline;
+  }
+  return normalized;
+}
+
+/**
+ * assignHeatTier — maps a normalized engagement score to a display tier.
+ *
+ * Thresholds are relative to the per-run baseline (1.0 = exactly average):
+ *   hot  >= 2.0  — user spent 2x+ the average on this node
+ *   warm >= 1.0  — at or above average
+ *   cold  < 1.0  — below average (seen but not dwelled on)
+ *   ice       0 or absent (never in cinema, or zero raw score)
+ */
+export function assignHeatTier(score: number | undefined): HeatTier {
+  if (!score) return 'ice';
+  if (score >= 2.0) return 'hot';
+  if (score >= 1.0) return 'warm';
+  return 'cold';
 }

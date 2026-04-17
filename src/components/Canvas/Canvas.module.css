@@ -276,6 +276,17 @@
 /* Design mode active state — cursor changes handled inline */
 .designModeActive { /* marker class for CSS specificity if needed */ }
 
+/* Owner Focus mode — ::after draws the border independently of the parent box-shadow,
+   so it remains visible even when .cinemaModeActive's animation is running on the same element */
+.ownerFocusModeActive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 2px var(--owner-focus-color);
+  pointer-events: none;
+  z-index: 100;
+}
+
 /* Cinema mode — animated inset border glow */
 @keyframes cinemaPulse {
   0%, 100% { box-shadow: inset 0 0 0 2px var(--cinema-focus-color), inset 0 0 24px rgba(79,158,255,0.10); }
@@ -298,6 +309,26 @@
   color: var(--cinema-focus-color);
   background: rgba(15, 20, 30, 0.75);
   border: 1px solid var(--cinema-focus-color);
+  border-radius: 20px;
+  padding: 4px 10px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  opacity: 0.9;
+}
+
+/* Owner Focus badge — floating pill in top-left of canvas */
+.ownerFocusBadge {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  z-index: 20;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--owner-focus-color);
+  background: rgba(15, 20, 30, 0.75);
+  border: 1px solid var(--owner-focus-color);
   border-radius: 20px;
   padding: 4px 10px;
   pointer-events: none;

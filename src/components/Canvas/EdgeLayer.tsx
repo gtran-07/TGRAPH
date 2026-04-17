@@ -30,7 +30,7 @@ interface EdgeLayerProps {
 }
 
 export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, groups, ownerFocusSets, focusedOwner }: EdgeLayerProps) {
-  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId, discoveryActive, discoveryRoleMap } = useGraphStore();
+  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId, discoveryActive, discoveryPhase, discoveryRoleMap } = useGraphStore();
 
   /**
    * Resolve the effective position for an edge endpoint.
@@ -142,9 +142,9 @@ export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, gr
           opacity = 0.45; // static — does not change on hover, no tile repaint triggered
         }
 
-        // Discovery mode: highlight edges touching focus/danger/lit nodes; ghost everything else.
-        // This overrides all other styling so the narrative path is visually clear.
-        if (discoveryActive) {
+        // Cinema narration: highlight edges touching focus/danger/lit nodes; ghost everything else.
+        // Only during 'cinema' phase — heatmap/free/reconstruction use normal edge rendering.
+        if (discoveryActive && discoveryPhase === 'cinema') {
           // Check both the actual node ID and the collapsed group ID (groups can appear in scenes)
           const fromRole = discoveryRoleMap[edge.from] ?? (fromGroup ? discoveryRoleMap[fromGroup.id] : undefined) ?? 'ghost';
           const toRole   = discoveryRoleMap[edge.to]   ?? (toGroup   ? discoveryRoleMap[toGroup.id]   : undefined) ?? 'ghost';

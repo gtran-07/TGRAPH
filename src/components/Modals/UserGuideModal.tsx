@@ -357,6 +357,83 @@ const SECTIONS: GuideSection[] = [
     ),
   },
   {
+    id: 'cinema',
+    icon: '🎬',
+    title: 'Process Cinema',
+    content: (
+      <div>
+        <p><strong>Process Cinema</strong> turns a graph into a guided narrative — a structured story that walks you through the graph's key structural moments in order, explains what each one means, and tracks where your attention went. It is available on any graph complex enough to benefit from it.</p>
+
+        <h4 className={styles.subheading}>Starting Cinema</h4>
+        <p>Open the left panel and click the <strong>Cinema</strong> tab. If the graph is complex enough (has forks, bottlenecks, or well-populated phases), a <strong>Discover</strong> button appears. Click it to generate the tour and see a preview showing estimated time and scene count. Click <strong>Begin →</strong> to start.</p>
+        <Tip>A banner may appear on the canvas the first time you open a complex graph — click it to be reminded Cinema is available, then go to the Cinema tab to start.</Tip>
+
+        <h4 className={styles.subheading}>Phase 1 — Cinema (narration)</h4>
+        <p>Each scene focuses on one structural moment in the graph. The canvas dims all unrelated nodes while the current node glows blue. The sidebar shows:</p>
+        <ul className={styles.ul}>
+          <li><strong>Act badge</strong> — which third of the process you are in (Act 1 / 2 / 3)</li>
+          <li><strong>Type pill</strong> — the structural role of this scene: Origin, Fork, Bottleneck, Convergence, Phase Transition, Step, Parallel Group, or Output</li>
+          <li><strong>Headline + body</strong> — what this node is and why it matters structurally</li>
+          <li><strong>Insight</strong> — a short observation about critical path membership or fan-out risk</li>
+        </ul>
+        <p>Use <strong>Next →</strong> and <strong>← Back</strong> to move through scenes. The breadcrumb bar at the top shows your progress and lets you click back to any completed scene.</p>
+
+        <h4 className={styles.subheading}>Prediction gates</h4>
+        <p>After certain structural scenes (forks, bottlenecks), the cinema inserts a <strong>prediction question</strong> before revealing the next scene. Choose an answer — you must respond before Next becomes available. Right or wrong, the explanation appears immediately so you learn from each one.</p>
+
+        <h4 className={styles.subheading}>Smart pan</h4>
+        <p>Cinema automatically pans the canvas to keep the current scene's node visible. The <strong>"Skip pan if node is visible"</strong> toggle suppresses this when the node is already on screen — useful on small graphs where panning is unnecessary.</p>
+
+        <h4 className={styles.subheading}>Finishing the cinema</h4>
+        <p>Click <strong>Finish</strong> on the last scene. A transition screen appears with two choices:</p>
+        <ul className={styles.ul}>
+          <li><strong>Test memory</strong> — move to Phase 2 (Reconstruction)</li>
+          <li><strong>Skip to summary</strong> — jump directly to Phase 3 (Heatmap)</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Phase 2 — Reconstruction (memory quiz)</h4>
+        <p>Every node you saw during cinema is blanked out on the canvas — its label disappears and its border becomes a dashed outline. A pool of shuffled name chips appears in the sidebar.</p>
+        <Step number={1}>Click a chip to select it (it turns blue).</Step>
+        <Step number={2}>Click the blank node on the canvas where you think that label belongs.</Step>
+        <Step number={3}>A green pop means correct — that node is permanently revealed. A red shake means wrong — the chip stays in the pool for another try.</Step>
+        <p>When all nodes are placed, the canvas holds for a moment then automatically moves to the Heatmap. Click <strong>Skip →</strong> at any point to jump ahead without finishing all placements.</p>
+        <Tip>Node positions are preserved during reconstruction to serve as spatial memory anchors — dragging is blocked while this phase is active.</Tip>
+
+        <h4 className={styles.subheading}>Phase 3 — Heatmap (your attention map)</h4>
+        <p>The heatmap colors every node you saw during cinema by how much cognitive engagement it received — time dwelled, clicks, and revisits all count. This is a mirror, not a score.</p>
+        <ul className={styles.ul}>
+          <li><strong>Hot</strong> (orange-red glow) — you spent significantly more time here than average</li>
+          <li><strong>Warm</strong> (amber) — solid attention, at or above average</li>
+          <li><strong>Cold</strong> (blue) — you saw it but did not linger</li>
+          <li><strong>Ice</strong> (pale blue, dim) — barely registered</li>
+        </ul>
+        <p>Cold and ice nodes that you also misplaced during Reconstruction get a subtle <strong>dashed amber ring</strong> — a "double miss" marker showing nodes that were both low-attention and hard to recall.</p>
+        <p>Nodes that never appeared in the cinema remain in their normal visual state.</p>
+
+        <h4 className={styles.subheading}>The heatmap panel</h4>
+        <p>The Cinema tab shows:</p>
+        <ul className={styles.ul}>
+          <li><strong>Legend</strong> — plain-English description of each tier</li>
+          <li><strong>Nodes you barely touched</strong> — each cold/ice node listed by name with its structural role (e.g. "bottleneck", "fork")</li>
+          <li><strong>Explain my cold nodes</strong> — builds a natural-language prompt naming your hot and cold nodes and copies it to the clipboard. Paste it into Claude or any AI assistant to get an explanation of what you missed and why those nodes matter.</li>
+          <li><strong>Explore freely</strong> — exits Cinema entirely and returns the canvas to normal</li>
+        </ul>
+
+        <h4 className={styles.subheading}>Stats strip</h4>
+        <p>At the bottom of the heatmap panel: <em>Scenes absorbed</em>, <em>Bottlenecks found</em>, <em>Rebuilt correctly</em> (shows a fraction or "skipped"), and <em>Cold nodes</em>.</p>
+
+        <h4 className={styles.subheading}>Exiting Cinema</h4>
+        <p>Click <strong>✕ Exit Tour</strong> in the header at any time to leave Cinema. During the cinema and reconstruction phases this preserves your engagement data. From the heatmap, <strong>Explore freely</strong> cleans up all Cinema coloring and returns every node to its normal visual state.</p>
+
+        <h4 className={styles.subheading}>Engagement persistence</h4>
+        <p>Your raw engagement scores are saved inside the JSON file when you click Save. If you run Cinema again on the same file in a future session, the scores accumulate — repeat visits to the same nodes increase their weight over time.</p>
+
+        <Warning>Cinema requires a graph with at least some structural complexity — linear chains with no forks or convergences produce very short tours. The BHS sample graph is a good test case for the full experience.</Warning>
+        <Tip>The "Explain my cold nodes" clipboard prompt works best in Claude — paste it and describe the graph's domain for a richer explanation of the gaps in your mental model.</Tip>
+      </div>
+    ),
+  },
+  {
     id: 'inspector',
     icon: '🔎',
     title: 'Inspecting Nodes, Groups & Phases',

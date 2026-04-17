@@ -373,3 +373,23 @@ export interface CinemaSequence {
 
 /** Normalized engagement score stored per nodeId after a cinema session. */
 export type CinemaEngagementMap = Record<string, number>;
+
+/**
+ * DiscoveryPhase — which post-cinema phase the session is in.
+ * null             → cinema has not started, or has fully exited
+ * 'cinema'         → narration is active (scenes are playing)
+ * 'transition'     → narration complete; user choosing between Phase 2 and Phase 3
+ * 'reconstruction' → Phase 2: user rebuilding the graph from memory (blank-slot quiz)
+ * 'heatmap'        → Phase 3: spatial engagement heatmap visible on canvas
+ */
+export type DiscoveryPhase = 'cinema' | 'transition' | 'reconstruction' | 'heatmap' | null;
+
+/**
+ * HeatTier — engagement tier assigned to a node after normalization in startHeatmap.
+ *
+ * hot  >= 2.0x baseline  (disproportionate attention)
+ * warm >= 1.0x baseline  (at or above average)
+ * cold  < 1.0x baseline  (seen but not dwelled on)
+ * ice  = 0 or absent     (never appeared in cinema, or scored zero)
+ */
+export type HeatTier = 'hot' | 'warm' | 'cold' | 'ice';
