@@ -229,6 +229,26 @@
   line-height: 1.4;
 }
 
+.tagValidationRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 14px 4px 34px;
+  min-height: 16px;
+}
+.tagValidationError {
+  font-size: 10px;
+  color: #e05555;
+  line-height: 1.4;
+}
+.charCount {
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.charCountMax { color: #e05555; }
+
 .addRow {
   display: flex;
   align-items: center;

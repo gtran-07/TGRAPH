@@ -18,11 +18,11 @@
 /* ─── CSS CUSTOM PROPERTIES (DESIGN TOKENS) ────────────────────────────────── */
 :root {
   /* Background layers — darkest to lightest */
-  --bg: #0a0c10;        /* Canvas background — the darkest surface */
-  --bg2: #0e1117;       /* Header and sidebar background */
-  --bg3: #141820;       /* Input backgrounds, code blocks */
-  --surface: #181d27;   /* Node backgrounds, modal surfaces */
-  --surface2: #1e2535;  /* Hover states, active surfaces */
+  --bg: #161c27;        /* Canvas background — the darkest surface */
+  --bg2: #1b2233;       /* Header and sidebar background */
+  --bg3: #212840;       /* Input backgrounds, code blocks */
+  --surface: #252e42;   /* Node backgrounds, modal surfaces */
+  --surface2: #2d3852;  /* Hover states, active surfaces */
 
   /* Border colors */
   --border: #252d3e;    /* Subtle dividers, inactive borders */
@@ -322,16 +322,6 @@ body {
   transition: none !important;
 }
 
-/* Edge glow during draw animation — class added by JS (rm guard ensures this
-   never applies for reduced-motion users). Placed outside the no-preference
-   media query so it is not silently gated by a mis-matched media feature. */
-.edge-vis.edge-drawing {
-  stroke: var(--edge-owner-color, var(--accent));
-  stroke-width: 2;
-  opacity: 1;
-  marker-end: none;
-  filter: drop-shadow(0 0 4px var(--edge-owner-color, var(--accent))) drop-shadow(0 0 10px var(--edge-owner-color, var(--accent)));
-}
 
 /* Laser sweep on highlighted edges. A short beam (80px) travels along the full
    connector with a 900px gap — large enough that only one beam is visible at a
@@ -618,10 +608,11 @@ body {
   animation: heatmap-missed-pulse 2.8s ease-in-out infinite;
 }
 
-/* ─── PATH HIGHLIGHT — ancestor paths to selected node ───────────────────── */
+/* ─── PATH HIGHLIGHT — ancestor/descendant paths to selected node ─────────── */
 
 .path-focus,
 .path-ancestor,
+.path-descendant,
 .path-ghost {
   transition: opacity 0.2s ease, filter 0.2s ease;
 }
@@ -644,6 +635,16 @@ body {
   stroke-width: 2 !important;
 }
 .path-ancestor {
+  opacity: 0.85;
+}
+
+/* Descendant nodes — amber border, near-full opacity */
+.path-descendant .node-main-rect,
+.path-descendant .group-polygon {
+  stroke: #f59e0b !important;
+  stroke-width: 2 !important;
+}
+.path-descendant {
   opacity: 0.85;
 }
 
@@ -715,4 +716,37 @@ body {
   stroke-width: 2 !important;
   stroke-dasharray: none;
   animation: reconstruction-wrong-shake 0.38s ease-out both;
+}
+
+/* ── Summon Mode ── */
+:root {
+  --summon-overlay: rgba(10, 12, 18, 0.7);
+  --summon-dock-bg: rgba(20, 22, 30, 0.95);
+  --summon-dock-w: 280px;
+  --summon-ghost-bg: rgba(25, 28, 35, 0.9);
+}
+
+@keyframes summon-aura {
+  0%, 100% { box-shadow: 0 0 15px var(--aura-color, rgba(79,158,255,0.3)); }
+  50%      { box-shadow: 0 0 30px var(--aura-color, rgba(79,158,255,0.6)); }
+}
+
+@keyframes summon-ping {
+  0%   { r: 10; opacity: 0.8; }
+  100% { r: 60; opacity: 0; }
+}
+
+@keyframes summon-check-bounce {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes summon-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.summon-source-aura {
+  animation: summon-aura 2s ease-in-out infinite;
 }

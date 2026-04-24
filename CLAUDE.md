@@ -34,6 +34,7 @@ FlowGraph is a browser-based interactive DAG viewer and editor. Users load, crea
 
 ### Planning Before Coding
 - Read CLAUDE.md and memory files FIRST. Use graph tools before Grep/Glob/Read.
+- Read the actual component before planning work on it — the planned optimization may already be done.
 - Multi-file work: build a concrete plan (file order, exact changes, reasoning) before touching any file. Share it.
 - Confirm root cause before writing any code — not just the symptom.
 
@@ -99,8 +100,8 @@ Use `get_architecture_overview` for file/component structure.
 
 **Adding a new serialized top-level field** (4 required touch points):
 1. `types/graph.ts` — define the interface.
-2. `graphStore.ts` — add to state, `clearGraph`, `loadData` (extract from `savedLayout` cast with `?? []` / `?? null`).
-3. `exportJson.ts` — add param to `buildExportPayload()`. Emit conditionally (omit when empty).
+2. `graphStore.ts` — add to state, `clearGraph`, `loadData` (extract from `savedLayout` cast with a type-appropriate empty default: `{}`, `[]`, `null`, or `false`).
+3. `exportJson.ts` — add param to `buildExportPayload()`. Emit conditionally (omit when empty/default).
 4. `Header.tsx` — extract from `obj` in `parseAndLoad()`, attach to `savedLayout`; add to every call site; update `useCallback` dep arrays.
 
 ### File I/O Modes
@@ -191,6 +192,17 @@ Staggered on file load and focus-mode entry. Suppressed on view-mode switch, foc
 - **`useLayoutEffect` for mount-time DOM animation**. `useEffect` fires after paint and can flash final state. Required for anything calling `getTotalLength()`, `getBoundingClientRect()`, or setting initial `style` before animating.
 - **`data-*` handshake for React-vs-JS attribute conflicts**. Set JSX attribute to `undefined`; store value in `data-marker-end`. JS cleanup reads `getAttribute` and calls `setAttribute`. React never overwrites a `data-*` it doesn't own.
 
+### Edges
+- **No `id` field** — `GraphEdge` only has `{from, to}`. The composite key `"${fromId}:${toId}"` is the only identity. Use this pattern everywhere edges need a map key.
+- **Derived, not stored** — edges are built from `node.dependencies` by `rebuildEdgesFromNodes()`. You cannot persist metadata on the edge object itself.
+- **Per-edge metadata** — store in a parallel `Record<string, T>` map in state (keyed by `"${fromId}:${toId}"`). Inject as a runtime-only property on the edge object after each rebuild call. Follow the `edgePathTypes` pattern for any future edge-level data.
+
+### SVG Portal Rule
+Any popover, dropdown, or tooltip triggered by a click inside SVG must render via `ReactDOM.createPortal(content, document.body)` with `position: fixed`. SVG's `overflow` clips `position: fixed` React children at the SVG container boundary even though fixed positioning ignores normal document flow.
+
+### Multi-Mode Visual Precedence
+When multiple display modes affect the same visual property on an edge or node, establish the precedence chain explicitly at the time you add the mode. Current resolution: **structural properties** (strokeWidth) apply in all modes; **narrative properties** (opacity, color, dash) yield to higher-priority modes. Priority order: cinema > owner focus > river flow. Add new visual modes following this chain — do not let modes silently overwrite each other.
+
 ### Space-Key Pan
 Holding `Space` activates pan-anywhere mode regardless of active design tool. Cursor → `grab`; release restores previous cursor.
 
@@ -219,6 +231,8 @@ Holding `Space` activates pan-anywhere mode regardless of active design tool. Cu
 | Collapsed groups invisible in heatmap | `GroupCard` role classes not applied when `collapsed === true` | Known gap — mirror heatmap-tier logic from NodeCard |
 | Entrance animation on view switch / focus exit | `#graph-content` remounts on key change; bulk fade always played | Direction-aware suppression: IIFE + 700ms `suppressActiveRef` window |
 | JS removes animation class; React restores it | JSX `className` and `classList.remove()` fight — React wins | Never put animation-state classes in JSX `className` |
+| `Record<UnionType, T>` breaks on union extension | TypeScript requires exhaustive keys; adding a value to a union immediately errors every map using it as a key | Extend the union and all its exhaustive maps in the same edit |
+| EdgeLayer.tsx bottom section is dead code | `LaneLayer`, `GhostEdge`, `MiniMap` are defined at the bottom of EdgeLayer.tsx but imported from separate files by Canvas.tsx | Do not edit those bottom definitions — they are unreachable |
 
 ---
 

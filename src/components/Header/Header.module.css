@@ -409,6 +409,7 @@
   flex-shrink: 0;
 }
 .btnIcon:hover { border-color: var(--accent); color: var(--accent); }
+.btnIconActive { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
 /* Save JSON button */
 .btnSaveJson {

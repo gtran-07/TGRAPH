@@ -31,6 +31,8 @@ export function Header() {
     activeOwners, toggleOwner, layoutCache, currentFileName, ownerColors,
     fileHandle, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta,
     discoveryActive, discoverySequence, startDiscovery, exitDiscovery, discoveryEngagement,
+    focusMode, exitFocusMode, focusedOwner, exitOwnerFocus, setPathHighlight,
+    edgePathTypes, marqueeMode, toggleMarqueeMode,
   } = useGraphStore();
 
   // True when File System Access API is available (Chrome/Edge 86+)
@@ -115,6 +117,13 @@ export function Header() {
           (savedLayout as Record<string, unknown>).meta = obj._meta;
         } else {
           savedLayout = { positions: {}, transform: { x: 0, y: 0, k: 1 }, meta: obj._meta } as unknown as typeof savedLayout;
+        }
+      }
+      if (obj.edgePathTypes && typeof obj.edgePathTypes === 'object') {
+        if (savedLayout) {
+          (savedLayout as Record<string, unknown>).edgePathTypes = obj.edgePathTypes;
+        } else {
+          savedLayout = { positions: {}, transform: { x: 0, y: 0, k: 1 }, edgePathTypes: obj.edgePathTypes } as unknown as typeof savedLayout;
         }
       }
     } else {
@@ -216,7 +225,7 @@ export function Header() {
       try {
         const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
         if (perm !== 'granted') throw new Error('Write permission denied');
-        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(payload, null, 2));
         await writable.close();
@@ -224,7 +233,7 @@ export function Header() {
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           // Permission denied or write error — fall back to download so no data is lost
-          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
           setLastSavedAt(new Date());
         }
       }
@@ -236,7 +245,7 @@ export function Header() {
           suggestedName: currentFileName ?? 'flowgraph.json',
           types: [{ description: 'FlowGraph JSON', accept: { 'application/json': ['.json'] } }],
         });
-        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+        const payload = buildExportPayload(allNodes, viewMode, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
         const writable = await handle.createWritable();
         await writable.write(JSON.stringify(payload, null, 2));
         await writable.close();
@@ -247,16 +256,16 @@ export function Header() {
         // User cancelled the picker — do nothing (no download fallback).
         if ((err as Error).name !== 'AbortError') {
           // Unexpected error — fall back to download so no data is lost.
-          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+          exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
           setLastSavedAt(new Date());
         }
       }
     } else {
       // Last resort: browser doesn't support File System Access API.
-      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, currentFileName ?? undefined, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
       setLastSavedAt(new Date());
     }
-  }, [fileHandle, viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement]);
+  }, [fileHandle, viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes]);
 
   // ── Save As — pick a new file path, write, and update the handle ────────
   const handleSaveAs = useCallback(async () => {
@@ -288,11 +297,11 @@ export function Header() {
       const name = window.prompt('Enter a filename for the saved file:', currentFileName ?? 'flowgraph.json');
       if (!name) return;
       const safeName = name.endsWith('.json') ? name : `${name}.json`;
-      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, safeName, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+      exportGraphToJson(allNodes, viewMode, dagLayout, lanesLayout, safeName, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
       setCurrentFileName(safeName);
       setLastSavedAt(new Date());
     }
-  }, [viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement]);
+  }, [viewMode, positions, transform, layoutCache, allNodes, currentFileName, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes]);
 
   // ── Reload from file — re-read via fileHandle and restore saved state ───
   const handleReloadFromFile = useCallback(async () => {
@@ -442,6 +451,12 @@ export function Header() {
       return;
     }
     if (designMode) setDesignMode(false);
+    if (focusMode) exitFocusMode();
+    if (focusedOwner) exitOwnerFocus();
+    if (viewMode !== 'dag') setViewMode('dag');
+    setPathHighlight(null);
+    setSearchQuery('');
+    setShowSearchResults(false);
     const edges = allNodes.flatMap((n) =>
       n.dependencies.map((dep) => ({ from: dep, to: n.id }))
     );
@@ -713,12 +728,42 @@ export function Header() {
           onClick={() => fitToScreen()}
         >⊞</button>
 
+        {/* Marquee selection toggle — view mode only */}
+        {hasData && !designMode && !discoveryActive && (
+          <button
+            className={styles.btnIcon}
+            title={marqueeMode ? 'Marquee select: ON — drag to select nodes (click to disable)' : 'Marquee select: OFF — click to enable drag selection'}
+            onClick={() => toggleMarqueeMode()}
+            style={marqueeMode ? { color: '#3b82f6', borderColor: '#3b82f6', background: 'rgba(59,130,246,0.12)' } : {}}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2">
+              <rect x="1" y="1" width="12" height="12" rx="1"/>
+            </svg>
+          </button>
+        )}
+
         {/* User guide */}
         <button
           className={styles.btnIcon}
           title="How to use FlowGraph (Shift+?)"
           onClick={() => setGuidePulse((n) => n + 1)}
         >📖</button>
+
+        {/* DAG / Lanes toggle */}
+        {hasData && !discoveryActive && (
+          <div className={styles.viewToggle}>
+            <button
+              className={`${styles.viewBtn} ${viewMode === 'dag' ? styles.viewBtnActive : ''}`}
+              title="DAG layout — hierarchical tree"
+              onClick={() => setViewMode('dag')}
+            >DAG</button>
+            <button
+              className={`${styles.viewBtn} ${viewMode === 'lanes' ? styles.viewBtnActive : ''}`}
+              title="Lanes layout — swimlane by owner"
+              onClick={() => setViewMode('lanes')}
+            >LANES</button>
+          </div>
+        )}
 
         {/* Saved Layouts dropdown */}
         {!discoveryActive && <div className={styles.layoutsWrap} ref={layoutsRef}>
@@ -818,19 +863,14 @@ export function Header() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
-            ) : viewMode === 'lanes' ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
-              </svg>
             ) : (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="8" width="5" height="5" rx="1"/><rect x="16" y="4" width="5" height="5" rx="1"/>
-                <rect x="16" y="14" width="5" height="5" rx="1"/><rect x="10" y="11" width="5" height="5" rx="1"/>
-                <line x1="8" y1="10.5" x2="10" y2="12"/><line x1="15" y1="13.5" x2="21" y2="11.5"/>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
               </svg>
             )}
             <span className={styles.btnLabel}>
-              {designMode ? 'Design' : viewMode === 'lanes' ? 'Lanes' : 'DAG'}
+              {designMode ? 'Design' : 'Explore'}
             </span>
             <svg className={styles.chevron} width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="6 9 12 15 18 9"/>
@@ -838,32 +878,19 @@ export function Header() {
           </button>
           {modeMenuOpen && (
             <div className={styles.modeMenuDropdown}>
-              <div className={styles.modeMenuSection}>LAYOUT</div>
+              <div className={styles.modeMenuSection}>MODE</div>
               <button
-                className={`${styles.modeMenuItem} ${viewMode === 'dag' && !designMode ? styles.modeMenuItemActive : ''}`}
-                onClick={() => { setViewMode('dag'); if (designMode) setDesignMode(false); setModeMenuOpen(false); }}
+                className={`${styles.modeMenuItem} ${!designMode && !discoveryActive ? styles.modeMenuItemActive : ''}`}
+                onClick={() => { if (designMode) setDesignMode(false); setModeMenuOpen(false); }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="8" width="5" height="5" rx="1"/><rect x="16" y="4" width="5" height="5" rx="1"/>
-                  <rect x="16" y="14" width="5" height="5" rx="1"/><rect x="10" y="11" width="5" height="5" rx="1"/>
-                  <line x1="8" y1="10.5" x2="10" y2="12"/><line x1="15" y1="13.5" x2="21" y2="11.5"/>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
                 </svg>
-                DAG View
-                {viewMode === 'dag' && !designMode && <span className={styles.modeMenuCheck}>✓</span>}
+                Explore
+                {!designMode && !discoveryActive && <span className={styles.modeMenuCheck}>✓</span>}
               </button>
-              <button
-                className={`${styles.modeMenuItem} ${viewMode === 'lanes' && !designMode ? styles.modeMenuItemActive : ''}`}
-                onClick={() => { setViewMode('lanes'); if (designMode) setDesignMode(false); setModeMenuOpen(false); }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
-                </svg>
-                Lanes View
-                {viewMode === 'lanes' && !designMode && <span className={styles.modeMenuCheck}>✓</span>}
-              </button>
-              {!discoveryActive && <>
-                <div className={styles.modeMenuDivider} />
-                <div className={styles.modeMenuSection}>MODE</div>
+              {!discoveryActive && (
                 <button
                   className={`${styles.modeMenuItem} ${designMode ? styles.modeMenuItemDesign : ''}`}
                   onClick={() => { handleDesignToggle(); setModeMenuOpen(false); }}
@@ -871,21 +898,22 @@ export function Header() {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
-                  Design Mode
+                  Design
                   {designMode && <span className={styles.modeMenuCheck}>✓</span>}
                 </button>
-                <button
-                  className={`${styles.modeMenuItem}`}
-                  onClick={() => { handleDiscover(); setModeMenuOpen(false); }}
-                  disabled={!hasData}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
-                  </svg>
-                  {discoverLabel}
-                </button>
-              </>}
+              )}
+              <button
+                className={`${styles.modeMenuItem}`}
+                onClick={() => { handleDiscover(); setModeMenuOpen(false); }}
+                disabled={!hasData}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
+                </svg>
+                {discoverLabel}
+                {discoveryActive && <span className={styles.modeMenuCheck}>✓</span>}
+              </button>
             </div>
           )}
         </div>

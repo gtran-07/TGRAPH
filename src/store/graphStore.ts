@@ -36,6 +36,7 @@ import type {
   CinemaEngagementMap,
   DiscoveryPhase,
   HeatTier,
+  PathType,
 } from '../types/graph';
 import { PHASE_PALETTE } from '../types/graph';
 import { computeNormalizedEngagement, assignHeatTier } from '../utils/cinema';
@@ -106,12 +107,16 @@ export interface GraphStore {
   lastJumpedNodeId: string | null;
   /** ID of the target node for ancestor-path highlighting. All nodes/edges on any path from a root to this node are highlighted; others are ghosted. */
   pathHighlightNodeId: string | null;
+  /** Which direction(s) to highlight from the target node. */
+  pathHighlightMode: 'ancestors' | 'descendants' | 'both' | null;
 
   // ── Focus mode ───────────────────────────────────────────────────────────
   /** True when focus mode is active (user double-clicked a node in view mode) */
   focusMode: boolean;
   /** The anchor node id in focus mode (the node that was double-clicked) */
   focusNodeId: string | null;
+  /** How far to traverse from the focused node: 'neighbors' = 1 hop, 'full' = all ancestors + descendants */
+  focusDepth: 'neighbors' | 'full';
   /**
    * Snapshot of the graph state captured immediately before entering focus mode.
    * Used to restore the exact pre-focus layout when the user exits.
@@ -147,6 +152,8 @@ export interface GraphStore {
   groups: GraphGroup[];
   /** IDs of nodes/groups currently selected for group creation (design mode multi-select) */
   multiSelectIds: string[];
+  /** True when marquee (rubber-band) selection mode is active */
+  marqueeMode: boolean;
   /** ID of the selected group (shown in Inspector). Null when nothing selected. */
   selectedGroupId: string | null;
 
@@ -210,12 +217,13 @@ export interface GraphStore {
   setSelectedNode: (id: string | null) => void;
   setHoveredNode: (id: string | null) => void;
   setLastJumpedNode: (id: string | null) => void;
-  setPathHighlight: (id: string | null) => void;
+  setPathHighlight: (id: string | null, mode?: 'ancestors' | 'descendants' | 'both') => void;
   toggleOwner: (owner: string) => void;
   toggleAllOwners: () => void;
   rebuildGraph: (animated?: boolean) => void;
   enterFocusMode: (nodeId: string) => void;
   exitFocusMode: () => void;
+  setFocusDepth: (depth: 'neighbors' | 'full') => void;
   saveLayoutToCache: () => void;
   saveNamedLayout: (name: string) => void;
   loadNamedLayout: (snapshot: LayoutSnapshot, viewMode: ViewMode) => void;
@@ -248,6 +256,10 @@ export interface GraphStore {
   toggleMultiSelect: (id: string) => void;
   /** Clear all multi-selected items */
   clearMultiSelect: () => void;
+  /** Replace the entire multi-select set (used by marquee selection) */
+  setMultiSelectIds: (ids: string[]) => void;
+  /** Toggle the marquee (rubber-band) selection mode on/off */
+  toggleMarqueeMode: () => void;
 
   // ── Phase actions ──────────────────────────────────────────────────────────
   /** Create a new phase, optionally pre-assigning nodes and/or collapsed groups */
@@ -278,9 +290,11 @@ export interface GraphStore {
   // ── Clipboard ─────────────────────────────────────────────────────────────
   /** Nodes currently on the clipboard (set by copySelection) */
   clipboard: GraphNode[];
+  /** Incremented each time pasteClipboard runs; Canvas uses it to suppress entrance animation */
+  pasteCount: number;
   /** Copy selected nodes to the clipboard */
   copySelection: () => void;
-  /** Paste clipboard nodes as new nodes, offset by +80/+80, preserving internal deps */
+  /** Paste clipboard nodes as new nodes, offset by +80/+80, no edges */
   pasteClipboard: () => void;
   /** Run full phase-constraint settlement for all phases in the current view mode and write back positions */
   settleAllPhases: () => void;
@@ -384,6 +398,17 @@ export interface GraphStore {
   selectedReconstructionChip: string | null;
   /** Heat tier per nodeId after startHeatmap runs. Empty until Phase 3 starts. */
   heatTiers: Record<string, HeatTier>;
+
+  // ── Path Types ────────────────────────────────────────────────────────────
+  /** Map of edge key ("fromId:toId") → PathType. Empty = all edges are 'required' (default). */
+  edgePathTypes: Record<string, PathType>;
+  /** Source node ID for the Trace Path tool. Null when no trace is in progress. */
+  tracePathSource: string | null;
+  /** Found paths from BFS in the Trace Path tool. Each path is an ordered array of edges. */
+  tracePathResults: GraphEdge[][];
+  /** Index into tracePathResults for the currently highlighted path. */
+  tracePathSelectedIndex: number;
+
   // ── Cinema actions ─────────────────────────────────────────────────────────
   /** Start the cinema with the given pre-built sequence */
   startDiscovery: (sequence: CinemaSequence) => void;
@@ -434,6 +459,43 @@ export interface GraphStore {
   updateNodeCinemaFields: (id: string, fields: { cinemaScript?: string; cinemaBottleneck?: boolean; cinemaSkip?: boolean }) => void;
   /** Update cinema author fields on a group */
   updateGroupCinemaFields: (id: string, fields: { cinemaScript?: string; cinemaBottleneck?: boolean; cinemaSkip?: boolean }) => void;
+
+  // ── Path Type actions ──────────────────────────────────────────────────────
+  /** Set the path type for a single edge. edgeKey = "${fromId}:${toId}". Takes undo snapshot. */
+  setEdgePathType: (edgeKey: string, pathType: PathType) => void;
+  /** Set the same path type for multiple edges in one undo snapshot. edgeKeys = "${fromId}:${toId}[]". */
+  setEdgePathTypeBatch: (edgeKeys: string[], pathType: PathType) => void;
+  /** Set the source node for Trace Path mode. */
+  setTracePathSource: (id: string | null) => void;
+  /** Store BFS results for Trace Path mode. */
+  setTracePathResults: (results: GraphEdge[][], selectedIndex?: number) => void;
+  /** Advance to the next traced path (cycles). */
+  nextTracePath: () => void;
+  /** Go back to the previous traced path (cycles). */
+  prevTracePath: () => void;
+  /** Clear all Trace Path state and return to select tool. */
+  clearTracePath: () => void;
+
+  // ── Summon Mode ────────────────────────────────────────────────────────────
+  /** True when summon mode is active (modal connection mode) */
+  summonActive: boolean;
+  /** The node ID from which new edges will be created */
+  summonSourceId: string | null;
+  /** Search filter string for the summon dock */
+  summonFilter: string;
+  /** Whether the connection ring visualization is shown */
+  summonShowRing: boolean;
+  /** SVG-space position + color for the ping animation on successful connect */
+  summonPingTarget: { x: number; y: number; color: string } | null;
+  /** Set of node IDs that have been connected in this summon session */
+  summonConnected: Set<string>;
+
+  activateSummon: (sourceId: string) => void;
+  deactivateSummon: () => void;
+  setSummonFilter: (q: string) => void;
+  toggleSummonRing: () => void;
+  setSummonPingTarget: (t: { x: number; y: number; color: string } | null) => void;
+  addSummonConnected: (nodeId: string) => void;
 }
 
 // ─── HELPER: compute visible nodes/edges from current state ─────────────────
@@ -451,7 +513,8 @@ function deriveVisibility(
   activeOwners: Set<string>,
   focusMode: boolean,
   focusNodeId: string | null,
-  groups: GraphGroup[] = []
+  groups: GraphGroup[] = [],
+  focusDepth: 'neighbors' | 'full' = 'neighbors'
 ): { visibleNodes: GraphNode[]; visibleEdges: GraphEdge[] } {
   // Nodes inside a collapsed group are hidden regardless of owner filter
   const hiddenByGroup = getHiddenNodeIds(groups);
@@ -459,17 +522,47 @@ function deriveVisibility(
   let visibleNodes: GraphNode[];
 
   if (focusMode && focusNodeId) {
-    // Focus mode: show only the focused node + its direct parents and children
     const focusedNode = allNodes.find((node) => node.id === focusNodeId);
     if (!focusedNode) {
       return { visibleNodes: [], visibleEdges: [] };
     }
 
-    const directParentIds = new Set(focusedNode.dependencies);
-    const directChildIds = new Set(
-      allEdges.filter((edge) => edge.from === focusNodeId).map((edge) => edge.to)
-    );
-    const focusedIds = new Set([focusNodeId, ...directParentIds, ...directChildIds]);
+    let focusedIds: Set<string>;
+
+    if (focusDepth === 'full') {
+      // BFS upstream (ancestors via dependencies)
+      const upstream = new Set<string>([focusNodeId]);
+      const upQueue = [focusNodeId];
+      while (upQueue.length > 0) {
+        const cur = upQueue.shift()!;
+        const curNode = allNodes.find((n) => n.id === cur);
+        if (curNode) {
+          for (const depId of curNode.dependencies) {
+            if (!upstream.has(depId)) { upstream.add(depId); upQueue.push(depId); }
+          }
+        }
+      }
+      // BFS downstream (descendants via edges)
+      const downstream = new Set<string>([focusNodeId]);
+      const downQueue = [focusNodeId];
+      while (downQueue.length > 0) {
+        const cur = downQueue.shift()!;
+        for (const edge of allEdges) {
+          if (edge.from === cur && !downstream.has(edge.to)) {
+            downstream.add(edge.to);
+            downQueue.push(edge.to);
+          }
+        }
+      }
+      focusedIds = new Set([...upstream, ...downstream]);
+    } else {
+      // Neighbors: 1-hop parents + children
+      const directParentIds = new Set(focusedNode.dependencies);
+      const directChildIds = new Set(
+        allEdges.filter((edge) => edge.from === focusNodeId).map((edge) => edge.to)
+      );
+      focusedIds = new Set([focusNodeId, ...directParentIds, ...directChildIds]);
+    }
 
     visibleNodes = allNodes.filter(
       (node) =>
@@ -540,8 +633,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   hoveredNodeId: null,
   lastJumpedNodeId: null,
   pathHighlightNodeId: null,
+  pathHighlightMode: null,
   focusMode: false,
   focusNodeId: null,
+  focusDepth: 'neighbors',
   preFocusSnapshot: null,
   transform: { x: 0, y: 0, k: 1 },
   flyTarget: null,
@@ -553,6 +648,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   redoStack: [],
   groups: [],
   multiSelectIds: [],
+  marqueeMode: false,
   selectedGroupId: null,
   phases: [],
   selectedPhaseId: null,
@@ -567,6 +663,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   currentFileName: null,
   fileHandle: null,
   clipboard: [],
+  pasteCount: 0,
   tagRegistry: [],
   ownerRegistry: [],
   meta: null,
@@ -581,6 +678,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   reconstructionAccuracy: {},
   selectedReconstructionChip: null,
   heatTiers: {},
+  edgePathTypes: {},
+  tracePathSource: null,
+  tracePathResults: [],
+  tracePathSelectedIndex: 0,
+  summonActive: false,
+  summonSourceId: null,
+  summonFilter: '',
+  summonShowRing: false,
+  summonPingTarget: null,
+  summonConnected: new Set(),
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -599,8 +706,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       hoveredNodeId: null,
       lastJumpedNodeId: null,
       pathHighlightNodeId: null,
+      pathHighlightMode: null,
       focusMode: false,
       focusNodeId: null,
+      focusDepth: 'neighbors',
       preFocusSnapshot: null,
       transform: { x: 0, y: 0, k: 1 },
       designMode: true,
@@ -611,6 +720,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       redoStack: [],
       groups: [],
       multiSelectIds: [],
+      marqueeMode: false,
       selectedGroupId: null,
       phases: [],
       selectedPhaseId: null,
@@ -634,6 +744,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       reconstructionAccuracy: {},
       selectedReconstructionChip: null,
       heatTiers: {},
+      edgePathTypes: {},
+      tracePathSource: null,
+      tracePathResults: [],
+      tracePathSelectedIndex: 0,
+      summonActive: false,
+      summonSourceId: null,
+      summonFilter: '',
+      summonShowRing: false,
+      summonPingTarget: null,
+      summonConnected: new Set(),
         });
   },
 
@@ -650,7 +770,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
    * focus mode, design mode, etc.) and computes a fresh layout.
    */
   loadData: (nodes, savedLayout, fileName) => {
-    const allEdges = rebuildEdgesFromNodes(nodes);
+    const rawEdges = rebuildEdgesFromNodes(nodes);
+    const allEdges = rawEdges;
     const owners = [...new Set(nodes.map((node) => node.owner))];
     const ownerColors = assignOwnerColors(owners);
     const activeOwners = new Set(owners);
@@ -665,6 +786,23 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const ownerRegistry: string[] = (savedLayout as { ownerRegistry?: string[] } | null)?.ownerRegistry ?? [];
     // Extract _meta if present — preserved as-is so it round-trips through saves
     const meta: GraphMeta | null = (savedLayout as { meta?: GraphMeta } | null)?.meta ?? null;
+    // Extract edgePathTypes — parallel map for per-edge path type assignments
+    const rawEdgePathTypes: Record<string, string> =
+      (savedLayout as { edgePathTypes?: Record<string, string> } | null)?.edgePathTypes ?? {};
+    // Remap legacy PathType values from old saved files
+    const LEGACY_REMAP: Record<string, PathType> = { required: 'standard', alternative: 'optional' };
+    const edgePathTypes: Record<string, PathType> = {};
+    for (const [key, val] of Object.entries(rawEdgePathTypes)) {
+      edgePathTypes[key] = (LEGACY_REMAP[val] ?? val) as PathType;
+    }
+
+    // Inject runtime pathType into allEdges from the loaded map
+    if (Object.keys(edgePathTypes).length > 0) {
+      for (const edge of allEdges) {
+        const pt = edgePathTypes[`${edge.from}:${edge.to}`];
+        if (pt) edge.pathType = pt;
+      }
+    }
 
     const { visibleNodes, visibleEdges } = deriveVisibility(
       nodes, allEdges, activeOwners, false, null, groups
@@ -718,8 +856,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       hoveredNodeId: null,
       lastJumpedNodeId: null,
       pathHighlightNodeId: null,
+      pathHighlightMode: null,
       focusMode: false,
       focusNodeId: null,
+      focusDepth: 'neighbors',
       preFocusSnapshot: null,
       designMode: false,
       designTool: 'select',
@@ -729,6 +869,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       redoStack: [],
       groups,
       multiSelectIds: [],
+      marqueeMode: false,
       selectedGroupId: null,
       phases,
       selectedPhaseId: null,
@@ -754,6 +895,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       reconstructionAccuracy: {},
       selectedReconstructionChip: null,
       heatTiers: {},
+      edgePathTypes,
+      tracePathSource: null,
+      tracePathResults: [],
+      tracePathSelectedIndex: 0,
         });
   },
 
@@ -1012,12 +1157,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       // Reset tool to 'select' when toggling design mode on or off
       designTool: 'select',
       connectSourceId: null,
-      // Clear selection when exiting design mode so no red-glow highlights remain
+      // Clear selection and marquee mode when exiting design mode
       ...(on ? {} : {
         selectedNodeId: null,
         selectedGroupId: null,
         selectedPhaseId: null,
         multiSelectIds: [],
+        marqueeMode: false,
       }),
     });
   },
@@ -1028,6 +1174,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       designTool: tool,
       // Clear any in-progress connection when switching tools
       connectSourceId: tool !== 'connect' ? null : get().connectSourceId,
+      // Clear trace path state when leaving tracePath mode
+      ...(tool !== 'tracePath' ? { tracePathSource: null, tracePathResults: [], tracePathSelectedIndex: 0 } : {}),
+      // Marquee mode only makes sense in select tool
+      ...(tool !== 'select' ? { marqueeMode: false } : {}),
     });
   },
 
@@ -1099,20 +1249,35 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   // ── setSelectedNode ───────────────────────────────────────────────────────
   setSelectedNode: (id: string | null) => set((s) => ({
-    selectedNodeId: id,
+    selectedNodeId: id === null && s.focusMode ? s.focusNodeId : id,
     selectedGroupId: null,
     selectedPhaseId: id !== null ? null : s.selectedPhaseId,
     lastJumpedNodeId: s.lastJumpedNodeId && s.lastJumpedNodeId !== id ? null : s.lastJumpedNodeId,
     multiSelectIds: [],
     // Clear path highlight when selection changes to a different node
     pathHighlightNodeId: s.pathHighlightNodeId === id ? s.pathHighlightNodeId : null,
+    pathHighlightMode: s.pathHighlightNodeId === id ? s.pathHighlightMode : null,
   })),
 
   // ── setHoveredNode ────────────────────────────────────────────────────────
   setHoveredNode: (id: string | null) => set({ hoveredNodeId: id }),
 
   // ── setPathHighlight ──────────────────────────────────────────────────────
-  setPathHighlight: (id: string | null) => set({ pathHighlightNodeId: id }),
+  setPathHighlight: (id: string | null, mode?: 'ancestors' | 'descendants' | 'both') => set({ pathHighlightNodeId: id, pathHighlightMode: mode ?? null }),
+
+  // ── setFocusDepth ─────────────────────────────────────────────────────────
+  setFocusDepth: (depth: 'neighbors' | 'full') => {
+    const state = get();
+    if (!state.focusMode || !state.focusNodeId) return;
+    const { visibleNodes, visibleEdges } = deriveVisibility(
+      state.allNodes, state.allEdges, state.activeOwners, true, state.focusNodeId, state.groups, depth
+    );
+    const { positions, laneMetrics } = derivePositions(
+      visibleNodes, visibleEdges, state.viewMode, state.activeOwners, state.allNodes
+    );
+    set({ focusDepth: depth, visibleNodes, visibleEdges, positions, laneMetrics });
+    setTimeout(() => get().fitToScreen(), 60);
+  },
 
   // ── setLastJumpedNode ─────────────────────────────────────────────────────
   setLastJumpedNode: (id: string | null) => set({ lastJumpedNodeId: id }),
@@ -1123,11 +1288,19 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     if (state.undoStack.length === 0) return;
     const prev = state.undoStack[state.undoStack.length - 1];
     const newUndoStack = state.undoStack.slice(0, -1);
-    const newRedoStack = [...state.redoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] }];
+    const newRedoStack = [...state.redoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], edgePathTypes: { ...state.edgePathTypes } }];
 
     const allNodes = prev.nodes;
     const prevGroups = prev.groups ?? [];
-    const allEdges = rebuildEdgesFromNodes(allNodes);
+    const prevEdgePathTypes = prev.edgePathTypes ?? state.edgePathTypes;
+    const rawEdges = rebuildEdgesFromNodes(allNodes);
+    if (Object.keys(prevEdgePathTypes).length > 0) {
+      for (const edge of rawEdges) {
+        const pt = prevEdgePathTypes[`${edge.from}:${edge.to}`];
+        if (pt) edge.pathType = pt;
+      }
+    }
+    const allEdges = rawEdges;
     const owners = [...new Set(allNodes.map((n) => n.owner))];
     const ownerColors = assignOwnerColors(owners, state.ownerColors);
     const activeOwners = new Set([...state.activeOwners].filter((o) => allNodes.some((n) => n.owner === o)));
@@ -1136,6 +1309,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({
       allNodes, allEdges, visibleNodes, visibleEdges,
       positions: prev.positions, ownerColors, activeOwners, groups: prevGroups,
+      edgePathTypes: prevEdgePathTypes,
       undoStack: newUndoStack, redoStack: newRedoStack, designDirty: true,
     });
   },
@@ -1146,11 +1320,19 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     if (state.redoStack.length === 0) return;
     const next = state.redoStack[state.redoStack.length - 1];
     const newRedoStack = state.redoStack.slice(0, -1);
-    const newUndoStack = [...state.undoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] }];
+    const newUndoStack = [...state.undoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], edgePathTypes: { ...state.edgePathTypes } }];
 
     const allNodes = next.nodes;
     const nextGroups = next.groups ?? [];
-    const allEdges = rebuildEdgesFromNodes(allNodes);
+    const nextEdgePathTypes = next.edgePathTypes ?? state.edgePathTypes;
+    const rawEdges = rebuildEdgesFromNodes(allNodes);
+    if (Object.keys(nextEdgePathTypes).length > 0) {
+      for (const edge of rawEdges) {
+        const pt = nextEdgePathTypes[`${edge.from}:${edge.to}`];
+        if (pt) edge.pathType = pt;
+      }
+    }
+    const allEdges = rawEdges;
     const owners = [...new Set(allNodes.map((n) => n.owner))];
     const ownerColors = assignOwnerColors(owners, state.ownerColors);
     const activeOwners = new Set([...state.activeOwners].filter((o) => allNodes.some((n) => n.owner === o)));
@@ -1159,6 +1341,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({
       allNodes, allEdges, visibleNodes, visibleEdges,
       positions: next.positions, ownerColors, activeOwners, groups: nextGroups,
+      edgePathTypes: nextEdgePathTypes,
       undoStack: newUndoStack, redoStack: newRedoStack, designDirty: true,
     });
   },
@@ -1341,14 +1524,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           };
 
     const { visibleNodes, visibleEdges } = deriveVisibility(
-      state.allNodes, state.allEdges, state.activeOwners, true, nodeId, state.groups
+      state.allNodes, state.allEdges, state.activeOwners, true, nodeId, state.groups, 'neighbors'
     );
 
     const { positions, laneMetrics } = derivePositions(
       visibleNodes, visibleEdges, state.viewMode, state.activeOwners, state.allNodes
     );
 
-    set({ focusMode: true, focusNodeId: nodeId, hoveredNodeId: null, preFocusSnapshot, visibleNodes, visibleEdges, positions, laneMetrics });
+    set({ focusMode: true, focusNodeId: nodeId, focusDepth: 'neighbors', selectedNodeId: nodeId, hoveredNodeId: null, preFocusSnapshot, visibleNodes, visibleEdges, positions, laneMetrics });
+    setTimeout(() => get().fitToScreen(), 60);
   },
 
   // ── exitFocusMode ─────────────────────────────────────────────────────────
@@ -1374,18 +1558,18 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       set({
         focusMode: false,
         focusNodeId: null,
+        focusDepth: 'neighbors',
         hoveredNodeId: null,
-        selectedNodeId: null,
         preFocusSnapshot: null,
         visibleNodes,
         visibleEdges,
         positions: snapshot.positions,
         laneMetrics: snapshot.laneMetrics,
-        transform: snapshot.transform,
+        flyTarget: snapshot.transform,
       });
     } else {
       // View mode changed while in focus — discard snapshot, rebuild fresh.
-      set({ focusMode: false, focusNodeId: null, hoveredNodeId: null, selectedNodeId: null, preFocusSnapshot: null });
+      set({ focusMode: false, focusNodeId: null, focusDepth: 'neighbors', hoveredNodeId: null, preFocusSnapshot: null });
       get().rebuildGraph();
       setTimeout(() => get().fitToScreen(), 60);
     }
@@ -1797,7 +1981,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   // ── setSelectedGroup ──────────────────────────────────────────────────────
-  setSelectedGroup: (id) => set({ selectedGroupId: id, selectedNodeId: null, selectedPhaseId: null, multiSelectIds: [] }),
+  setSelectedGroup: (id) => set((s) => ({ selectedGroupId: id, selectedNodeId: s.focusMode && s.focusNodeId ? s.focusNodeId : null, selectedPhaseId: null, multiSelectIds: [] })),
 
   // ── toggleMultiSelect ─────────────────────────────────────────────────────
   toggleMultiSelect: (id) => {
@@ -1810,6 +1994,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   // ── clearMultiSelect ──────────────────────────────────────────────────────
   clearMultiSelect: () => set({ multiSelectIds: [] }),
+
+  // ── setMultiSelectIds ─────────────────────────────────────────────────────
+  setMultiSelectIds: (ids) => set({
+    multiSelectIds: ids,
+    selectedNodeId: ids.length === 1 ? ids[0] : null,
+    selectedGroupId: null,
+  }),
+
+  // ── toggleMarqueeMode ─────────────────────────────────────────────────────
+  toggleMarqueeMode: () => set((s) => ({ marqueeMode: !s.marqueeMode })),
 
   // ── createPhase ───────────────────────────────────────────────────────────
   createPhase: (nodeIds, data, groupIds = []) => {
@@ -2101,7 +2295,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   // ── setSelectedPhaseId ────────────────────────────────────────────────────
-  setSelectedPhaseId: (id) => set({ selectedPhaseId: id, selectedNodeId: null, selectedGroupId: null }),
+  setSelectedPhaseId: (id) => set((s) => ({ selectedPhaseId: id, selectedNodeId: s.focusMode && s.focusNodeId ? s.focusNodeId : null, selectedGroupId: null })),
 
   // ── setFocusedPhaseId ─────────────────────────────────────────────────────
   setFocusedPhaseId: (id) => set({ focusedPhaseId: id }),
@@ -2186,14 +2380,12 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       counter++;
     }
 
-    // Create pasted nodes: remap internal deps, keep external deps as-is
+    // Create pasted nodes: new IDs, no edges
     const PASTE_OFFSET = 80;
     const newNodes: GraphNode[] = clipboard.map((node) => ({
       ...node,
       id: idMap.get(node.id)!,
-      dependencies: node.dependencies.map((dep) =>
-        clipboardIdSet.has(dep) ? idMap.get(dep)! : dep
-      ),
+      dependencies: [],
     }));
 
     // Compute pasted positions offset from originals
@@ -2219,7 +2411,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     );
 
     const newNodeIds = newNodes.map((n) => n.id);
-    set({
+    set((s) => ({
       allNodes: allNodesNew,
       allEdges,
       visibleNodes,
@@ -2233,7 +2425,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       designDirty: true,
       undoStack,
       redoStack: [],
-    });
+      pasteCount: s.pasteCount + 1,
+      suppressEntranceAnimation: true,
+    }));
+    setTimeout(() => set({ suppressEntranceAnimation: false }), 100);
   },
 
   // ── setOwnerColor ─────────────────────────────────────────────────────────
@@ -2470,5 +2665,125 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       groups: s.groups.map((g) => (g.id === id ? { ...g, ...fields } : g)),
       designDirty: true,
     }));
+  },
+
+  // ── setEdgePathType ───────────────────────────────────────────────────────
+  setEdgePathType: (edgeKey, pathType) => {
+    const state = get();
+    const undoSnapshot: UndoSnapshot = {
+      nodes: [...state.allNodes],
+      positions: { ...state.positions },
+      groups: [...state.groups],
+      edgePathTypes: { ...state.edgePathTypes },
+    };
+    const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
+    const edgePathTypes = { ...state.edgePathTypes, [edgeKey]: pathType };
+
+    // Re-inject pathTypes into allEdges
+    const allEdges = state.allEdges.map((e) => {
+      const key = `${e.from}:${e.to}`;
+      const pt = edgePathTypes[key];
+      return pt ? { ...e, pathType: pt } : e;
+    });
+    const visibleEdges = state.visibleEdges.map((e) => {
+      const key = `${e.from}:${e.to}`;
+      const pt = edgePathTypes[key];
+      return pt ? { ...e, pathType: pt } : e;
+    });
+
+    set({ edgePathTypes, allEdges, visibleEdges, designDirty: true, undoStack, redoStack: [] });
+  },
+
+  // ── setEdgePathTypeBatch ──────────────────────────────────────────────────
+  setEdgePathTypeBatch: (edgeKeys, pathType) => {
+    const state = get();
+    const undoSnapshot: UndoSnapshot = {
+      nodes: [...state.allNodes],
+      positions: { ...state.positions },
+      groups: [...state.groups],
+      edgePathTypes: { ...state.edgePathTypes },
+    };
+    const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
+    const edgePathTypes = { ...state.edgePathTypes };
+    for (const key of edgeKeys) edgePathTypes[key] = pathType;
+
+    const allEdges = state.allEdges.map((e) => {
+      const key = `${e.from}:${e.to}`;
+      const pt = edgePathTypes[key];
+      return pt ? { ...e, pathType: pt } : e;
+    });
+    const visibleEdges = state.visibleEdges.map((e) => {
+      const key = `${e.from}:${e.to}`;
+      const pt = edgePathTypes[key];
+      return pt ? { ...e, pathType: pt } : e;
+    });
+
+    set({ edgePathTypes, allEdges, visibleEdges, designDirty: true, undoStack, redoStack: [] });
+  },
+
+  // ── Trace Path state management ───────────────────────────────────────────
+  setTracePathSource: (id) => set({ tracePathSource: id, tracePathResults: [], tracePathSelectedIndex: 0 }),
+
+  setTracePathResults: (results, selectedIndex = 0) =>
+    set({ tracePathResults: results, tracePathSelectedIndex: selectedIndex }),
+
+  nextTracePath: () =>
+    set((s) => ({
+      tracePathSelectedIndex: s.tracePathResults.length === 0
+        ? 0
+        : (s.tracePathSelectedIndex + 1) % s.tracePathResults.length,
+    })),
+
+  prevTracePath: () =>
+    set((s) => ({
+      tracePathSelectedIndex: s.tracePathResults.length === 0
+        ? 0
+        : (s.tracePathSelectedIndex - 1 + s.tracePathResults.length) % s.tracePathResults.length,
+    })),
+
+  clearTracePath: () => set({
+    tracePathSource: null,
+    tracePathResults: [],
+    tracePathSelectedIndex: 0,
+    designTool: 'select',
+    connectSourceId: null,
+  }),
+
+  // ── Summon Mode actions ───────────────────────────────────────────────────
+  activateSummon: (sourceId) => {
+    if (get().discoveryActive) return;
+    set({
+      summonActive: true,
+      summonSourceId: sourceId,
+      summonFilter: '',
+      summonShowRing: false,
+      summonPingTarget: null,
+      summonConnected: new Set(),
+    });
+  },
+
+  deactivateSummon: () => {
+    set({
+      summonActive: false,
+      summonSourceId: null,
+      summonFilter: '',
+      summonShowRing: false,
+      summonPingTarget: null,
+      summonConnected: new Set(),
+    });
+  },
+
+  setSummonFilter: (q) => set({ summonFilter: q, summonShowRing: false }),
+
+  toggleSummonRing: () => set((s) => ({ summonShowRing: !s.summonShowRing })),
+
+  setSummonPingTarget: (t) => set({ summonPingTarget: t }),
+
+  addSummonConnected: (nodeId) => {
+    set((s) => {
+      const next = new Set(s.summonConnected);
+      next.add(nodeId);
+      return { summonConnected: next };
+    });
   },
 }));

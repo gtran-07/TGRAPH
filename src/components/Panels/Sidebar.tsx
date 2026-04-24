@@ -19,8 +19,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useGraphStore } from '../../store/graphStore';
 import { InspectorContent } from './Inspector';
 import { CinemaTabContent } from '../Cinema/CinemaOverlay';
+import { ColorSwatchPicker } from '../DesignMode/ColorSwatchPicker';
 import styles from './Sidebar.module.css';
 import type { NodeTag } from '../../types/graph';
+import { PHASE_PALETTE } from '../../types/graph';
 
 type LeftTab = 'owners' | 'inspector' | 'tags' | 'cinema';
 
@@ -48,12 +50,14 @@ function TagsPanel() {
 
   // ── new tag form ──
   const [newTagLabel, setNewTagLabel] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#4f9eff');
+  const [newTagColor, setNewTagColor] = useState<string>(PHASE_PALETTE[0]);
+  const [newTagError, setNewTagError] = useState<string | null>(null);
 
   // ── inline edit ──
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editTagError, setEditTagError] = useState<string | null>(null);
 
   // ── remove error ──
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -61,15 +65,18 @@ function TagsPanel() {
   function handleAddTag() {
     const label = newTagLabel.trim();
     if (!label) return;
+    if (tagMap.has(label)) { setNewTagError('Tag already exists'); return; }
     addTagToRegistry({ label, color: newTagColor });
     setNewTagLabel('');
-    setNewTagColor('#4f9eff');
+    setNewTagColor(PHASE_PALETTE[0]);
+    setNewTagError(null);
   }
 
   function startEditTag(tag: NodeTag) {
     setEditingTag(tag.label);
     setEditLabel(tag.label);
     setEditColor(tag.color);
+    setEditTagError(null);
   }
 
   function handleRemoveTag(label: string) {
@@ -84,9 +91,14 @@ function TagsPanel() {
 
   function commitEditTag(oldLabel: string) {
     const newLabelTrimmed = editLabel.trim();
+    if (newLabelTrimmed && newLabelTrimmed !== oldLabel && tagMap.has(newLabelTrimmed)) {
+      setEditTagError('Tag already exists');
+      return;
+    }
     if (newLabelTrimmed && newLabelTrimmed !== oldLabel) renameTag(oldLabel, newLabelTrimmed);
     if (editColor !== tagMap.get(oldLabel)) recolorTag(newLabelTrimmed || oldLabel, editColor);
     setEditingTag(null);
+    setEditTagError(null);
   }
 
   return (
@@ -102,39 +114,60 @@ function TagsPanel() {
 
       {allTags.map((tag) => (
         designMode && editingTag === tag.label ? (
-          <div key={tag.label} className={styles.tagRow}>
-            <input
-              className={styles.tagColorInput}
-              type="color"
-              value={editColor}
-              onChange={(e) => setEditColor(e.target.value)}
-              title="Tag color"
-            />
-            <input
-              className={styles.tagLabelInput}
-              value={editLabel}
-              onChange={(e) => setEditLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitEditTag(tag.label);
-                if (e.key === 'Escape') setEditingTag(null);
-              }}
-              autoFocus
-            />
-            <button className={styles.tagActionBtn} onClick={() => commitEditTag(tag.label)} title="Save">✓</button>
-            <button className={styles.tagActionBtn} onClick={() => setEditingTag(null)} title="Cancel">✕</button>
-          </div>
+          <React.Fragment key={tag.label}>
+            <div className={styles.tagRow}>
+              <span className={styles.tagSwatch} style={{ background: editColor }} />
+              <input
+                className={styles.tagLabelInput}
+                value={editLabel}
+                maxLength={20}
+                onChange={(e) => { setEditLabel(e.target.value); setEditTagError(null); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEditTag(tag.label);
+                  if (e.key === 'Escape') setEditingTag(null);
+                }}
+                autoFocus
+              />
+              <button className={styles.tagActionBtn} onClick={() => commitEditTag(tag.label)} title="Save">✓</button>
+              <button className={styles.tagActionBtn} onClick={() => setEditingTag(null)} title="Cancel">
+                <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 6.5A4.5 4.5 0 1 1 6.5 11"/>
+                  <polyline points="2,3.5 2,6.5 5,6.5"/>
+                </svg>
+              </button>
+            </div>
+            <div style={{ padding: '4px 0 4px 0' }}>
+              <ColorSwatchPicker value={editColor} onChange={setEditColor} />
+            </div>
+            {(editTagError || editLabel.length > 0) && (
+              <div className={styles.tagValidationRow}>
+                {editTagError && <span className={styles.tagValidationError}>{editTagError}</span>}
+                <span className={editLabel.length === 20 ? `${styles.charCount} ${styles.charCountMax}` : styles.charCount}>
+                  {editLabel.length}/20
+                </span>
+              </div>
+            )}
+          </React.Fragment>
         ) : (
           <React.Fragment key={tag.label}>
             <div className={styles.tagRow}>
               <span className={styles.tagSwatch} style={{ background: tag.color }} />
               <span className={styles.tagLabel}>{tag.label}</span>
+              <span className={styles.filterCount}>{tagCounts.get(tag.label) ?? 0}</span>
               {designMode && (
                 <>
                   <button className={styles.tagActionBtn} onClick={() => { setRemoveError(null); startEditTag(tag); }} title="Edit tag">✎</button>
-                  <button className={styles.tagActionBtn} onClick={() => handleRemoveTag(tag.label)} title="Remove from registry">✕</button>
+                  <button className={styles.tagActionBtn} onClick={() => handleRemoveTag(tag.label)} title="Remove from registry">
+                    <svg width="11" height="12" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="1,3 11,3"/>
+                      <path d="M4,3V1.5h4V3"/>
+                      <rect x="1.5" y="3" width="9" height="8.5" rx="1.2"/>
+                      <line x1="4.5" y1="6" x2="4.5" y2="9.5"/>
+                      <line x1="7.5" y1="6" x2="7.5" y2="9.5"/>
+                    </svg>
+                  </button>
                 </>
               )}
-              <span className={styles.filterCount}>{tagCounts.get(tag.label) ?? 0}</span>
             </div>
             {removeError === tag.label && (
               <div className={styles.tagRemoveError}>
@@ -147,23 +180,31 @@ function TagsPanel() {
 
       {/* Add new tag — design mode only */}
       {designMode && (
-        <div className={styles.addRow}>
-          <input
-            className={styles.tagColorInput}
-            type="color"
-            value={newTagColor}
-            onChange={(e) => setNewTagColor(e.target.value)}
-            title="Pick tag color"
-          />
-          <input
-            className={styles.addInput}
-            placeholder="New tag label…"
-            value={newTagLabel}
-            onChange={(e) => setNewTagLabel(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
-          />
-          <button className={styles.addBtn} onClick={handleAddTag} title="Add tag" disabled={!newTagLabel.trim()}>+</button>
-        </div>
+        <>
+          <div className={styles.addRow}>
+            <span className={styles.tagSwatch} style={{ background: newTagColor }} />
+            <input
+              className={styles.addInput}
+              placeholder="New tag label…"
+              value={newTagLabel}
+              maxLength={20}
+              onChange={(e) => { setNewTagLabel(e.target.value); setNewTagError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
+            />
+            <button className={styles.addBtn} onClick={handleAddTag} title="Add tag" disabled={!newTagLabel.trim()}>+</button>
+          </div>
+          <div style={{ padding: '4px 0 4px 0' }}>
+            <ColorSwatchPicker value={newTagColor} onChange={setNewTagColor} />
+          </div>
+          {(newTagError || newTagLabel.length > 0) && (
+            <div className={styles.tagValidationRow}>
+              {newTagError && <span className={styles.tagValidationError}>{newTagError}</span>}
+              <span className={newTagLabel.length === 20 ? `${styles.charCount} ${styles.charCountMax}` : styles.charCount}>
+                {newTagLabel.length}/20
+              </span>
+            </div>
+          )}
+        </>
       )}
 
     </div>
@@ -193,7 +234,7 @@ function OwnersPanel() {
 
   // Add owner form
   const [newOwnerName, setNewOwnerName] = useState('');
-  const [newOwnerColor, setNewOwnerColor] = useState('#4f9eff');
+  const [newOwnerColor, setNewOwnerColor] = useState<string>(PHASE_PALETTE[0]);
 
   // Remove error
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -250,7 +291,7 @@ function OwnersPanel() {
     addOwnerToRegistry(name);
     setOwnerColor(name, newOwnerColor);
     setNewOwnerName('');
-    setNewOwnerColor('#4f9eff');
+    setNewOwnerColor(PHASE_PALETTE[0]);
   }
 
   function handleRemoveOwner(name: string) {
@@ -293,41 +334,44 @@ function OwnersPanel() {
           // ── Edit row (design mode, this owner being edited) ──────────────
           if (designMode && editingOwner === owner) {
             return (
-              <div key={owner} className={`${styles.filterItem} ${isActive ? styles.checked : ''}`}>
-                <div
-                  className={styles.checkBox}
-                  onClick={(e) => { e.stopPropagation(); handleToggleOwner(owner); }}
-                />
-                <input
-                  className={styles.tagColorInput}
-                  type="color"
-                  value={editColor}
-                  onChange={(e) => setEditColor(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  title="Owner color"
-                />
-                <input
-                  className={`${styles.tagLabelInput} ${styles.ownerNameInput}`}
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitEdit(owner);
-                    if (e.key === 'Escape') setEditingOwner(null);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
-                />
-                <button
-                  className={styles.tagActionBtn}
-                  onClick={(e) => { e.stopPropagation(); commitEdit(owner); }}
-                  title="Save"
-                >✓</button>
-                <button
-                  className={styles.tagActionBtn}
-                  onClick={(e) => { e.stopPropagation(); setEditingOwner(null); }}
-                  title="Cancel"
-                >✕</button>
-              </div>
+              <React.Fragment key={owner}>
+                <div className={`${styles.filterItem} ${isActive ? styles.checked : ''}`}>
+                  <div
+                    className={styles.checkBox}
+                    onClick={(e) => { e.stopPropagation(); handleToggleOwner(owner); }}
+                  />
+                  <span className={styles.ownerDot} style={{ background: editColor }} />
+                  <input
+                    className={`${styles.tagLabelInput} ${styles.ownerNameInput}`}
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitEdit(owner);
+                      if (e.key === 'Escape') setEditingOwner(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                  <button
+                    className={styles.tagActionBtn}
+                    onClick={(e) => { e.stopPropagation(); commitEdit(owner); }}
+                    title="Save"
+                  >✓</button>
+                  <button
+                    className={styles.tagActionBtn}
+                    onClick={(e) => { e.stopPropagation(); setEditingOwner(null); }}
+                    title="Cancel"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 6.5A4.5 4.5 0 1 1 6.5 11"/>
+                      <polyline points="2,3.5 2,6.5 5,6.5"/>
+                    </svg>
+                  </button>
+                </div>
+                <div style={{ padding: '4px 0 4px 0' }} onClick={(e) => e.stopPropagation()}>
+                  <ColorSwatchPicker value={editColor} onChange={setEditColor} />
+                </div>
+              </React.Fragment>
             );
           }
 
@@ -349,19 +393,9 @@ function OwnersPanel() {
                 onClick={() => handleToggleOwner(owner)}
               >
                 <div className={styles.checkBox} />
-                {designMode ? (
-                  <input
-                    className={styles.tagColorInput}
-                    type="color"
-                    value={color}
-                    onChange={(e) => { setOwnerColor(owner, e.target.value); }}
-                    onClick={(e) => e.stopPropagation()}
-                    title={`Color for ${owner}`}
-                  />
-                ) : (
-                  <span className={styles.ownerDot} style={{ background: color }} />
-                )}
+                <span className={styles.ownerDot} style={{ background: color }} />
                 <span className={styles.checkLabel}>{owner}</span>
+                <span className={styles.filterCount}>{count}</span>
                 {designMode && (
                   <>
                     <button
@@ -373,7 +407,15 @@ function OwnersPanel() {
                       className={styles.tagActionBtn}
                       onClick={(e) => { e.stopPropagation(); handleRemoveOwner(owner); }}
                       title="Remove owner"
-                    >✕</button>
+                    >
+                      <svg width="11" height="12" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="1,3 11,3"/>
+                        <path d="M4,3V1.5h4V3"/>
+                        <rect x="1.5" y="3" width="9" height="8.5" rx="1.2"/>
+                        <line x1="4.5" y1="6" x2="4.5" y2="9.5"/>
+                        <line x1="7.5" y1="6" x2="7.5" y2="9.5"/>
+                      </svg>
+                    </button>
                   </>
                 )}
                 <button
@@ -391,7 +433,6 @@ function OwnersPanel() {
                 {isDownstream && (
                   <span className={`${styles.dirBadge} ${styles.downBadge}`}>⬇ {downstreamByOwner.get(owner)}</span>
                 )}
-                <span className={styles.filterCount}>{count}</span>
               </div>
               {removeError === owner && (
                 <div className={styles.tagRemoveError}>
@@ -408,13 +449,7 @@ function OwnersPanel() {
         <>
           <div className={styles.sep} style={{ marginTop: 8 }} />
           <div className={styles.addRow}>
-            <input
-              className={styles.tagColorInput}
-              type="color"
-              value={newOwnerColor}
-              onChange={(e) => setNewOwnerColor(e.target.value)}
-              title="New owner color"
-            />
+            <span className={styles.ownerDot} style={{ background: newOwnerColor }} />
             <input
               className={styles.addInput}
               placeholder="New owner name…"
@@ -428,6 +463,9 @@ function OwnersPanel() {
               title="Add owner"
               disabled={!newOwnerName.trim()}
             >+</button>
+          </div>
+          <div style={{ padding: '4px 0 4px 0' }}>
+            <ColorSwatchPicker value={newOwnerColor} onChange={setNewOwnerColor} />
           </div>
         </>
       )}

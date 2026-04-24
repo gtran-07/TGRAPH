@@ -170,11 +170,38 @@
   animation: fadeIn .25s ease;
 }
 .focusBannerIcon { font-size: 14px; }
-.focusBannerText {
+.focusBannerLocate {
+  background: none; border: none; padding: 0;
   font-family: var(--font-mono);
   font-size: 11px; color: var(--text2);
+  cursor: pointer;
+  transition: color .15s;
 }
-.focusBannerText strong { color: var(--highlight); font-weight: 600; }
+.focusBannerLocate:hover { color: var(--highlight); }
+.focusBannerLocate:hover strong { text-decoration: underline; }
+.focusBannerLocate strong { color: var(--highlight); font-weight: 600; }
+.focusDepthToggle {
+  display: flex;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.focusDepthBtn {
+  background: none; border: none;
+  padding: 3px 9px;
+  font-size: 10px; font-family: var(--font-mono);
+  color: var(--text3);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.focusDepthBtn:hover { color: var(--text); }
+.focusDepthBtnActive {
+  background: var(--highlight);
+  color: #000 !important;
+  font-weight: 600;
+}
+
 .focusBannerHint {
   font-size: 10px; color: var(--text3);
   border-left: 1px solid var(--border2);

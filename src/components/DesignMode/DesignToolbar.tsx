@@ -4,13 +4,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useGraphStore } from '../../store/graphStore';
-import type { DesignTool } from '../../types/graph';
+import type { DesignTool, PathType } from '../../types/graph';
+import { pathToEdgeKeys } from '../../utils/pathTracing';
 import styles from './DesignToolbar.module.css';
 
 const TOOL_HINTS: Record<DesignTool, string> = {
-  select: 'Click to select. Shift+click nodes or groups to multi-select, then ⬡ Group to create a group.',
+  select: 'Click to select. Shift+click to multi-select. Enable Marquee to drag-select a region.',
   add: 'Click empty canvas to add a node at that position.',
   connect: 'Click source node → click target node to draw an edge.',
+  tracePath: 'Click a source node, then a target node to find all paths between them.',
 };
 
 export function DesignToolbar() {
@@ -20,6 +22,9 @@ export function DesignToolbar() {
     undoStack, redoStack, undo, redo,
     multiSelectIds, clearMultiSelect, groups,
     phases, assignNodesToPhase, assignGroupsToPhase,
+    tracePathSource, tracePathResults, tracePathSelectedIndex,
+    nextTracePath, prevTracePath, clearTracePath, setEdgePathTypeBatch,
+    allNodes, marqueeMode, toggleMarqueeMode,
   } = useGraphStore();
 
   const [phasePickerOpen, setPhasePickerOpen] = useState(false);
@@ -36,13 +41,6 @@ export function DesignToolbar() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [undo, redo]);
-
-  function handleEditNodeClick() {
-    if (!selectedNodeId) return;
-    document.dispatchEvent(
-      new CustomEvent('flowgraph:edit-node', { detail: { nodeId: selectedNodeId } })
-    );
-  }
 
   function handleEditGroupClick() {
     if (!selectedGroupId) return;
@@ -93,7 +91,6 @@ export function DesignToolbar() {
   }
 
   const canCreateGroup = multiSelectIds.length >= 2 && designTool === 'select';
-  const hasNodeSelected = !!selectedNodeId;
   const hasGroupSelected = !!selectedGroupId;
 
   return (
@@ -107,6 +104,21 @@ export function DesignToolbar() {
         title="Select / move nodes"
       >Select</button>
 
+      {/* Marquee selection toggle — only shown when Select tool is active */}
+      {designTool === 'select' && (
+        <button
+          className={styles.toolBtn}
+          onClick={() => toggleMarqueeMode()}
+          title={marqueeMode ? 'Marquee select: ON — drag to select nodes (click to disable)' : 'Marquee select: drag to select multiple nodes'}
+          style={marqueeMode ? { borderColor: '#3b82f6', color: '#3b82f6', background: 'rgba(59,130,246,0.12)' } : {}}
+        >
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" style={{ verticalAlign: 'middle', marginRight: 4 }}>
+            <rect x="1" y="1" width="12" height="12" rx="1"/>
+          </svg>
+          Marquee
+        </button>
+      )}
+
       <button
         className={`${styles.toolBtn} ${designTool === 'add' ? styles.active : ''}`}
         onClick={() => setDesignTool('add')}
@@ -119,16 +131,51 @@ export function DesignToolbar() {
         title="Click source then target to draw a connection"
       >Connect</button>
 
-      <div className={styles.sep} />
-
-      {/* Edit selected node */}
       <button
-        className={styles.toolBtn}
-        onClick={handleEditNodeClick}
-        disabled={!hasNodeSelected}
-        title={hasNodeSelected ? 'Edit selected node' : 'Select a node first'}
-        style={{ opacity: hasNodeSelected ? 1 : 0.4 }}
-      >Edit Node</button>
+        className={`${styles.toolBtn} ${designTool === 'tracePath' ? styles.active : ''}`}
+        onClick={() => setDesignTool('tracePath')}
+        title="Find paths between two nodes and assign a path type"
+        style={designTool === 'tracePath' ? { borderColor: '#22d3ee', color: '#22d3ee', background: 'rgba(34,211,238,0.12)' } : {}}
+      >⇢ Trace</button>
+
+      {/* Trace path assignment UI — shown when paths are found */}
+      {designTool === 'tracePath' && tracePathResults.length > 0 && (() => {
+        const currentPath = tracePathResults[tracePathSelectedIndex] ?? [];
+        const edgeKeys = pathToEdgeKeys(currentPath);
+        const sourceNode = allNodes.find((n) => n.id === tracePathSource);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
+            <span style={{ fontSize: 11, color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+              {tracePathResults.length > 1 ? `${tracePathSelectedIndex + 1}/${tracePathResults.length} paths` : '1 path'} ({edgeKeys.length} edges{sourceNode ? ` from ${sourceNode.name}` : ''})
+            </span>
+            {tracePathResults.length > 1 && (
+              <>
+                <button className={styles.toolBtn} onClick={prevTracePath} title="Previous path" style={{ padding: '2px 6px' }}>‹</button>
+                <button className={styles.toolBtn} onClick={nextTracePath} title="Next path" style={{ padding: '2px 6px' }}>›</button>
+              </>
+            )}
+            {(['critical', 'required', 'optional', 'alternative'] as PathType[]).map((pt) => (
+              <button
+                key={pt}
+                className={styles.toolBtn}
+                onClick={() => { setEdgePathTypeBatch(edgeKeys, pt); clearTracePath(); setDesignTool('select'); }}
+                title={`Assign ${pt} to all ${edgeKeys.length} edges`}
+                style={{ fontSize: 10, padding: '2px 7px', textTransform: 'capitalize' }}
+              >
+                {pt.charAt(0).toUpperCase() + pt.slice(1)}
+              </button>
+            ))}
+            <button
+              className={styles.toolBtn}
+              onClick={() => { clearTracePath(); setDesignTool('select'); }}
+              title="Cancel trace"
+              style={{ color: '#f87171', border: '1px solid #f87171', background: 'rgba(248,113,113,0.08)' }}
+            >✕</button>
+          </div>
+        );
+      })()}
+
+      <div className={styles.sep} />
 
       {/* Edit selected group */}
       {hasGroupSelected && (

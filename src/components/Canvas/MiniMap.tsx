@@ -15,7 +15,14 @@ interface MiniMapProps {
 }
 
 export function MiniMap({ nodes, positions, transform, ownerColors, canvasRef }: MiniMapProps) {
-  const { setTransform } = useGraphStore();
+  const { setTransform, allEdges } = useGraphStore();
+
+  // Precompute degree map for density hint
+  const degreeMap = new Map<string, number>();
+  for (const edge of allEdges) {
+    degreeMap.set(edge.from, (degreeMap.get(edge.from) ?? 0) + 1);
+    degreeMap.set(edge.to, (degreeMap.get(edge.to) ?? 0) + 1);
+  }
   const MINI_W = 180, MINI_H = 110;
   if (nodes.length === 0) return null;
 
@@ -54,9 +61,11 @@ export function MiniMap({ nodes, positions, transform, ownerColors, canvasRef }:
         {nodes.map((node) => {
           const pos = positions[node.id];
           if (!pos) return null;
+          const degree = degreeMap.get(node.id) ?? 0;
+          const opacity = 0.3 + Math.min(degree / 10, 1) * 0.5;
           return <rect key={node.id} x={pos.x * miniScale + offsetX} y={pos.y * miniScale + offsetY}
             width={Math.max(NODE_W * miniScale, 2)} height={Math.max(NODE_H * miniScale, 2)}
-            rx={1} fill={ownerColors[node.owner] ?? 'var(--accent)'} opacity={0.6} />;
+            rx={1} fill={ownerColors[node.owner] ?? 'var(--accent)'} opacity={opacity} />;
         })}
         <rect x={vpX} y={vpY} width={Math.max(vpW, 10)} height={Math.max(vpH, 10)}
           fill="rgba(79,158,255,0.1)" stroke="var(--accent)" strokeWidth={1} />

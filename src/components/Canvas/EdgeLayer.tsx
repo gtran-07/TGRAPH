@@ -3,11 +3,11 @@
  *
  * Each edge is rendered as a group containing:
  *   1. A wide invisible "hit area" path (12px stroke-width) for easy mouse targeting
- *   2. A visible styled path with the actual edge appearance
+ *   2. An etch body (.edge-groove) — very dark channel, width per tier
+ *   3. A top-rim highlight (.edge-rim) — 1px faint white at the top edge of the groove
  *
- * Why the hit area? SVG paths are mathematically thin — a 1.5px stroke is
- * nearly impossible to click precisely. The 12px transparent hit area makes
- * edges easy to hover/click for deletion in design mode.
+ * Both visible paths are animated together on mount (draw-on entrance via WAAPI).
+ * V-Groove tiers control groove width and rim opacity only.
  *
  * In design mode, hovering an edge turns it red and shows a delete tooltip.
  */
@@ -17,6 +17,14 @@ import { computeEdgePath, NODE_W, NODE_H } from '../../utils/layout';
 import type { GraphEdge, GraphGroup, Position, GraphNode } from '../../types/graph';
 import { useGraphStore } from '../../store/graphStore';
 import { getCollapsedGroupForNode, getAllDescendantNodeIds } from '../../utils/grouping';
+
+// Etch tiers — groove width and top-rim highlight opacity per path type.
+const VGROOVE_TIERS: Record<string, { grooveW: number; hlOpacity: number }> = {
+  optional:  { grooveW: 2,  hlOpacity: 0.16 },
+  standard:  { grooveW: 4,  hlOpacity: 0.18 },
+  priority:  { grooveW: 7,  hlOpacity: 0.20 },
+  critical:  { grooveW: 11, hlOpacity: 0.22 },
+};
 
 interface EdgeLayerProps {
   edges: GraphEdge[];
@@ -28,10 +36,12 @@ interface EdgeLayerProps {
   ownerFocusSets?: { ownedIds: Set<string>; upstreamIds: Set<string>; downstreamIds: Set<string> } | null;
   focusedOwner?: string | null;
   suppressEntranceAnimation?: boolean;
+  /** Called when user clicks an edge in select tool — triggers PathTypePopover in Canvas */
+  onEdgeSelectPathType?: (edge: GraphEdge, clientX: number, clientY: number) => void;
 }
 
-export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, groups, ownerFocusSets, focusedOwner, suppressEntranceAnimation }: EdgeLayerProps) {
-  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId, discoveryActive, discoveryPhase, discoveryRoleMap } = useGraphStore();
+export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, groups, ownerFocusSets, focusedOwner, suppressEntranceAnimation, onEdgeSelectPathType }: EdgeLayerProps) {
+  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId, discoveryActive, discoveryPhase, discoveryRoleMap, tracePathResults, tracePathSelectedIndex } = useGraphStore();
 
   const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const containerRef = useRef<SVGGElement>(null);
@@ -53,7 +63,8 @@ function finalizeEdge(path: SVGPathElement) {
       if (m) path.setAttribute('marker-end', m);
     }
 
-    const visPaths = container.querySelectorAll<SVGPathElement>('.edge-vis');
+    // Animate both the groove body and rim highlight together so neither appears alone.
+    const visPaths = container.querySelectorAll<SVGPathElement>('.edge-groove, .edge-rim');
 
     // View-mode switch or owner-focus enter/exit: skip draw animation, show edges instantly.
     if (suppressEntranceAnimation) {
@@ -61,7 +72,7 @@ function finalizeEdge(path: SVGPathElement) {
       return;
     }
 
-const anims: Animation[] = [];
+    const anims: Animation[] = [];
     let maxEnd = 0;
 
     // Add edge-drawing class imperatively so React never writes it as a managed prop.
@@ -114,7 +125,7 @@ const anims: Animation[] = [];
         path.style.strokeDashoffset = '';
       });
     };
-  }, []); // empty deps — fires only on mount, which happens each time graph-content remounts
+  }, []); // empty deps — mount only; graph-content remounts on view/focus switches
 
   /**
    * Resolve the effective position for an edge endpoint.
@@ -186,6 +197,18 @@ const anims: Animation[] = [];
 
         const isHoverHighlighted = !!hoveredNodeId && edgeTouchesId(hoveredNodeId);
 
+        // For downstream edges from the hovered node/group, color by the destination's owner.
+        let isDownstreamFromHovered = false;
+        if (hoveredNodeId && isHoverHighlighted) {
+          const hoveredGrp = state.groups?.find((g) => g.id === hoveredNodeId);
+          if (hoveredGrp) {
+            const desc = new Set(getAllDescendantNodeIds(hoveredGrp.id, state.groups));
+            isDownstreamFromHovered = desc.has(edge.from) && !desc.has(edge.to);
+          } else {
+            isDownstreamFromHovered = edge.from === hoveredNodeId;
+          }
+        }
+
         let isHighlighted = isHoverHighlighted;
         if (!isHighlighted && multiSelectIds.length > 0) {
           isHighlighted = multiSelectIds.some(edgeTouchesId);
@@ -197,33 +220,28 @@ const anims: Animation[] = [];
           isHighlighted = edgeTouchesId(selectedGroupId);
         }
 
-        // Highlighted edges use the source node's owner color so they're visually distinct
-        const highlightColor = ownerColors[nodeOwnerMap[edge.from]] ?? 'var(--accent)';
+        // Downstream edges from the hovered node use the destination's owner color;
+        // all other highlighted edges use the source's owner color.
+        const highlightColor = (isHoverHighlighted && isDownstreamFromHovered)
+          ? (ownerColors[nodeOwnerMap[edge.to]] ?? 'var(--accent)')
+          : (ownerColors[nodeOwnerMap[edge.from]] ?? 'var(--accent)');
 
-        let strokeColor = 'var(--border2)';
-        let strokeWidth = 1.5;
+        // V-Groove tier — always applied; defaults to 'standard' when pathType absent
+        const tier = VGROOVE_TIERS[edge.pathType ?? 'standard'] ?? VGROOVE_TIERS.standard;
+
+        let strokeColor = '#070a10';
         let opacity = 1;
-        let strokeDasharray: string | undefined;
         let markerEnd = 'url(#arrow)';
+        let isGhostMode = false;
 
         if (isHighlighted) {
-          // Positive-only: boost connected edges, never dim non-connected ones.
-          // Dimming non-connected edges changes opacity on 20-30 long paths simultaneously;
-          // at high zoom each path spans many paint tiles → tile invalidation → flicker boxes.
+          // Positive-only: boost connected edges via color, never dim non-connected ones.
           strokeColor = highlightColor;
-          strokeWidth = 2.5;
           markerEnd = 'url(#arrow-dyn)';
         }
 
-        if (isCrossLane && !isHighlighted) {
-          strokeDasharray = '5 4';
-          opacity = 0.45; // static — does not change on hover, no tile repaint triggered
-        }
-
         // Cinema narration: highlight edges touching focus/danger/lit nodes; ghost everything else.
-        // Only during 'cinema' phase — heatmap/free/reconstruction use normal edge rendering.
         if (discoveryActive && discoveryPhase === 'cinema') {
-          // Check both the actual node ID and the collapsed group ID (groups can appear in scenes)
           const fromRole = discoveryRoleMap[edge.from] ?? (fromGroup ? discoveryRoleMap[fromGroup.id] : undefined) ?? 'ghost';
           const toRole   = discoveryRoleMap[edge.to]   ?? (toGroup   ? discoveryRoleMap[toGroup.id]   : undefined) ?? 'ghost';
 
@@ -232,27 +250,22 @@ const anims: Animation[] = [];
 
           if (isFocusEdge) {
             strokeColor = highlightColor;
-            strokeWidth = 2.5;
             opacity = 1;
-            strokeDasharray = undefined;
             markerEnd = 'url(#arrow-dyn)';
           } else if (isLitEdge) {
             strokeColor = highlightColor;
-            strokeWidth = 1.8;
             opacity = 0.45;
-            strokeDasharray = undefined;
             markerEnd = 'url(#arrow-dyn)';
           } else {
             strokeColor = 'var(--border2)';
-            strokeWidth = 1.5;
             opacity = 0.07;
-            strokeDasharray = undefined;
             markerEnd = 'url(#arrow)';
+            isGhostMode = true;
           }
         }
 
         // Owner focus mode: color upstream→owned edges blue, owned→downstream edges amber,
-        // and ghost all other edges to near-invisible. Overrides cross-lane dimming.
+        // and ghost all other edges to near-invisible.
         if (ownerFocusSets && focusedOwner && !isHighlighted) {
           const fromOwned = ownerFocusSets.ownedIds.has(edge.from);
           const toOwned = ownerFocusSets.ownedIds.has(edge.to);
@@ -260,41 +273,34 @@ const anims: Animation[] = [];
           const toDownstream = ownerFocusSets.downstreamIds.has(edge.to);
 
           if (fromOwned && toOwned) {
-            // owned → owned: full opacity, neutral color
             opacity = 1;
-            strokeDasharray = undefined;
           } else if (fromUpstream && toOwned) {
-            // upstream → owned: blue
             strokeColor = '#4f9eff';
-            strokeWidth = 2;
             opacity = 1;
-            strokeDasharray = undefined;
             markerEnd = 'url(#arrow-dyn)';
           } else if (fromOwned && toDownstream) {
-            // owned → downstream: amber
             strokeColor = '#f5a623';
-            strokeWidth = 2;
             opacity = 1;
-            strokeDasharray = undefined;
             markerEnd = 'url(#arrow-dyn)';
           } else {
-            // unrelated edge: ghost
             opacity = 0.05;
-            strokeDasharray = undefined;
+            isGhostMode = true;
           }
         }
 
+        // Trace Path highlighting: overlay when this edge is in the active traced path
+        const tracedPath = tracePathResults[tracePathSelectedIndex];
+        const isTraced = !!tracedPath?.some((e) => e.from === edge.from && e.to === edge.to);
+
         function handleEdgeMouseEnter(e: React.MouseEvent) {
           if (!designMode || designTool !== 'connect') return;
-          // Show the delete tooltip near the cursor
           const tip = document.getElementById('edge-delete-tip');
           if (tip) {
             tip.style.display = 'block';
             tip.style.left = `${e.clientX + 14}px`;
             tip.style.top = `${e.clientY - 10}px`;
           }
-          // Make the visible path red
-          const pathEl = document.querySelector(`[data-edge-from="${edge.from}"][data-edge-to="${edge.to}"] .edge-vis`);
+          const pathEl = document.querySelector(`[data-edge-from="${edge.from}"][data-edge-to="${edge.to}"] .edge-groove`);
           if (pathEl) (pathEl as SVGPathElement).style.stroke = '#f87171';
         }
 
@@ -311,16 +317,21 @@ const anims: Animation[] = [];
           if (!designMode || designTool !== 'connect') return;
           const tip = document.getElementById('edge-delete-tip');
           if (tip) tip.style.display = 'none';
-          const pathEl = document.querySelector(`[data-edge-from="${edge.from}"][data-edge-to="${edge.to}"] .edge-vis`);
+          const pathEl = document.querySelector(`[data-edge-from="${edge.from}"][data-edge-to="${edge.to}"] .edge-groove`);
           if (pathEl) (pathEl as SVGPathElement).style.stroke = '';
         }
 
         function handleEdgeClick(e: React.MouseEvent) {
-          if (!designMode || designTool !== 'connect') return;
-          e.stopPropagation();
-          const tip = document.getElementById('edge-delete-tip');
-          if (tip) tip.style.display = 'none';
-          deleteEdge(edge.from, edge.to);
+          if (!designMode) return;
+          if (designTool === 'connect') {
+            e.stopPropagation();
+            const tip = document.getElementById('edge-delete-tip');
+            if (tip) tip.style.display = 'none';
+            deleteEdge(edge.from, edge.to);
+          } else if (designTool === 'select' && onEdgeSelectPathType) {
+            e.stopPropagation();
+            onEdgeSelectPathType(edge, e.clientX, e.clientY);
+          }
         }
 
         return (
@@ -336,29 +347,39 @@ const anims: Animation[] = [];
               fill="none"
               stroke="transparent"
               strokeWidth={12}
-              style={{ cursor: designMode ? 'pointer' : 'default' }}
+              style={{ cursor: designMode ? 'pointer' : 'inherit' }}
               onMouseEnter={handleEdgeMouseEnter}
               onMouseMove={handleEdgeMouseMove}
               onMouseLeave={handleEdgeMouseLeave}
               onClick={handleEdgeClick}
             />
-            {/* Visible styled edge */}
+            {/* Etch body — dark etch channel at rest; switches to owner color on highlight */}
             <path
-              className="edge-vis"
+              className="edge-groove"
               d={pathD}
               fill="none"
               stroke={strokeColor}
-              strokeWidth={strokeWidth}
+              strokeWidth={tier.grooveW}
               opacity={opacity}
-              strokeDasharray={strokeDasharray}
               markerEnd={rm ? markerEnd : undefined}
               data-marker-end={rm ? undefined : markerEnd}
               style={{
-                color: strokeColor, // Used by arrow-dyn marker via currentColor (covers owner focus colors)
+                color: strokeColor,
                 ['--edge-owner-color' as string]: highlightColor,
-                transition: 'stroke .15s',
-                pointerEvents: 'none', // Hit area handles events, not this path
+                transition: 'stroke .15s, opacity .15s',
+                pointerEvents: 'none',
               }}
+            />
+            {/* Bottom-rim highlight — 1px faint white at the bottom inner edge of the groove */}
+            <path
+              className="edge-rim"
+              d={pathD}
+              fill="none"
+              stroke={`rgba(220,225,235,${tier.hlOpacity})`}
+              strokeWidth={1}
+              opacity={isGhostMode ? 0 : opacity}
+              transform={`translate(0, ${(tier.grooveW - 1) / 2})`}
+              style={{ pointerEvents: 'none' }}
             />
             {/* Laser sweep overlay — only on hover-highlighted edges, not for reduced-motion users */}
             {isHoverHighlighted && !rm && (
@@ -369,9 +390,21 @@ const anims: Animation[] = [];
                 stroke={highlightColor}
                 strokeWidth={2}
                 style={{
-                  color: highlightColor, // feeds currentColor in the CSS glow filter
+                  color: highlightColor,
                   pointerEvents: 'none',
                 }}
+              />
+            )}
+            {/* Trace Path overlay — drawn on top of the edge when it's part of the active trace */}
+            {isTraced && (
+              <path
+                d={pathD}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={3}
+                opacity={0.8}
+                strokeDasharray="8 4"
+                style={{ pointerEvents: 'none' }}
               />
             )}
           </g>
@@ -459,6 +492,7 @@ export function LaneLayer({ nodes, laneMetrics, ownerColors, viewMode }: LaneLay
               fontWeight={700}
               fill={color}
               opacity={0.8}
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
             >
               {owner}
             </text>

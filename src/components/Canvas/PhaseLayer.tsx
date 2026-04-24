@@ -8,7 +8,7 @@
  * Phases are purely visual — they do not affect layout or node visibility.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useGraphStore } from '../../store/graphStore';
 import type { GraphPhase, GraphNode, GraphGroup, Position, Transform } from '../../types/graph';
 import { NODE_W, NODE_H, PHASE_PAD_X, COLLAPSED_W, LANE_LABEL_W } from '../../utils/layout';
@@ -29,7 +29,7 @@ interface PhaseLayerProps {
   canvasHeight: number;
   collapsedPhaseIds: string[];
   viewMode: 'dag' | 'lanes';
-  designMode: boolean;
+
   screenToSvg: (clientX: number, clientY: number) => Position;
   onPhaseClick: (id: string) => void;
   onPhaseDoubleClick: (id: string) => void;
@@ -44,8 +44,7 @@ interface PhaseLayerProps {
   transform?: Transform;
   /** Canvas pixel height — paired with transform to compute the visible SVG window. */
   canvasPixelHeight?: number;
-  /** When true (space-key pan mode), phase drag is suppressed. */
-  spaceHeld?: boolean;
+
 }
 
 interface BandData {
@@ -66,7 +65,7 @@ export function PhaseLayer({
   canvasHeight,
   collapsedPhaseIds,
   viewMode,
-  designMode,
+
   screenToSvg,
   onPhaseClick,
   onPhaseDoubleClick,
@@ -76,89 +75,13 @@ export function PhaseLayer({
   renderPart,
   transform,
   canvasPixelHeight,
-  spaceHeld,
+
 }: PhaseLayerProps) {
-  const { saveLayoutToCache, settleAllPhases, reorderPhasesByPosition } = useGraphStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Folder tab dimensions for collapsed strips
   const TAB_H = 22;
   const MAX_TAB_CHARS = 18;
-
-  const dragRef = useRef<{
-    startSvgX: number;
-    startSvgY: number;
-    startPositions: Record<string, { x: number; y: number }>;
-  } | null>(null);
-
-  function handleHeaderMouseDown(e: React.MouseEvent, phase: GraphPhase) {
-    if (spaceHeld) return; // space pan mode — let the event bubble to the canvas
-    e.stopPropagation();
-    e.preventDefault();
-
-    const state = useGraphStore.getState();
-    const svgPt = screenToSvg(e.clientX, e.clientY);
-
-    // Snapshot start positions of all nodes AND groups assigned to this phase
-    const startPositions: Record<string, { x: number; y: number }> = {};
-    phase.nodeIds.forEach((nid) => {
-      const pos = state.positions[nid];
-      if (pos) startPositions[nid] = { x: pos.x, y: pos.y };
-    });
-    (phase.groupIds ?? []).forEach((gid) => {
-      const pos = state.positions[gid];
-      if (pos) startPositions[gid] = { x: pos.x, y: pos.y };
-    });
-
-    dragRef.current = { startSvgX: svgPt.x, startSvgY: svgPt.y, startPositions };
-    setDraggingId(phase.id);
-
-    let lastPushTime = 0;
-
-    function onMove(me: MouseEvent) {
-      if (!dragRef.current) return;
-      const cur = screenToSvg(me.clientX, me.clientY);
-      let dx = cur.x - dragRef.current.startSvgX;
-      const dy = cur.y - dragRef.current.startSvgY;
-
-      // In lanes view, clamp dx so no member node slides behind the lane title.
-      if (viewMode === 'lanes') {
-        const minMemberX = Math.min(
-          ...Object.values(dragRef.current.startPositions).map((p) => p.x)
-        );
-        dx = Math.max(dx, LANE_LABEL_W - minMemberX);
-      }
-
-      const updates: Record<string, { x: number; y: number }> = {};
-      Object.entries(dragRef.current.startPositions).forEach(([nid, pos]) => {
-        updates[nid] = { x: pos.x + dx, y: pos.y };
-      });
-      useGraphStore.setState((s) => ({ positions: { ...s.positions, ...updates } }));
-      const now = Date.now();
-      if (now - lastPushTime > 50) {
-        lastPushTime = now;
-        settleAllPhases();
-      }
-    }
-
-    function onUp() {
-      if (dragRef.current) {
-        // Member node positions are already live in the store (written during onMove).
-        // Settle all phase boundaries using the unified algorithm.
-        settleAllPhases();
-        reorderPhasesByPosition();
-        saveLayoutToCache();
-        dragRef.current = null;
-      }
-      setDraggingId(null);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    }
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }
 
   if (phases.length === 0) return null;
 
@@ -395,9 +318,6 @@ export function PhaseLayer({
         const badgeX = minX + 14 + BADGE_R;
         const badgeY = bandTop + HEADER_H / 2;
 
-        const isDraggable = designMode && !spaceHeld;
-        const dragCursor = spaceHeld ? undefined : (draggingId === phase.id ? 'grabbing' : isDraggable ? 'grab' : 'pointer');
-
         const showFill   = renderPart !== 'headers';
         const showChrome = renderPart !== 'background';
 
@@ -429,12 +349,10 @@ export function PhaseLayer({
 
             {showChrome && (
               <>
-                {/* Header strip — drag handle in design mode only */}
+                {/* Header strip */}
                 <rect
                   x={minX} y={bandTop} width={bandW} height={HEADER_H}
                   fill={phase.color} fillOpacity={headerOpacity}
-                  style={{ cursor: dragCursor }}
-                  onMouseDown={isDraggable ? (e) => handleHeaderMouseDown(e, phase) : undefined}
                 />
 
                 {/* Number badge */}

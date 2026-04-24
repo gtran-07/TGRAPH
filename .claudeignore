@@ -20,3 +20,6 @@ package-lock.json
 
 # Sample data (large JSON, not source code)
 public/samples/
+
+# Generated app profile for external design sessions
+APP_PROFILE.md

@@ -1,0 +1,165 @@
+.dock {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: var(--summon-dock-w);
+  height: 100vh;
+  background: var(--summon-dock-bg);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 101;
+  transform: translateX(100%);
+  transition: transform 250ms ease-out;
+  color: #e0e0e0;
+  font-family: inherit;
+}
+.visible {
+  transform: translateX(0);
+}
+
+.header {
+  padding: 14px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.searchWrap {
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+.searchInput:focus {
+  border-color: rgba(79, 158, 255, 0.5);
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.ownerHeader {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #b0b0b0;
+  user-select: none;
+}
+.ownerHeader:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chevron {
+  font-size: 10px;
+  transition: transform 150ms ease;
+  width: 12px;
+}
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.colorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.countBadge {
+  margin-left: auto;
+  font-size: 11px;
+  color: #666;
+}
+
+.nodeRow {
+  padding: 6px 12px 6px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 12px;
+  color: #d0d0d0;
+  border-left: 3px solid transparent;
+  transition: background 100ms ease;
+}
+.nodeRow:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nodeLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.badge {
+  font-size: 10px;
+  color: #666;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.connectedCheck {
+  color: #4caf50;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.footer {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ringButton {
+  padding: 8px;
+  background: rgba(79, 158, 255, 0.1);
+  border: 1px solid rgba(79, 158, 255, 0.3);
+  border-radius: 6px;
+  color: #4f9eff;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+}
+.ringButton:hover {
+  background: rgba(79, 158, 255, 0.2);
+}
+
+.doneButton {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e0e0e0;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+}
+.doneButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+}

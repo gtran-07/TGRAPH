@@ -9,7 +9,7 @@
  * What does NOT belong here: any React state, DOM manipulation beyond the download link.
  */
 
-import type { GraphNode, GraphGroup, GraphPhase, GraphMeta, NodeTag, Position, Transform, CinemaEngagementMap } from '../types/graph';
+import type { GraphNode, GraphGroup, GraphPhase, GraphMeta, NodeTag, Position, Transform, CinemaEngagementMap, PathType } from '../types/graph';
 
 const DEFAULT_META: GraphMeta = {
   note: 'This is a FlowGraph chart file. Open it with the FlowGraph app to view and edit the interactive dependency flowchart.',
@@ -62,6 +62,7 @@ export function buildExportPayload(
   ownerRegistry?: string[],
   meta?: GraphMeta | null,
   discoveryEngagement?: CinemaEngagementMap,
+  edgePathTypes?: Record<string, PathType>,
 ): object {
   const nodeData = nodes.map((node) => ({
     id: node.id,
@@ -84,6 +85,7 @@ export function buildExportPayload(
   const hasTagRegistry = tagRegistry && tagRegistry.length > 0;
   const hasOwnerRegistry = ownerRegistry && ownerRegistry.length > 0;
   const hasEngagement = discoveryEngagement && Object.keys(discoveryEngagement).length > 0;
+  const hasEdgePathTypes = edgePathTypes && Object.keys(edgePathTypes).length > 0;
 
   // Serialize phases: omit groupIds when empty to keep JSON clean for graphs without group membership
   const phasesData = phases?.map((p) => ({
@@ -101,6 +103,7 @@ export function buildExportPayload(
       ...(hasPhases ? { phases: phasesData } : {}),
       ...(hasTagRegistry ? { tagRegistry } : {}),
       ...(hasOwnerRegistry ? { ownerRegistry } : {}),
+      ...(hasEdgePathTypes ? { edgePathTypes } : {}),
       _layout: {
         currentView: currentView ?? 'dag',
         dag: dagLayout ?? null,
@@ -117,6 +120,7 @@ export function buildExportPayload(
     ...(hasPhases ? { phases: phasesData } : {}),
     ...(hasTagRegistry ? { tagRegistry } : {}),
     ...(hasOwnerRegistry ? { ownerRegistry } : {}),
+    ...(hasEdgePathTypes ? { edgePathTypes } : {}),
   };
 }
 
@@ -132,8 +136,9 @@ export function exportGraphToJson(
   ownerRegistry?: string[],
   meta?: GraphMeta | null,
   discoveryEngagement?: CinemaEngagementMap,
+  edgePathTypes?: Record<string, PathType>,
 ): void {
-  const exportData = buildExportPayload(nodes, currentView, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement);
+  const exportData = buildExportPayload(nodes, currentView, dagLayout, lanesLayout, groups, phases, tagRegistry, ownerRegistry, meta, discoveryEngagement, edgePathTypes);
   const jsonString = JSON.stringify(exportData, null, 2);
 
   // Create a downloadable Blob from the JSON string

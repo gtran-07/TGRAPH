@@ -52,6 +52,12 @@ export interface GraphNode {
 }
 
 /**
+ * PathType — the structural weight of an edge, rendered via V-Groove engraving.
+ * Always applied when pathType data is present; defaults to 'standard'.
+ */
+export type PathType = 'optional' | 'standard' | 'priority' | 'critical';
+
+/**
  * GraphEdge — a directed connection between two nodes.
  * Edges are derived from node dependencies — they are never stored independently.
  *
@@ -63,6 +69,8 @@ export interface GraphEdge {
   from: string;
   /** ID of the dependent node (the one that cannot start until 'from' is done) */
   to: string;
+  /** Runtime-only: injected from edgePathTypes store map; NOT stored on the edge object itself */
+  pathType?: PathType;
 }
 
 /**
@@ -128,8 +136,9 @@ export type ViewMode = 'dag' | 'lanes';
  * - 'select': default mode; drag nodes, click to inspect
  * - 'add': click empty canvas to add a new node at that position
  * - 'connect': click source node then target node to draw a directed edge
+ * - 'tracePath': click source node then target to find and assign path types to a traced route
  */
-export type DesignTool = 'select' | 'add' | 'connect';
+export type DesignTool = 'select' | 'add' | 'connect' | 'tracePath';
 
 /**
  * SavedLayout — a named layout snapshot stored in localStorage.
@@ -217,23 +226,32 @@ export interface UndoSnapshot {
   positions: Record<string, Position>;
   groups: GraphGroup[];
   phases?: GraphPhase[];
+  edgePathTypes?: Record<string, PathType>;
 }
 
 // ─── PHASE TYPES ─────────────────────────────────────────────────────────────
 
 /**
- * 8 soft pastel colors auto-assigned to phases in order.
- * Users may override with any hex value.
+ * 16 high-distinction colors used for phases, tags, and owners.
+ * Covers the full hue spectrum with sufficient spacing to tell apart easily.
  */
 export const PHASE_PALETTE = [
-  '#4A90D9', // Sky Blue
-  '#27AE60', // Emerald Green
-  '#F5A623', // Amber
-  '#9B59B6', // Violet
-  '#E74C3C', // Coral Red
-  '#16A085', // Teal
-  '#E67E22', // Burnt Orange
-  '#2980B9', // Ocean Blue
+  '#E53935', // Red
+  '#F4511E', // Deep Orange
+  '#FB8C00', // Orange
+  '#FFB300', // Amber
+  '#C0CA33', // Lime
+  '#7CB342', // Light Green
+  '#43A047', // Green
+  '#00897B', // Teal
+  '#00ACC1', // Cyan
+  '#039BE5', // Sky Blue
+  '#1E88E5', // Blue
+  '#3949AB', // Indigo
+  '#8E24AA', // Purple
+  '#D81B60', // Pink
+  '#6D4C41', // Brown
+  '#757575', // Gray
 ] as const;
 
 /**

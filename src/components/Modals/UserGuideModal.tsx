@@ -339,15 +339,23 @@ const SECTIONS: GuideSection[] = [
     title: 'Focus Mode',
     content: (
       <div>
-        <p>Focus Mode shows only a single node and its immediate connections — hiding everything else temporarily. Useful for understanding one step without the noise of the full graph.</p>
+        <p>Focus Mode isolates a single node and its connections — hiding everything else temporarily. Useful for understanding one step without the noise of the full graph.</p>
 
         <h4 className={styles.subheading}>Entering Focus Mode</h4>
-        <p><strong>Double-click any node</strong> while Design Mode is <em>off</em>. The canvas animates to show only the focused node, its direct prerequisites (upstream), and its direct dependents (downstream). A yellow banner appears at the top of the canvas.</p>
+        <p><strong>Double-click any node</strong> while Design Mode is <em>off</em>. The canvas animates to show only the focused node and its connections. A banner appears at the top of the canvas.</p>
+
+        <h4 className={styles.subheading}>Focus Depth</h4>
+        <p>Use the <strong>Neighbors / Full Path</strong> toggle in the banner to control how much of the graph is shown:</p>
+        <ul className={styles.ul}>
+          <li><strong>Neighbors</strong> — direct parents and children only (1 hop). Good for understanding a single step.</li>
+          <li><strong>Full Path</strong> — all ancestors back to the source and all descendants to the end. Good for tracing the complete chain.</li>
+        </ul>
+        <p>Switching between modes re-runs layout with an animation so you can see the graph expand or contract.</p>
 
         <h4 className={styles.subheading}>Exiting Focus Mode</h4>
         <ul className={styles.ul}>
           <li>Press <code>Escape</code></li>
-          <li>Click the <strong>✕</strong> on the yellow banner</li>
+          <li>Click the <strong>✕</strong> on the banner</li>
           <li>Double-click the canvas background</li>
         </ul>
         <p>The graph restores exactly the positions and zoom level you had before entering Focus Mode.</p>
@@ -857,6 +865,7 @@ const SECTIONS: GuideSection[] = [
           <Shortcut keys="Double-click group" action="Open Edit Group dialog (Design Mode)" />
           <Shortcut keys="Double-click phase band" action="Collapse / expand phase (Design Mode)" />
           <Shortcut keys="Double-click background" action="Exit Focus Mode" />
+          <Shortcut keys="S" action="Summon Mode — connect nodes without panning ✨ (Design Mode)" />
         </div>
         <Tip>Most header buttons have tooltips — hover over them to see what they do.</Tip>
       </div>

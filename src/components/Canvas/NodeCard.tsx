@@ -16,6 +16,27 @@ import { NODE_W, NODE_H, LANE_LABEL_W, truncateText, clampXOutOfPhaseBands } fro
 import { GROUP_R } from '../../utils/grouping';
 import type { GraphNode, Position } from '../../types/graph';
 
+// Word-wraps a node title into at most 2 lines of ~20 chars each.
+function wrapNodeTitle(name: string): [string, string | null] {
+  const MAX = 16;
+  if (name.length <= MAX) return [name, null];
+  const words = name.split(' ');
+  let line1 = '';
+  let i = 0;
+  for (; i < words.length; i++) {
+    const next = line1 ? `${line1} ${words[i]}` : words[i];
+    if (next.length > MAX) break;
+    line1 = next;
+  }
+  if (!line1) {
+    // Single word longer than MAX — hard split
+    return [name.slice(0, MAX), name.slice(MAX, MAX * 2 - 1).length > 0 ? name.slice(MAX, MAX * 2 - 1) + (name.length > MAX * 2 - 1 ? '…' : '') : null];
+  }
+  const rest = words.slice(i).join(' ');
+  const line2 = rest.length > MAX ? rest.slice(0, MAX - 1) + '…' : rest;
+  return [line1, line2 || null];
+}
+
 // Milliseconds to display the wrong-attempt flash before restoring blank state.
 // Must exceed the reconstruction-wrong-shake animation duration (0.38s).
 const WRONG_CLASS_DURATION_MS = 420;
@@ -27,13 +48,14 @@ interface NodeCardProps {
   screenToSvg: (clientX: number, clientY: number) => Position;
   onFocusRequest: (id: string) => void;
   laneFocusRole?: 'owned' | 'upstream' | 'downstream' | 'partial' | null;
+  isFocusNode?: boolean;
   fadingOut?: boolean;
   fadingIn?: boolean;
   entranceDelay?: number;
   animate?: boolean;
 }
 
-export const NodeCard = memo(function NodeCard({ node, position, color, screenToSvg, onFocusRequest, laneFocusRole, fadingOut, fadingIn, entranceDelay, animate = true }: NodeCardProps) {
+export const NodeCard = memo(function NodeCard({ node, position, color, screenToSvg, onFocusRequest, laneFocusRole, isFocusNode, fadingOut, fadingIn, entranceDelay, animate = true }: NodeCardProps) {
   const {
     selectedNodeId, lastJumpedNodeId,
     designMode, designTool, connectSourceId,
@@ -348,17 +370,12 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
     setSelectedNode(node.id);
   }
 
-  // ── Double-click: focus mode (view) or edit (design) ─────────────────
+  // ── Double-click: always enter focus mode ────────────────────────────
   function handleDoubleClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (discoveryPhase === 'reconstruction') return;
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-
-    if (designMode) {
-      document.dispatchEvent(new CustomEvent('flowgraph:edit-node', { detail: { nodeId: node.id } }));
-    } else {
-      onFocusRequest(node.id);
-    }
+    onFocusRequest(node.id);
   }
 
   // ── Owner focus role visuals ───────────────────────────────────────────
@@ -387,7 +404,7 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
       className={`node-group${isJumped ? ' node-jumped' : ''}${(isSelected || isMultiSelected) && designMode ? ' node-selected' : ''}${discoveryRole ? ` discovery-${discoveryRole}` : ''}${heatClass ? ` ${heatClass}` : ''}${fadingOut ? ' node-fading-out' : ''}${fadingIn ? ' node-fading-in' : ''}`}
       data-id={node.id}
       // CSS transform (not SVG attribute) enables CSS transitions for view/focus switches
-      style={{ cursor: 'grab', transform: `translate(${position.x}px,${position.y}px)`, opacity: inlineOpacity }}
+      style={{ cursor: designMode ? 'grab' : 'pointer', transform: `translate(${position.x}px,${position.y}px)`, opacity: inlineOpacity }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -429,6 +446,18 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
         />
       )}
 
+      {/* Focus node spotlight ring */}
+      {isFocusNode && (
+        <rect
+          x={-4} y={-4} width={NODE_W + 8} height={NODE_H + 8} rx={9}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={2.5}
+          opacity={0.9}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+
       {/* Left accent bar */}
       <rect x={0} y={0} width={4} height={NODE_H} rx={3} fill={color} />
 
@@ -450,17 +479,25 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
         </g>
       )}
 
-      {/* Node name */}
-      <text x={14} y={33} fontFamily="var(--font-mono)" fontSize={11.5} fontWeight={600}
-        fill="var(--text)" style={{ pointerEvents: 'none' }}>
-        {truncateText(node.name, 20)}
-      </text>
-
-      {/* Owner */}
-      <text x={14} y={50} fontFamily="var(--font-mono)" fontSize={9}
-        fill={color} style={{ pointerEvents: 'none' }}>
-        {truncateText(node.owner, 24)}
-      </text>
+      {/* Node name — up to 2 lines */}
+      {(() => {
+        const [line1, line2] = wrapNodeTitle(node.name);
+        const titleY = line2 ? 24 : 33;
+        const ownerY = line2 ? 52 : 50;
+        return (
+          <>
+            <text x={14} fontFamily="var(--font-mono)" fontSize={11.5} fontWeight={600}
+              fill="var(--text)" style={{ pointerEvents: 'none' }}>
+              <tspan x={14} y={titleY}>{line1}</tspan>
+              {line2 && <tspan x={14} dy={14}>{line2}</tspan>}
+            </text>
+            <text x={14} y={ownerY} fontFamily="var(--font-mono)" fontSize={9}
+              fill={color} style={{ pointerEvents: 'none' }}>
+              {truncateText(node.owner, 19)}
+            </text>
+          </>
+        );
+      })()}
 
       {/* Tag pills — stacked in the right column, up to 4 slots */}
       {node.tags && node.tags.length > 0 && (() => {
@@ -469,7 +506,7 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
         const overflow = node.tags!.length - visible.length;
         const PILL_H = 13;
         const PILL_GAP = 15;
-        const PILL_X = 108;
+        const PILL_X = 130;
         const PILL_MAX_W = 66;
         const CHAR_W = 5.2; // approx px per char at 7.5px monospace
         const PAD_X = 6;

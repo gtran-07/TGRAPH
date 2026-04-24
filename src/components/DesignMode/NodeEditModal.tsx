@@ -100,29 +100,9 @@ export function NodeEditModal() {
       setIsOpen(true);
     }
 
-    function handleEditNode(e: Event) {
-      const { nodeId } = (e as CustomEvent<{ nodeId: string }>).detail;
-      const node = allNodes.find((n) => n.id === nodeId);
-      if (!node) return;
-      setMode('edit');
-      setEditingNodeId(nodeId);
-      setFieldId(node.id);
-      setFieldName(node.name);
-      setFieldOwner(node.owner);
-      setFieldDesc(node.description);
-      setFieldTags(node.tags ? [...node.tags] : []);
-      setTagSearch('');
-      setTagDropOpen(false);
-      setNewTagColor(TAG_PALETTE[0].color);
-      setEditingTagLabel(null);
-      setIsOpen(true);
-    }
-
     document.addEventListener('flowgraph:add-node', handleAddNode);
-    document.addEventListener('flowgraph:edit-node', handleEditNode);
     return () => {
       document.removeEventListener('flowgraph:add-node', handleAddNode);
-      document.removeEventListener('flowgraph:edit-node', handleEditNode);
     };
   }, [allNodes, existingOwners]);
 
@@ -251,10 +231,18 @@ export function NodeEditModal() {
                   style={{
                     position: 'absolute', right: 28, top: 0, bottom: 0,
                     width: 24, background: 'transparent', border: 'none',
-                    color: 'var(--text3)', cursor: 'pointer', fontSize: 12,
+                    color: 'var(--text3)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
-                >✕</button>
+                >
+                  <svg width="11" height="12" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="1,3 11,3"/>
+                    <path d="M4,3V1.5h4V3"/>
+                    <rect x="1.5" y="3" width="9" height="8.5" rx="1.2"/>
+                    <line x1="4.5" y1="6" x2="4.5" y2="9.5"/>
+                    <line x1="7.5" y1="6" x2="7.5" y2="9.5"/>
+                  </svg>
+                </button>
               )}
               <button
                 type="button"
@@ -352,10 +340,18 @@ export function NodeEditModal() {
                       title="Remove tag"
                       style={{
                         background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)',
-                        cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 11,
+                        cursor: 'pointer', padding: 0, lineHeight: 1,
                         display: 'flex', alignItems: 'center',
                       }}
-                    >✕</button>
+                    >
+                      <svg width="10" height="11" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="1,3 11,3"/>
+                        <path d="M4,3V1.5h4V3"/>
+                        <rect x="1.5" y="3" width="9" height="8.5" rx="1.2"/>
+                        <line x1="4.5" y1="6" x2="4.5" y2="9.5"/>
+                        <line x1="7.5" y1="6" x2="7.5" y2="9.5"/>
+                      </svg>
+                    </button>
                   </span>
                 ))}
               </div>
@@ -474,12 +470,19 @@ export function NodeEditModal() {
                               <button
                                 type="button"
                                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTagLabel(null); }}
+                                title="Cancel edit"
                                 style={{
                                   background: 'transparent', border: '1px solid var(--border2)',
-                                  borderRadius: 4, color: 'var(--text3)', fontSize: 11,
+                                  borderRadius: 4, color: 'var(--text3)',
                                   padding: '3px 7px', cursor: 'pointer', flexShrink: 0,
+                                  display: 'flex', alignItems: 'center',
                                 }}
-                              >✕</button>
+                              >
+                                <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M2 6.5A4.5 4.5 0 1 1 6.5 11"/>
+                                  <polyline points="2,3.5 2,6.5 5,6.5"/>
+                                </svg>
+                              </button>
                             </div>
                           </div>
                         );

@@ -139,6 +139,8 @@ export function CinemaTabContent(): React.ReactElement | null {
     setDiscoveryRoleMap, flyTo,
     startReconstruction, reconstructionAccuracy, selectedReconstructionChip,
     selectReconstructionChip, completeReconstruction, heatTiers,
+    viewMode, setViewMode, focusMode, exitFocusMode, focusedOwner, exitOwnerFocus,
+    pathHighlightNodeId, setPathHighlight,
   } = useGraphStore();
 
   const [showPreview, setShowPreview] = useState(true);
@@ -152,29 +154,56 @@ export function CinemaTabContent(): React.ReactElement | null {
     const el = document.getElementById('canvas-wrap');
     if (!el) return false;
     const { width: W, height: H } = el.getBoundingClientRect();
-    const pts = scene.nodeIds.map((id) => positions[id]).filter(Boolean) as { x: number; y: number }[];
+    const { positions: pos, transform: tr } = useGraphStore.getState();
+    const pts = scene.nodeIds.map((id) => pos[id]).filter(Boolean) as { x: number; y: number }[];
     if (!pts.length) return false;
-    const { x: tx, y: ty, k } = transform;
+    const { x: tx, y: ty, k } = tr;
+    const MARGIN = 40;
     return pts.every((p) => {
       const sx = p.x * k + tx;
       const sy = p.y * k + ty;
       const ex = (p.x + NODE_W) * k + tx;
       const ey = (p.y + NODE_H) * k + ty;
-      return ex > 0 && sx < W && ey > 0 && sy < H;
+      return sx >= MARGIN && ex <= W - MARGIN && sy >= MARGIN && ey <= H - MARGIN;
     });
-  }, [positions, transform]);
+  }, []);
 
-  const flyToScene = useCallback((scene: CinemaScene) => {
-    if (smartFly && isSceneVisible(scene)) return;
+  const flyToScene = useCallback((scene: CinemaScene, force = false) => {
+    if (!force && smartFly && isSceneVisible(scene)) return;
     const el = document.getElementById('canvas-wrap');
     if (!el) return;
     const { width: W, height: H } = el.getBoundingClientRect();
-    const pts = scene.nodeIds.map((id) => positions[id]).filter(Boolean) as { x: number; y: number }[];
+    const { positions: pos, allEdges } = useGraphStore.getState();
+
+    // Build the full set of relevant node IDs: focus + explicit lineage + immediate neighbors
+    const focusSet = new Set(scene.nodeIds);
+    const lineageIds = new Set<string>([
+      ...scene.nodeIds,
+      ...(scene.parentIds ?? []),
+      ...(scene.convergenceIds ?? []),
+    ]);
+    // Add 1-hop neighbors (ancestors + descendants) of the focus nodes
+    for (const edge of allEdges) {
+      if (focusSet.has(edge.to)) lineageIds.add(edge.from);
+      if (focusSet.has(edge.from)) lineageIds.add(edge.to);
+    }
+
+    const pts = [...lineageIds].map((id) => pos[id]).filter(Boolean) as { x: number; y: number }[];
     if (!pts.length) return;
-    const cx = pts.reduce((s, p) => s + p.x + NODE_W / 2, 0) / pts.length;
-    const cy = pts.reduce((s, p) => s + p.y + NODE_H / 2, 0) / pts.length;
-    flyTo({ x: W / 2 - cx * 0.75, y: H / 2 - cy * 0.75, k: 0.75 });
-  }, [smartFly, isSceneVisible, positions, flyTo]);
+    const minX = Math.min(...pts.map((p) => p.x));
+    const minY = Math.min(...pts.map((p) => p.y));
+    const maxX = Math.max(...pts.map((p) => p.x + NODE_W));
+    const maxY = Math.max(...pts.map((p) => p.y + NODE_H));
+    const PAD = 100;
+    const k = Math.min(
+      (W - PAD * 2) / (maxX - minX || 1),
+      (H - PAD * 2) / (maxY - minY || 1),
+      1.0,
+    );
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    flyTo({ x: W / 2 - cx * k, y: H / 2 - cy * k, k: Math.max(k, 0.3) });
+  }, [smartFly, isSceneVisible, flyTo]);
 
   // Reset on cinema start
   useEffect(() => {
@@ -285,27 +314,34 @@ export function CinemaTabContent(): React.ReactElement | null {
     }
   }, [discoverySequence, discoverySceneIndex, discoveryVisited, recordEngagement]);
 
+  const resetToMainView = useCallback(() => {
+    if (focusMode) exitFocusMode();
+    if (focusedOwner) exitOwnerFocus();
+    if (pathHighlightNodeId) setPathHighlight(null);
+    if (viewMode !== 'dag') setViewMode('dag');
+  }, [focusMode, exitFocusMode, focusedOwner, exitOwnerFocus, pathHighlightNodeId, setPathHighlight, viewMode, setViewMode]);
+
   const handleNext = useCallback(() => {
     commitEngagement();
     const scenes = discoverySequence?.scenes ?? [];
     if (discoverySceneIndex >= scenes.length - 1) {
-      // completeDiscovery() is a single set() call: sets discoveryPhase='transition'
-      // AND clears discoveryRoleMap atomically — one render, no batching race.
       completeDiscovery();
       return;
     }
+    resetToMainView();
     const next = scenes[discoverySceneIndex + 1];
     advanceScene();
-    flyToScene(next);
-  }, [commitEngagement, discoverySceneIndex, discoverySequence, completeDiscovery, advanceScene, flyToScene]);
+    flyToScene(next, true);
+  }, [commitEngagement, discoverySceneIndex, discoverySequence, completeDiscovery, resetToMainView, advanceScene, flyToScene]);
 
   const handleBack = useCallback(() => {
     commitEngagement();
     const scenes = discoverySequence?.scenes ?? [];
     const prev = scenes[discoverySceneIndex - 1];
+    resetToMainView();
     retreatScene();
-    if (prev) flyToScene(prev);
-  }, [commitEngagement, retreatScene, discoverySequence, discoverySceneIndex, flyToScene]);
+    if (prev) flyToScene(prev, true);
+  }, [commitEngagement, retreatScene, discoverySequence, discoverySceneIndex, resetToMainView, flyToScene]);
 
   const handleExit = useCallback(() => { commitEngagement(); exitDiscovery(); }, [commitEngagement, exitDiscovery]);
 
@@ -313,7 +349,7 @@ export function CinemaTabContent(): React.ReactElement | null {
     setShowPreview(false);
     sceneStartRef.current = Date.now();
     const first = discoverySequence?.scenes[0];
-    if (first) flyToScene(first);
+    if (first) flyToScene(first, true);
   }, [flyToScene, discoverySequence]);
 
   if (!discoveryActive || !discoverySequence || !discoverySequence.scenes.length) return null;

@@ -1,2 +1,5 @@
 # Added by code-review-graph
 .code-review-graph/
+
+# Generated app profile for external design sessions
+APP_PROFILE.md

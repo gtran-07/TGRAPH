@@ -16,7 +16,7 @@ import type { GraphNode, GraphEdge, GraphPhase, GraphGroup, Position, LaneMetric
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 /** Width of each node rectangle in SVG user-space units */
-export const NODE_W = 180;
+export const NODE_W = 200;
 /** Horizontal padding applied to each side of a phase band beyond its node bounding box */
 export const PHASE_PAD_X = 30;
 /** Width (in SVG user-space) of a horizontally collapsed phase band */

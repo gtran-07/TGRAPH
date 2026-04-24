@@ -18,6 +18,7 @@ import { PhaseEditModal } from './components/DesignMode/PhaseEditModal';
 import { UserGuideModal } from './components/Modals/UserGuideModal';
 import { SamplePickerModal } from './components/Modals/SamplePickerModal';
 import { CinemaOverlay } from './components/Cinema/CinemaOverlay';
+import { SummonDock } from './components/SummonMode/SummonDock';
 import styles from './App.module.css';
 
 export default function App() {
@@ -50,6 +51,9 @@ export default function App() {
 
       {/* Cinema overlay — portal into #canvas-wrap; renders nothing when inactive */}
       <CinemaOverlay />
+
+      {/* Summon dock — portal into document.body; renders nothing when inactive */}
+      <SummonDock />
     </div>
   );
 }

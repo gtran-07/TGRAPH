@@ -34,19 +34,26 @@ import { PhaseCrowns } from "./PhaseCrowns";
 import { LaneCrowns } from "./LaneCrowns";
 import { OwnerFocusBar } from "./OwnerFocusBar";
 import { PhaseHoverCard } from "./PhaseHoverCard";
+import { PathTypePopover } from "../DesignMode/PathTypePopover";
 import type { CrownBand } from "./PhaseCrowns";
 import {
   NODE_W,
+  NODE_H,
   GAP_X,
   LANE_LABEL_W,
   computePhaseAdjustedPositions,
 } from "../../utils/layout";
 import { DesignToolbar } from "../DesignMode/DesignToolbar";
+import { CanvasPing } from "../SummonMode/CanvasPing";
+import { GhostRing } from "../SummonMode/GhostRing";
+import { SummonOverlay } from "../SummonMode/SummonOverlay";
 import {
   computeGroupNestLevel,
   getAllDescendantNodeIds,
   getHiddenGroupIds,
   getCollapsedGroupForNode,
+  computeBoundingBox,
+  GROUP_R,
 } from "../../utils/grouping";
 import styles from "./Canvas.module.css";
 
@@ -62,7 +69,11 @@ export function Canvas() {
     clearFlyTarget,
     focusMode,
     focusNodeId,
+    focusDepth,
     exitFocusMode,
+    setFocusDepth,
+    flyTo,
+    setLastJumpedNode,
     designMode,
     designTool,
     connectSourceId,
@@ -80,13 +91,18 @@ export function Canvas() {
     fitToScreen,
     clearGraph,
     pathHighlightNodeId,
+    pathHighlightMode,
     selectedNodeId,
     selectedGroupId,
     deleteNode,
     deleteGroup,
     multiSelectIds,
+    marqueeMode,
+    toggleMarqueeMode,
+    setMultiSelectIds,
     copySelection,
     pasteClipboard,
+    pasteCount,
     groups,
     toggleGroupCollapse,
     clearMultiSelect,
@@ -105,6 +121,11 @@ export function Canvas() {
     discoveryActive,
     fadingOutNodeIds,
     fadingOutPositions,
+    setEdgePathType,
+    edgePathTypes,
+    summonActive,
+    summonSourceId,
+    summonShowRing,
   } = useGraphStore();
 
   // ── Entrance animation suppression ────────────────────────────────────
@@ -123,6 +144,7 @@ export function Canvas() {
   const prevFocusedOwnerRef = useRef(focusedOwner);
   const prevAllNodesLenRef = useRef(allNodes.length);
   const prevVisibleNodesLenRef = useRef(visibleNodes.length);
+  const prevPasteCountRef = useRef(pasteCount);
 
   // Persistent 700 ms suppression window
   const suppressActiveRef = useRef(false);
@@ -130,7 +152,8 @@ export function Canvas() {
 
   // Explicit "must animate" events — take absolute priority, can clear the window early
   const animateThisRender = (() => {
-    if (prevAllNodesLenRef.current !== allNodes.length) return true; // file load
+    const isPasteRender = prevPasteCountRef.current !== pasteCount;
+    if (!isPasteRender && prevAllNodesLenRef.current !== allNodes.length) return true; // file load
     if (!prevFocusModeRef.current && focusMode) return true; // focus enter
     if (prevFocusedOwnerRef.current === null && focusedOwner !== null)
       return true; // owner enter
@@ -140,6 +163,7 @@ export function Canvas() {
   // Transitions that should suppress entrance animations
   const suppressThisRender = (() => {
     if (animateThisRender) return false; // animate wins
+    if (prevPasteCountRef.current !== pasteCount) return true; // paste
     if (prevViewModeRef.current !== viewMode) return true; // DAG↔LANE
     if (prevFocusModeRef.current && !focusMode) return true; // focus exit
     if (prevFocusedOwnerRef.current !== null && focusedOwner === null)
@@ -175,11 +199,15 @@ export function Canvas() {
     prevFocusedOwnerRef.current = focusedOwner;
     prevAllNodesLenRef.current = allNodes.length;
     prevVisibleNodesLenRef.current = visibleNodes.length;
+    prevPasteCountRef.current = pasteCount;
   });
 
   // ── Refs ──────────────────────────────────────────────────────────────
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  // Tracks current adjustedPositions without adding it to effect dep arrays.
+  // Updated every render so effects always read fresh visual coordinates.
+  const adjustedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
   // ── Canvas height (SVG user-space) for PhaseLayer band height ─────────
   // We track the canvas pixel height and divide by the current zoom scale
@@ -283,6 +311,7 @@ export function Canvas() {
       viewMode === "lanes" ? LANE_LABEL_W : undefined,
     ).adjustedPositions;
   }, [phases, positions, collapsedPhaseIds, viewMode]);
+  adjustedPositionsRef.current = adjustedPositions;
 
   // ── Per-node entrance delay: column stagger + y-rank within column ─────
   // Computed here (not in NodeCard) because it needs all visible nodes and their
@@ -389,6 +418,7 @@ export function Canvas() {
     startTX: number;
     startTY: number;
   } | null>(null);
+  const hasPannedRef = useRef(false);
 
   // ── Mouse-button state — suppresses node/group tooltip while dragging ──
   const [isMouseDown, setIsMouseDown] = useState(false);
@@ -433,6 +463,12 @@ export function Canvas() {
     y: number;
   } | null>(null);
 
+  // ── Marquee (rubber-band) selection rect ─────────────────────────────
+  const [marquee, setMarquee] = useState<{
+    startSvg: { x: number; y: number };
+    curSvg: { x: number; y: number };
+  } | null>(null);
+
   // ── Node hover tooltip position (screen coords) ───────────────────────
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(
     null,
@@ -458,6 +494,12 @@ export function Canvas() {
   } | null>(null);
   const [collapsedPhaseHiding, setCollapsedPhaseHiding] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // PathTypePopover state: which edge was clicked and where to show the popover
+  const [pathTypePopover, setPathTypePopover] = useState<{
+    edge: import('../../types/graph').GraphEdge;
+    position: { x: number; y: number };
+  } | null>(null);
 
   const hasData = visibleNodes.length > 0 || allNodes.length > 0;
 
@@ -531,6 +573,18 @@ export function Canvas() {
     return hidden;
   }, [groups, hiddenNodeIds]);
 
+  // In focus mode, only show groups that have at least one descendant node visible
+  const focusVisibleGroupIds = useMemo(() => {
+    if (!focusMode) return null;
+    const visibleIdSet = new Set(visibleNodes.map((n) => n.id));
+    const result = new Set<string>();
+    for (const g of groups) {
+      const descendants = getAllDescendantNodeIds(g.id, groups);
+      if (descendants.some((id) => visibleIdSet.has(id))) result.add(g.id);
+    }
+    return result;
+  }, [focusMode, visibleNodes, groups]);
+
   const focusedNode = focusNodeId
     ? allNodes.find((n) => n.id === focusNodeId)
     : null;
@@ -552,6 +606,7 @@ export function Canvas() {
 
   // ── Pan: start on mousedown on SVG background ─────────────────────────
   function handleSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
+    hasPannedRef.current = false;
     // Space held: pan from anywhere (even over nodes); skip other tool logic
     if (spaceHeld) {
       cancelFlyAnimation();
@@ -567,11 +622,18 @@ export function Canvas() {
     const target = e.target as Element;
     if (
       target.closest(".node-group") ||
-      target.closest(".edge-hit") ||
+      (designMode && target.closest(".edge-hit")) ||
       target.closest(".group-overlay")
     )
       return;
     if (designMode && designTool === "add") return; // Add tool uses click, not drag
+
+    // Marquee mode: start a rubber-band selection rect instead of panning
+    if (marqueeMode && (!designMode || designTool === "select")) {
+      const pt = screenToSvg(e.clientX, e.clientY);
+      setMarquee({ startSvg: pt, curSvg: pt });
+      return;
+    }
 
     cancelFlyAnimation(); // Cancel any in-progress fly animation so the user takes over immediately
     panState.current = {
@@ -600,9 +662,22 @@ export function Canvas() {
       }
     }
 
+    // Marquee: update current corner
+    if (marquee) {
+      const pt = screenToSvg(e.clientX, e.clientY);
+      const dx = pt.x - marquee.startSvg.x;
+      const dy = pt.y - marquee.startSvg.y;
+      if (Math.abs(dx) > 4 / transform.k || Math.abs(dy) > 4 / transform.k) {
+        hasPannedRef.current = true; // suppress click-to-deselect on mouseup
+      }
+      setMarquee({ startSvg: marquee.startSvg, curSvg: pt });
+      return;
+    }
+
     if (!panState.current) return;
     const dx = e.clientX - panState.current.startX;
     const dy = e.clientY - panState.current.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasPannedRef.current = true;
     setTransform({
       ...transform,
       x: panState.current.startTX + dx,
@@ -612,9 +687,65 @@ export function Canvas() {
 
   // ── Pan: end on mouseup ───────────────────────────────────────────────
   function handleSvgMouseUp() {
+    if (marquee) {
+      commitMarqueeSelection(marquee.startSvg, marquee.curSvg);
+      setMarquee(null);
+      return;
+    }
     if (panState.current) {
       panState.current = null;
       saveLayoutToCache(); // Persist the new pan position
+    }
+  }
+
+  function commitMarqueeSelection(
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ) {
+    const rx = Math.min(start.x, end.x);
+    const ry = Math.min(start.y, end.y);
+    const rw = Math.abs(end.x - start.x);
+    const rh = Math.abs(end.y - start.y);
+    if (rw < 4 / transform.k && rh < 4 / transform.k) return; // tiny drag → ignore
+
+    function overlaps(bx: number, by: number, bw: number, bh: number) {
+      return bx < rx + rw && bx + bw > rx && by < ry + rh && by + bh > ry;
+    }
+
+    const hitIds: string[] = [];
+
+    // Hit-test visible nodes
+    for (const node of visibleNodes) {
+      const pos = adjustedPositions[node.id];
+      if (pos && overlaps(pos.x, pos.y, NODE_W, NODE_H)) hitIds.push(node.id);
+    }
+
+    // Hit-test visible groups
+    const hiddenGroupIds = getHiddenGroupIds(groups);
+    for (const group of groups) {
+      if (hiddenGroupIds.has(group.id)) continue;
+      if (group.collapsed) {
+        // Collapsed group: polygon centered at its position
+        const pos = adjustedPositions[group.id];
+        if (pos && overlaps(pos.x - GROUP_R, pos.y - GROUP_R, GROUP_R * 2, GROUP_R * 2)) {
+          hitIds.push(group.id);
+        }
+      } else {
+        // Expanded group: bounding box of child node positions
+        const childNodePositions = getAllDescendantNodeIds(group.id, groups)
+          .map((nid) => adjustedPositions[nid])
+          .filter(Boolean) as { x: number; y: number }[];
+        if (childNodePositions.length > 0) {
+          const bb = computeBoundingBox(childNodePositions, NODE_W, NODE_H, 32);
+          if (overlaps(bb.x, bb.y, bb.w, bb.h)) hitIds.push(group.id);
+        }
+      }
+    }
+
+    if (hitIds.length > 0) {
+      setMultiSelectIds(hitIds);
+    } else {
+      clearMultiSelect();
     }
   }
 
@@ -662,16 +793,16 @@ export function Canvas() {
     const from = { ...transformRef.current };
     const to = flyTarget;
     const startTime = performance.now();
-    const DURATION = 450; // ms
+    const DURATION = 580; // ms
 
-    function easeOutCubic(t: number) {
-      return 1 - Math.pow(1 - t, 3);
+    function easeInOutSine(t: number) {
+      return -(Math.cos(Math.PI * t) - 1) / 2;
     }
 
     function step() {
       const elapsed = performance.now() - startTime;
       const t = Math.min(elapsed / DURATION, 1);
-      const e = easeOutCubic(t);
+      const e = easeInOutSine(t);
       setTransform({
         x: from.x + (to.x - from.x) * e,
         y: from.y + (to.y - from.y) * e,
@@ -749,9 +880,12 @@ export function Canvas() {
     // Click on background or phase — deselect nodes/groups and clear multi-select.
     // Clicking a phase should still deselect nodes/groups; the phase click handler
     // selects the phase separately via onPhaseClick.
+    // Skip deselect if the user dragged (panned) — only a clean stationary click should deselect.
+    if (hasPannedRef.current) return;
     const clickedPhase = target.closest("[data-phase-id]");
     if (!clickedNode && !clickedGroup) {
-      setSelectedNode(null);
+      // In focus mode: always revert selection to the anchor node instead of clearing it.
+      setSelectedNode(focusMode && focusNodeId ? focusNodeId : null);
       clearMultiSelect();
       if (!clickedPhase) {
         setSelectedPhaseId(null);
@@ -772,6 +906,14 @@ export function Canvas() {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        // Summon mode takes priority — dismiss before other Escape actions
+        const { summonActive: sa, deactivateSummon: deact } = useGraphStore.getState();
+        if (sa) {
+          e.preventDefault();
+          e.stopPropagation();
+          deact();
+          return;
+        }
         if (connectSourceId) {
           setConnectSource(null);
           setGhostTarget(null);
@@ -779,6 +921,17 @@ export function Canvas() {
           exitOwnerFocus();
         } else if (focusMode) {
           exitFocusMode();
+        }
+        return;
+      }
+
+      if ((e.key === "s" || e.key === "S") && !e.ctrlKey && !e.metaKey) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        const state = useGraphStore.getState();
+        if (state.selectedNodeId && !state.summonActive && !state.discoveryActive) {
+          e.preventDefault();
+          state.activateSummon(state.selectedNodeId);
         }
         return;
       }
@@ -861,6 +1014,27 @@ export function Canvas() {
     pasteClipboard,
   ]);
 
+  // ── Summon source aura ────────────────────────────────────────────────
+  useEffect(() => {
+    const cleanup = () => {
+      document.querySelectorAll(".summon-source-aura").forEach((el) =>
+        el.classList.remove("summon-source-aura")
+      );
+    };
+    if (!summonActive || !summonSourceId) { cleanup(); return cleanup; }
+    const state = useGraphStore.getState();
+    const sourceNode = state.allNodes.find((n) => n.id === summonSourceId);
+    const color = sourceNode
+      ? (state.ownerColors[sourceNode.owner] ?? "rgba(79,158,255,0.4)")
+      : "rgba(79,158,255,0.4)";
+    const el = document.querySelector(`.node-group[data-id="${summonSourceId}"]`);
+    if (el) {
+      (el as SVGElement).style.setProperty("--aura-color", color);
+      el.classList.add("summon-source-aura");
+    }
+    return cleanup;
+  }, [summonActive, summonSourceId]);
+
   // ── Hover highlight via direct DOM class manipulation ────────────────
   // Positive-only: only the hovered node and its direct neighbors get visual
   // treatment (.hovered / .neighbor classes). Non-hovered nodes are untouched.
@@ -923,38 +1097,54 @@ export function Canvas() {
     });
   }, [hoveredNodeId, allNodes, visibleEdges, groups]);
 
-  // ── Path highlight — ancestor paths to selected node ─────────────────
-  // Backward BFS from pathHighlightNodeId through allEdges builds the full
-  // ancestor set. Nodes in that set (+ the target) get path classes; everything
-  // else is ghosted. Edges on the path are brightened via inline style.
+  // ── Path highlight — ancestor/descendant paths to/from selected node ────
+  // BFS direction(s) determined by pathHighlightMode. Nodes get path classes;
+  // edges on the path are brightened with mode-specific colors.
   useEffect(() => {
     const graphRoot = document.getElementById("graph-root");
     if (!graphRoot) return;
 
     // Clear all path classes and edge overrides
     graphRoot
-      .querySelectorAll(".path-focus, .path-ancestor, .path-ghost")
+      .querySelectorAll(".path-focus, .path-ancestor, .path-descendant, .path-ghost")
       .forEach((el) => {
-        el.classList.remove("path-focus", "path-ancestor", "path-ghost");
+        el.classList.remove("path-focus", "path-ancestor", "path-descendant", "path-ghost");
       });
-    graphRoot.querySelectorAll("g[data-edge-from] .edge-vis").forEach((el) => {
+    graphRoot.querySelectorAll("g[data-edge-from] .edge-groove").forEach((el) => {
       const e = el as SVGPathElement;
       e.style.opacity = "";
       e.style.strokeWidth = "";
       e.style.stroke = "";
     });
 
-    if (!pathHighlightNodeId) return;
+    if (!pathHighlightNodeId || !pathHighlightMode) return;
 
     // Backward BFS: collect every ancestor that can reach pathHighlightNodeId
     const ancestors = new Set<string>();
-    const queue = [pathHighlightNodeId];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      for (const edge of allEdges) {
-        if (edge.to === current && !ancestors.has(edge.from)) {
-          ancestors.add(edge.from);
-          queue.push(edge.from);
+    if (pathHighlightMode === 'ancestors' || pathHighlightMode === 'both') {
+      const queue = [pathHighlightNodeId];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const edge of allEdges) {
+          if (edge.to === current && !ancestors.has(edge.from)) {
+            ancestors.add(edge.from);
+            queue.push(edge.from);
+          }
+        }
+      }
+    }
+
+    // Forward BFS: collect every descendant reachable from pathHighlightNodeId
+    const descendants = new Set<string>();
+    if (pathHighlightMode === 'descendants' || pathHighlightMode === 'both') {
+      const queue = [pathHighlightNodeId];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const edge of allEdges) {
+          if (edge.from === current && !descendants.has(edge.to)) {
+            descendants.add(edge.to);
+            queue.push(edge.to);
+          }
         }
       }
     }
@@ -967,40 +1157,74 @@ export function Canvas() {
         el.classList.add("path-focus");
       } else if (ancestors.has(id)) {
         el.classList.add("path-ancestor");
+      } else if (descendants.has(id)) {
+        el.classList.add("path-descendant");
       } else {
         el.classList.add("path-ghost");
       }
     });
 
-    // Apply edge styles — on-path edges are cyan + bright; off-path are dimmed
+    // Apply edge styles — color by direction; off-path edges are dimmed
     graphRoot.querySelectorAll("g[data-edge-from]").forEach((el) => {
       const from = el.getAttribute("data-edge-from");
       const to = el.getAttribute("data-edge-to");
       if (!from || !to) return;
-      const onPath =
-        ancestors.has(from) &&
-        (to === pathHighlightNodeId || ancestors.has(to));
-      const visEl = el.querySelector(".edge-vis") as SVGPathElement | null;
+      const visEl = el.querySelector(".edge-groove") as SVGPathElement | null;
       if (!visEl) return;
-      if (onPath) {
+
+      const isAncestorEdge =
+        ancestors.has(from) && (to === pathHighlightNodeId || ancestors.has(to));
+      const isDescendantEdge =
+        descendants.has(to) && (from === pathHighlightNodeId || descendants.has(from));
+
+      if (isAncestorEdge) {
         visEl.style.stroke = "#22d3ee";
+        visEl.style.strokeWidth = "2.5";
+        visEl.style.opacity = "1";
+      } else if (isDescendantEdge) {
+        visEl.style.stroke = "#f59e0b";
         visEl.style.strokeWidth = "2.5";
         visEl.style.opacity = "1";
       } else {
         visEl.style.opacity = "0.06";
       }
     });
-  }, [pathHighlightNodeId, allEdges]);
+
+    // Fit viewport to the highlighted node set for the active mode.
+    // Use adjustedPositionsRef (matches visual layout including phase-accordion offsets).
+    const canvasEl = document.getElementById('canvas-wrap');
+    if (canvasEl) {
+      const { width: W, height: H } = canvasEl.getBoundingClientRect();
+      const livePositions = adjustedPositionsRef.current;
+      const relevantIds = new Set([pathHighlightNodeId, ...ancestors, ...descendants]);
+      const pts = [...relevantIds]
+        .map((id) => livePositions[id])
+        .filter(Boolean) as { x: number; y: number }[];
+      if (pts.length) {
+        const minX = Math.min(...pts.map((p) => p.x));
+        const minY = Math.min(...pts.map((p) => p.y));
+        const maxX = Math.max(...pts.map((p) => p.x + NODE_W));
+        const maxY = Math.max(...pts.map((p) => p.y + NODE_H));
+        const PAD = 80;
+        const k = Math.min(
+          (W - PAD * 2) / (maxX - minX || 1),
+          (H - PAD * 2) / (maxY - minY || 1),
+          1.0,
+        );
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        flyTo({ x: W / 2 - cx * k, y: H / 2 - cy * k, k: Math.max(k, 0.1) });
+      }
+    }
+  }, [pathHighlightNodeId, pathHighlightMode, allEdges, flyTo]);
 
   // ── Stable focus-request handler (prevents NodeCard memo invalidation) ─
   const handleFocusRequest = useCallback(
     (id: string) => {
-      if (!designMode) {
-        enterFocusMode(id);
-        setTimeout(() => fitToScreen(), 50);
-      }
+      enterFocusMode(id);
+      setTimeout(() => fitToScreen(), 50);
     },
-    [designMode, enterFocusMode, fitToScreen],
+    [enterFocusMode, fitToScreen],
   );
 
   // ── Collapsed phase hover card handlers ───────────────────────────────
@@ -1033,9 +1257,13 @@ export function Canvas() {
       ? "cell"
       : designMode && designTool === "connect"
         ? "crosshair"
-        : panState.current
-          ? "grabbing"
-          : "grab";
+        : marqueeMode
+          ? marquee
+            ? "crosshair"
+            : "crosshair"
+          : panState.current
+            ? "grabbing"
+            : "grab";
 
   return (
     <div
@@ -1178,24 +1406,26 @@ export function Canvas() {
           {/* Default arrowhead marker for edges */}
           <marker
             id="arrow"
-            markerWidth="8"
-            markerHeight="6"
-            refX="7"
-            refY="3"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
             orient="auto"
+            markerUnits="userSpaceOnUse"
           >
-            <polygon points="0 0, 8 3, 0 6" fill="#2e3850" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="#070a10" />
           </marker>
           {/* Highlighted arrowhead — blue, for hovered connected edges */}
           <marker
             id="arrow-highlight"
-            markerWidth="8"
-            markerHeight="6"
-            refX="7"
-            refY="3"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
             orient="auto"
+            markerUnits="userSpaceOnUse"
           >
-            <polygon points="0 0, 8 3, 0 6" fill="#4f9eff" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="#4f9eff" />
           </marker>
           {/*
             Dynamic color arrowhead — inherits currentColor from the edge stroke.
@@ -1203,24 +1433,26 @@ export function Canvas() {
           */}
           <marker
             id="arrow-dyn"
-            markerWidth="8"
-            markerHeight="6"
-            refX="7"
-            refY="3"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
             orient="auto"
+            markerUnits="userSpaceOnUse"
           >
-            <polygon points="0 0, 8 3, 0 6" fill="currentColor" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
           </marker>
           {/* Design mode ghost edge arrowhead — purple dashed */}
           <marker
             id="arrow-ghost"
-            markerWidth="8"
-            markerHeight="6"
-            refX="7"
-            refY="3"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
             orient="auto"
+            markerUnits="userSpaceOnUse"
           >
-            <polygon points="0 0, 8 3, 0 6" fill="#a78bfa" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
           </marker>
         </defs>
 
@@ -1249,7 +1481,6 @@ export function Canvas() {
                 canvasHeight={svgBandHeight}
                 collapsedPhaseIds={collapsedPhaseIds}
                 viewMode={viewMode}
-                designMode={designMode}
                 screenToSvg={screenToSvg}
                 onPhaseClick={(id) => setSelectedPhaseId(id)}
                 onPhaseDoubleClick={(id) => togglePhaseCollapse(id)}
@@ -1259,7 +1490,6 @@ export function Canvas() {
                 renderPart="background"
                 transform={transform}
                 canvasPixelHeight={canvasPixelHeight}
-                spaceHeld={spaceHeld}
               />
             </g>
             <g id="lanes-layer">
@@ -1285,7 +1515,8 @@ export function Canvas() {
                     (g) =>
                       !g.collapsed &&
                       !hiddenGroupIds.has(g.id) &&
-                      !phaseHiddenGroupIds.has(g.id),
+                      !phaseHiddenGroupIds.has(g.id) &&
+                      (!focusVisibleGroupIds || focusVisibleGroupIds.has(g.id)),
                   )
                   .sort(
                     (a, b) =>
@@ -1338,6 +1569,9 @@ export function Canvas() {
                 ownerFocusSets={ownerFocusSets}
                 focusedOwner={focusedOwner}
                 suppressEntranceAnimation={suppressEntrance}
+                onEdgeSelectPathType={(edge, clientX, clientY) =>
+                  setPathTypePopover({ edge, position: { x: clientX, y: clientY } })
+                }
               />
               {/* Ghost edge shown while drawing a connection in design mode */}
               {designMode && connectSourceId && ghostTarget && (
@@ -1361,6 +1595,7 @@ export function Canvas() {
                       screenToSvg={screenToSvg}
                       onFocusRequest={handleFocusRequest}
                       laneFocusRole={getOwnerFocusRole(node.id, node.owner)}
+                      isFocusNode={focusMode && node.id === focusNodeId}
                       entranceDelay={nodeEntranceDelay[node.id] ?? 0}
                       animate={!suppressEntrance}
                     />
@@ -1393,7 +1628,8 @@ export function Canvas() {
                   (g) =>
                     g.collapsed &&
                     !hiddenGroupIds.has(g.id) &&
-                    !phaseHiddenGroupIds.has(g.id),
+                    !phaseHiddenGroupIds.has(g.id) &&
+                    (!focusVisibleGroupIds || focusVisibleGroupIds.has(g.id)),
                 );
               })().map((group) => {
                 const groupColor = ownerColors[group.owners[0]] ?? "#4f9eff";
@@ -1423,8 +1659,30 @@ export function Canvas() {
                 );
               })}
             </g>
+
+            {/* Summon ring + ping — above all nodes */}
+            {summonActive && <CanvasPing />}
+            {summonActive && summonShowRing && <GhostRing />}
           </g>
           {/* end graph-content */}
+
+          {/* Marquee selection rect — inside #graph-root so it shares the pan/zoom transform */}
+          {marquee && (() => {
+            const x = Math.min(marquee.startSvg.x, marquee.curSvg.x);
+            const y = Math.min(marquee.startSvg.y, marquee.curSvg.y);
+            const w = Math.abs(marquee.curSvg.x - marquee.startSvg.x);
+            const h = Math.abs(marquee.curSvg.y - marquee.startSvg.y);
+            return (
+              <rect
+                x={x} y={y} width={w} height={h}
+                fill="rgba(59,130,246,0.08)"
+                stroke="#3b82f6"
+                strokeWidth={1.5 / transform.k}
+                strokeDasharray={`${5 / transform.k} ${3 / transform.k}`}
+                pointerEvents="none"
+              />
+            );
+          })()}
         </g>
 
         {/* Phase header strips — rendered as a sibling to #graph-root so they always
@@ -1447,7 +1705,6 @@ export function Canvas() {
             canvasHeight={svgBandHeight}
             collapsedPhaseIds={collapsedPhaseIds}
             viewMode={viewMode}
-            designMode={designMode}
             screenToSvg={screenToSvg}
             onPhaseClick={(id) => setSelectedPhaseId(id)}
             onPhaseDoubleClick={(id) => togglePhaseCollapse(id)}
@@ -1459,7 +1716,6 @@ export function Canvas() {
             renderPart="headers"
             transform={transform}
             canvasPixelHeight={canvasPixelHeight}
-            spaceHeld={spaceHeld}
           />
         </g>
       </svg>
@@ -1471,9 +1727,41 @@ export function Canvas() {
       {focusMode && focusedNode && (
         <div className={styles.focusBanner}>
           <span className={styles.focusBannerIcon}>🎯</span>
-          <span className={styles.focusBannerText}>
+          <button
+            className={styles.focusBannerLocate}
+            title="Click to fly to this node"
+            onClick={() => {
+              if (!focusNodeId) return;
+              setSelectedNode(focusNodeId);
+              setLastJumpedNode(focusNodeId);
+              const pos = positions[focusNodeId];
+              if (pos) {
+                const canvasEl = document.getElementById('canvas-wrap');
+                if (canvasEl) {
+                  const { width: W, height: H } = canvasEl.getBoundingClientRect();
+                  flyTo({ x: W / 2 - (pos.x + 90) * 0.75, y: H / 2 - (pos.y + 36) * 0.75, k: 0.75 });
+                }
+              }
+            }}
+          >
             Focus: <strong>{focusedNode.name}</strong>
-          </span>
+          </button>
+          <div className={styles.focusDepthToggle}>
+            <button
+              className={`${styles.focusDepthBtn} ${focusDepth === 'neighbors' ? styles.focusDepthBtnActive : ''}`}
+              onClick={() => setFocusDepth('neighbors')}
+              title="Show only direct parents and children"
+            >
+              Neighbors
+            </button>
+            <button
+              className={`${styles.focusDepthBtn} ${focusDepth === 'full' ? styles.focusDepthBtnActive : ''}`}
+              onClick={() => setFocusDepth('full')}
+              title="Show all ancestors and descendants"
+            >
+              Full Path
+            </button>
+          </div>
           <span className={styles.focusBannerHint}>
             Esc or double-click background to exit
           </span>
@@ -1621,6 +1909,19 @@ export function Canvas() {
         🗑 Click to delete connection
       </div>
 
+      {/* PathTypePopover — appears when clicking an edge with 'select' tool */}
+      {pathTypePopover && (
+        <PathTypePopover
+          edge={pathTypePopover.edge}
+          position={pathTypePopover.position}
+          currentType={pathTypePopover.edge.pathType ?? 'standard'}
+          onSelect={(type) => {
+            setEdgePathType(`${pathTypePopover.edge.from}:${pathTypePopover.edge.to}`, type);
+          }}
+          onClose={() => setPathTypePopover(null)}
+        />
+      )}
+
       {/* Node hover tooltip — shows full name + tags when hovering a node */}
       {(() => {
         if (
@@ -1656,6 +1957,9 @@ export function Canvas() {
           </div>
         );
       })()}
+
+      {/* Summon overlay — dims canvas behind the dock */}
+      {summonActive && <SummonOverlay />}
 
       {/* Persistent attribution — bottom-left corner */}
       <div className={styles.credit}>

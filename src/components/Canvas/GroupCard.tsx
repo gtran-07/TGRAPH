@@ -435,7 +435,7 @@ export const GroupCard = memo(function GroupCard({
       data-group-id={group.id}
       data-id={group.id}
       style={{
-        cursor: 'grab',
+        cursor: designMode ? 'grab' : 'pointer',
         transform: `translate(${position.x}px,${position.y}px)`,
         opacity: discoveryActive ? undefined : collapsedFocusOpacity,
       }}

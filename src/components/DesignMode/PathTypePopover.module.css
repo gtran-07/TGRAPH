@@ -1,0 +1,63 @@
+.popover {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  padding: 4px;
+  min-width: 192px;
+  animation: popoverIn 0.12s ease-out;
+}
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.header {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text3);
+  text-transform: uppercase;
+  padding: 6px 10px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.row:hover {
+  background: var(--bg3);
+  color: var(--text1);
+}
+
+.rowActive {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text1);
+}
+
+.label {
+  flex: 1;
+}
+
+.check {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}

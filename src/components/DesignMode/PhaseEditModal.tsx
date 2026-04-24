@@ -13,6 +13,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGraphStore } from '../../store/graphStore';
 import { PHASE_PALETTE } from '../../types/graph';
 import styles from './NodeEditModal.module.css';
+import { ColorSwatchPicker } from './ColorSwatchPicker';
 
 type ModalMode = 'create' | 'edit';
 
@@ -53,25 +54,9 @@ export function PhaseEditModal() {
       setIsOpen(true);
     }
 
-    function handleEdit(e: Event) {
-      const { phaseId } = (e as CustomEvent<{ phaseId: string }>).detail;
-      const phase = phases.find((p) => p.id === phaseId);
-      if (!phase) return;
-
-      setMode('edit');
-      setEditingPhaseId(phaseId);
-      setPreselectedNodeIds(phase.nodeIds);
-      setFieldName(phase.name);
-      setFieldDesc(phase.description);
-      setFieldColor(phase.color);
-      setIsOpen(true);
-    }
-
     document.addEventListener('flowgraph:create-phase', handleCreate);
-    document.addEventListener('flowgraph:edit-phase', handleEdit);
     return () => {
       document.removeEventListener('flowgraph:create-phase', handleCreate);
-      document.removeEventListener('flowgraph:edit-phase', handleEdit);
     };
   }, [phases]);
 
@@ -171,45 +156,7 @@ export function PhaseEditModal() {
           {/* Color picker */}
           <div className={styles.field}>
             <label className={styles.label}>Color</label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {PHASE_PALETTE.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setFieldColor(color)}
-                  title={color}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: '50%',
-                    background: color,
-                    border: fieldColor === color ? '2.5px solid var(--text1)' : '2px solid transparent',
-                    cursor: 'pointer',
-                    outline: fieldColor === color ? `2px solid ${color}` : 'none',
-                    outlineOffset: 2,
-                    flexShrink: 0,
-                  }}
-                />
-              ))}
-              {/* Custom hex input */}
-              <input
-                type="color"
-                value={fieldColor}
-                onChange={(e) => setFieldColor(e.target.value)}
-                title="Custom color"
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 4,
-                  border: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  padding: 1,
-                }}
-              />
-              <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
-                {fieldColor}
-              </span>
-            </div>
+            <ColorSwatchPicker value={fieldColor} onChange={setFieldColor} />
           </div>
 
           {/* Assigned nodes (edit mode) */}

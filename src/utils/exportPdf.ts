@@ -211,7 +211,7 @@ function colorizeEdges(
   const snaps: EdgeSnap[] = [];
   const usedColors = new Set<string>();
 
-  svgEl.querySelectorAll<SVGPathElement>('.edge-vis').forEach((path) => {
+  svgEl.querySelectorAll<SVGPathElement>('.edge-groove').forEach((path) => {
     const fromId = path.parentElement?.getAttribute('data-edge-from') ?? '';
     const owner  = nodeOwnerMap[fromId] ?? '';
     const color  = ownerColors[owner]   ?? '#4f9eff';
