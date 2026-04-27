@@ -13,7 +13,7 @@
  */
 
 import React, { useLayoutEffect, useRef } from 'react';
-import { computeEdgePath, NODE_W, NODE_H } from '../../utils/layout';
+import { computeEdgePath, NODE_W, NODE_H, GAP_X } from '../../utils/layout';
 import type { GraphEdge, GraphGroup, Position, GraphNode } from '../../types/graph';
 import { useGraphStore } from '../../store/graphStore';
 import { getCollapsedGroupForNode, getAllDescendantNodeIds } from '../../utils/grouping';
@@ -52,7 +52,7 @@ export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, gr
     const container = containerRef.current;
     if (!container) return;
 
-    const COLUMN_SPACING = NODE_W + 140;  // NODE_W=180 + GAP_X=140
+    const COLUMN_SPACING = NODE_W + GAP_X;
     // Keep COLUMN_STAGGER in sync with Canvas.tsx nodeEntranceDelay (120ms per column).
     const COLUMN_STAGGER = 120;           // ms per source column — matches Canvas.tsx
     const POST_NODE_DELAY = 350;          // ms after source-column nodes begin appearing

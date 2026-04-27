@@ -198,16 +198,24 @@ Staggered on file load and focus-mode entry. Suppressed on view-mode switch, foc
 - **Per-edge metadata** — store in a parallel `Record<string, T>` map in state (keyed by `"${fromId}:${toId}"`). Inject as a runtime-only property on the edge object after each rebuild call. Follow the `edgePathTypes` pattern for any future edge-level data.
 
 ### SVG Portal Rule
-Any popover, dropdown, or tooltip triggered by a click inside SVG must render via `ReactDOM.createPortal(content, document.body)` with `position: fixed`. SVG's `overflow` clips `position: fixed` React children at the SVG container boundary even though fixed positioning ignores normal document flow.
+Any popover, dropdown, or tooltip triggered by a click inside SVG must render via `ReactDOM.createPortal(content, document.body)` with `position: fixed`.
 
 ### Multi-Mode Visual Precedence
-When multiple display modes affect the same visual property on an edge or node, establish the precedence chain explicitly at the time you add the mode. Current resolution: **structural properties** (strokeWidth) apply in all modes; **narrative properties** (opacity, color, dash) yield to higher-priority modes. Priority order: cinema > owner focus > river flow. Add new visual modes following this chain — do not let modes silently overwrite each other.
+When multiple display modes affect the same visual property on an edge or node, establish the precedence chain explicitly at the time you add the mode. Current resolution: **structural properties** (strokeWidth) apply in all modes; **narrative properties** (opacity, color, dash) yield to higher-priority modes. Priority order: cinema > owner focus > river flow.
 
 ### Space-Key Pan
 Holding `Space` activates pan-anywhere mode regardless of active design tool. Cursor → `grab`; release restores previous cursor.
 
 ### Layout Cache
-`layoutCache` holds `{positions, transform}` keyed by view mode (`'dag'` / `'lanes'`). Always call `saveLayoutToCache()` after drag-drop or manual layout change.
+`layoutCache` holds `{positions, transform}` keyed by view mode (`'dag'` / `'lanes'`). Always call `saveLayoutToCache()` after drag-drop, manual layout change, or auto-layout completion.
+
+### Web Workers
+Vite supports `new Worker(new URL('../workers/file.ts', import.meta.url), { type: 'module' })` natively — no config change needed. The worker is bundled as a separate chunk automatically.
+
+**Module-level singleton exception to "all state in store":** Resources that need imperative lifecycle management (terminate/recreate, cancel) — such as Worker instances — belong at module level outside Zustand, not in store state. Storing them in state would trigger renders on reassignment. Declare them as `let workerRef: Worker | null = null` before `export const useGraphStore`.
+
+### Canvas IIFE Ordering
+The entrance-suppression IIFE in Canvas runs inline in the render function body. Any `const`/`let` state variable it references must be declared **before** it — the temporal dead zone causes a TS error (`used before declaration`) otherwise. When adding new Canvas state that the suppression logic needs, declare it above the IIFE block.
 
 ---
 
@@ -232,7 +240,9 @@ Holding `Space` activates pan-anywhere mode regardless of active design tool. Cu
 | Entrance animation on view switch / focus exit | `#graph-content` remounts on key change; bulk fade always played | Direction-aware suppression: IIFE + 700ms `suppressActiveRef` window |
 | JS removes animation class; React restores it | JSX `className` and `classList.remove()` fight — React wins | Never put animation-state classes in JSX `className` |
 | `Record<UnionType, T>` breaks on union extension | TypeScript requires exhaustive keys; adding a value to a union immediately errors every map using it as a key | Extend the union and all its exhaustive maps in the same edit |
+| `new Map<A,B>(otherMap)` TS error | Map constructor only accepts `Iterable<[A,B]>`; passing a `Map<A,C>` fails type-check even though it looks valid | Use `.forEach()` to copy-and-convert across Map value types |
 | EdgeLayer.tsx bottom section is dead code | `LaneLayer`, `GhostEdge`, `MiniMap` are defined at the bottom of EdgeLayer.tsx but imported from separate files by Canvas.tsx | Do not edit those bottom definitions — they are unreachable |
+| Canvas state used before declaration in IIFE | `const`/`let` in render body has a temporal dead zone; the suppression IIFE runs before later declarations | Declare any state referenced by the IIFE **above** it |
 
 ---
 

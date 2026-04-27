@@ -227,6 +227,7 @@ export interface UndoSnapshot {
   groups: GraphGroup[];
   phases?: GraphPhase[];
   edgePathTypes?: Record<string, PathType>;
+  laneMetrics?: Record<string, LaneMetrics>;
 }
 
 // ─── PHASE TYPES ─────────────────────────────────────────────────────────────

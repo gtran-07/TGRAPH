@@ -20,6 +20,7 @@ import React, {
   useState,
   useMemo,
 } from "react";
+import ReactDOM from "react-dom";
 import { useGraphStore } from "../../store/graphStore";
 import type { Transform } from "../../types/graph";
 import { NodeCard } from "./NodeCard";
@@ -45,8 +46,8 @@ import {
 } from "../../utils/layout";
 import { DesignToolbar } from "../DesignMode/DesignToolbar";
 import { CanvasPing } from "../SummonMode/CanvasPing";
-import { GhostRing } from "../SummonMode/GhostRing";
 import { SummonOverlay } from "../SummonMode/SummonOverlay";
+import { GhostRing } from "../SummonMode/GhostRing";
 import {
   computeGroupNestLevel,
   getAllDescendantNodeIds,
@@ -103,6 +104,7 @@ export function Canvas() {
     copySelection,
     pasteClipboard,
     pasteCount,
+    loadCount,
     groups,
     toggleGroupCollapse,
     clearMultiSelect,
@@ -125,8 +127,17 @@ export function Canvas() {
     edgePathTypes,
     summonActive,
     summonSourceId,
+    summonSourceIds,
     summonShowRing,
+    autoLayoutRunning,
+    autoLayoutPhase,
+    autoLayoutFromPositions,
+    clearAutoLayoutFromPositions,
   } = useGraphStore();
+
+  // ── Auto-layout animation positions (declared early — referenced by suppression IIFE below) ──
+  const [layoutAnimPositions, setLayoutAnimPositions] = useState<Record<string, { x: number; y: number }> | null>(null);
+  const layoutAnimRef = useRef<number | null>(null);
 
   // ── Entrance animation suppression ────────────────────────────────────
   // Direction-aware: compare previous render's values with current to decide
@@ -142,9 +153,9 @@ export function Canvas() {
   const prevViewModeRef = useRef(viewMode);
   const prevFocusModeRef = useRef(focusMode);
   const prevFocusedOwnerRef = useRef(focusedOwner);
-  const prevAllNodesLenRef = useRef(allNodes.length);
   const prevVisibleNodesLenRef = useRef(visibleNodes.length);
   const prevPasteCountRef = useRef(pasteCount);
+  const prevLoadCountRef = useRef(loadCount);
 
   // Persistent 700 ms suppression window
   const suppressActiveRef = useRef(false);
@@ -152,8 +163,7 @@ export function Canvas() {
 
   // Explicit "must animate" events — take absolute priority, can clear the window early
   const animateThisRender = (() => {
-    const isPasteRender = prevPasteCountRef.current !== pasteCount;
-    if (!isPasteRender && prevAllNodesLenRef.current !== allNodes.length) return true; // file load
+    if (prevLoadCountRef.current !== loadCount) return true; // file load
     if (!prevFocusModeRef.current && focusMode) return true; // focus enter
     if (prevFocusedOwnerRef.current === null && focusedOwner !== null)
       return true; // owner enter
@@ -163,6 +173,7 @@ export function Canvas() {
   // Transitions that should suppress entrance animations
   const suppressThisRender = (() => {
     if (animateThisRender) return false; // animate wins
+    if (autoLayoutRunning || layoutAnimPositions !== null) return true; // layout in progress
     if (prevPasteCountRef.current !== pasteCount) return true; // paste
     if (prevViewModeRef.current !== viewMode) return true; // DAG↔LANE
     if (prevFocusModeRef.current && !focusMode) return true; // focus exit
@@ -197,10 +208,61 @@ export function Canvas() {
     prevViewModeRef.current = viewMode;
     prevFocusModeRef.current = focusMode;
     prevFocusedOwnerRef.current = focusedOwner;
-    prevAllNodesLenRef.current = allNodes.length;
     prevVisibleNodesLenRef.current = visibleNodes.length;
     prevPasteCountRef.current = pasteCount;
+    prevLoadCountRef.current = loadCount;
   });
+
+  // ── Auto-layout transition animation ─────────────────────────────────
+  // When autoLayoutFromPositions becomes non-null (layout started capturing from-state)
+  // and autoLayoutRunning goes false (layout finished), we animate nodes from their old
+  // positions to the new ones over 400ms using RAF + local state.
+  useEffect(() => {
+    // Only run when layout just completed: not running and from-positions captured
+    if (autoLayoutRunning || autoLayoutFromPositions === null) return;
+
+    if (layoutAnimRef.current !== null) {
+      cancelAnimationFrame(layoutAnimRef.current);
+      layoutAnimRef.current = null;
+    }
+
+    const fromPos = autoLayoutFromPositions;
+    const startTime = performance.now();
+    const DURATION = 400;
+
+    function step() {
+      const t = Math.min((performance.now() - startTime) / DURATION, 1);
+      const eased = 1 - (1 - t) ** 3; // easeOutCubic
+
+      const currentPositions = useGraphStore.getState().positions;
+      const interp: Record<string, { x: number; y: number }> = {};
+      for (const id of Object.keys(currentPositions)) {
+        const from = fromPos[id];
+        const to = currentPositions[id];
+        interp[id] = from
+          ? { x: from.x + (to.x - from.x) * eased, y: from.y + (to.y - from.y) * eased }
+          : to;
+      }
+      setLayoutAnimPositions(interp);
+
+      if (t < 1) {
+        layoutAnimRef.current = requestAnimationFrame(step);
+      } else {
+        layoutAnimRef.current = null;
+        setLayoutAnimPositions(null);
+        clearAutoLayoutFromPositions();
+      }
+    }
+
+    layoutAnimRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (layoutAnimRef.current !== null) {
+        cancelAnimationFrame(layoutAnimRef.current);
+        layoutAnimRef.current = null;
+      }
+    };
+  }, [autoLayoutRunning, autoLayoutFromPositions, clearAutoLayoutFromPositions]);
 
   // ── Refs ──────────────────────────────────────────────────────────────
   const svgRef = useRef<SVGSVGElement>(null);
@@ -301,16 +363,18 @@ export function Canvas() {
   // ── Phase-adjusted positions (visual x-shift for collapsed bands, dag only) ─
   // Nodes to the right of a collapsed band shift left to fill freed space.
   // Stored positions are never mutated.
+  // During auto-layout animation, layoutAnimPositions overrides raw positions.
+  const displayPositions = layoutAnimPositions ?? positions;
   const adjustedPositions = useMemo(() => {
-    if (collapsedPhaseIds.length === 0) return positions;
+    if (collapsedPhaseIds.length === 0) return displayPositions;
     return computePhaseAdjustedPositions(
       phases,
-      positions,
+      displayPositions,
       collapsedPhaseIds,
       NODE_W,
       viewMode === "lanes" ? LANE_LABEL_W : undefined,
     ).adjustedPositions;
-  }, [phases, positions, collapsedPhaseIds, viewMode]);
+  }, [phases, displayPositions, collapsedPhaseIds, viewMode]);
   adjustedPositionsRef.current = adjustedPositions;
 
   // ── Per-node entrance delay: column stagger + y-rank within column ─────
@@ -469,22 +533,7 @@ export function Canvas() {
     curSvg: { x: number; y: number };
   } | null>(null);
 
-  // ── Node hover tooltip position (screen coords) ───────────────────────
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(
-    null,
-  );
-  const [tooltipHidden, setTooltipHidden] = useState(false);
-  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    setTooltipHidden(false);
-    if (hoveredNodeId) {
-      tooltipTimerRef.current = setTimeout(() => setTooltipHidden(true), 1500);
-    }
-    return () => {
-      if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    };
-  }, [hoveredNodeId]);
+  // (node hover status bar uses hoveredNodeId directly — no timer, no position tracking)
 
   // ── Collapsed phase hover card ─────────────────────────────────────────
   const [collapsedPhaseHover, setCollapsedPhaseHover] = useState<{
@@ -654,12 +703,6 @@ export function Canvas() {
         setGhostTarget(pt);
       }
 
-      // Track mouse position for node hover tooltip
-      const wrap = canvasWrapRef.current;
-      if (wrap) {
-        const rect = wrap.getBoundingClientRect();
-        setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-      }
     }
 
     // Marquee: update current corner
@@ -921,6 +964,12 @@ export function Canvas() {
           exitOwnerFocus();
         } else if (focusMode) {
           exitFocusMode();
+        } else if (multiSelectIds.length > 0 || selectedNodeId || selectedGroupId || selectedPhaseId) {
+          const { setSelectedGroup: setGroup } = useGraphStore.getState();
+          clearMultiSelect();
+          setSelectedNode(null);
+          setGroup(null);
+          setSelectedPhaseId(null);
         }
         return;
       }
@@ -929,9 +978,15 @@ export function Canvas() {
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         const state = useGraphStore.getState();
-        if (state.selectedNodeId && !state.summonActive && !state.discoveryActive) {
-          e.preventDefault();
-          state.activateSummon(state.selectedNodeId);
+        if (!state.summonActive && !state.discoveryActive && state.designMode) {
+          // Single-node only: multi-select blocks summon
+          if (state.multiSelectIds.length > 1) return;
+          const sourceId = state.selectedNodeId ||
+            (state.designTool === 'connect' && state.connectSourceId ? state.connectSourceId : null);
+          if (sourceId) {
+            e.preventDefault();
+            state.activateSummon(sourceId);
+          }
         }
         return;
       }
@@ -1012,6 +1067,10 @@ export function Canvas() {
     groups,
     copySelection,
     pasteClipboard,
+    selectedPhaseId,
+    clearMultiSelect,
+    setSelectedNode,
+    setSelectedPhaseId,
   ]);
 
   // ── Summon source aura ────────────────────────────────────────────────
@@ -1021,19 +1080,21 @@ export function Canvas() {
         el.classList.remove("summon-source-aura")
       );
     };
-    if (!summonActive || !summonSourceId) { cleanup(); return cleanup; }
+    if (!summonActive || summonSourceIds.length === 0) { cleanup(); return cleanup; }
     const state = useGraphStore.getState();
-    const sourceNode = state.allNodes.find((n) => n.id === summonSourceId);
-    const color = sourceNode
-      ? (state.ownerColors[sourceNode.owner] ?? "rgba(79,158,255,0.4)")
-      : "rgba(79,158,255,0.4)";
-    const el = document.querySelector(`.node-group[data-id="${summonSourceId}"]`);
-    if (el) {
-      (el as SVGElement).style.setProperty("--aura-color", color);
-      el.classList.add("summon-source-aura");
-    }
+    summonSourceIds.forEach(id => {
+      const sourceNode = state.allNodes.find((n) => n.id === id);
+      const color = sourceNode
+        ? (state.ownerColors[sourceNode.owner] ?? "rgba(79,158,255,0.4)")
+        : "rgba(79,158,255,0.4)";
+      const el = document.querySelector(`.node-group[data-id="${id}"]`);
+      if (el) {
+        (el as SVGElement).style.setProperty("--aura-color", color);
+        el.classList.add("summon-source-aura");
+      }
+    });
     return cleanup;
-  }, [summonActive, summonSourceId]);
+  }, [summonActive, summonSourceIds]);
 
   // ── Hover highlight via direct DOM class manipulation ────────────────
   // Positive-only: only the hovered node and its direct neighbors get visual
@@ -1464,7 +1525,7 @@ export function Canvas() {
           {/* Layer order: lanes background → edges → nodes (nodes always on top) */}
           {/* key causes React to remount when view/focus changes, replaying the CSS fade-in */}
           <g
-            key={`${viewMode}-${focusMode ? focusNodeId : "normal"}-${visibleNodes.length}-${visibleEdges[0]?.from ?? "x"}`}
+            key={`${viewMode}-${focusMode ? focusNodeId : "normal"}`}
             id="graph-content"
             className={suppressEntrance ? "suppress-entrance" : undefined}
             style={spaceHeld ? { pointerEvents: "none" } : undefined}
@@ -1660,9 +1721,8 @@ export function Canvas() {
               })}
             </g>
 
-            {/* Summon ring + ping — above all nodes */}
+            {/* Summon ping — above all nodes */}
             {summonActive && <CanvasPing />}
-            {summonActive && summonShowRing && <GhostRing />}
           </g>
           {/* end graph-content */}
 
@@ -1922,44 +1982,34 @@ export function Canvas() {
         />
       )}
 
-      {/* Node hover tooltip — shows full name + tags when hovering a node */}
-      {(() => {
-        if (
-          !hoveredNodeId ||
-          !tooltipPos ||
-          isMouseDown ||
-          focusMode ||
-          tooltipHidden
-        )
-          return null;
+      {/* Node hover status bar — shows node/group name in a fixed bottom strip, never covers graph */}
+      {hoveredNodeId && !isMouseDown && (() => {
         const hovNode = allNodes.find((n) => n.id === hoveredNodeId);
-        if (!hovNode) return null;
-        const wrap = canvasWrapRef.current;
-        const wrapW = wrap?.offsetWidth ?? 9999;
-        const wrapH = wrap?.offsetHeight ?? 9999;
-        const TOOLTIP_W = 220;
-        const OFFSET_X = 14;
-        const OFFSET_Y = -12;
-        let left = tooltipPos.x + OFFSET_X;
-        let top = tooltipPos.y + OFFSET_Y;
-        // Clamp so tooltip never overflows the canvas container
-        if (left + TOOLTIP_W > wrapW - 8)
-          left = tooltipPos.x - TOOLTIP_W - OFFSET_X;
-        if (top < 8) top = tooltipPos.y + 24;
-        if (top + 80 > wrapH - 8) top = tooltipPos.y - 80;
+        const hovGroup = !hovNode ? groups.find((g) => g.id === hoveredNodeId) : null;
+        const name = hovNode?.name ?? hovGroup?.name;
+        if (!name) return null;
         return (
-          <div
-            className={styles.nodeTooltip}
-            style={{ left, top, maxWidth: TOOLTIP_W }}
-            // pointer-events:none so it never captures mouse events
-          >
-            <div className={styles.nodeTooltipName}>{hovNode.name}</div>
+          <div className={styles.nodeHoverBar}>
+            <div className={styles.nodeHoverBarName}>{name}</div>
           </div>
         );
       })()}
 
       {/* Summon overlay — dims canvas behind the dock */}
       {summonActive && <SummonOverlay />}
+      {/* Ghost ring — portals above the overlay; self-manages visibility via store */}
+      {summonActive && summonShowRing && <GhostRing />}
+
+      {/* Auto-layout loading overlay — shown while worker is computing */}
+      {autoLayoutRunning && ReactDOM.createPortal(
+        <div className="auto-layout-overlay">
+          <div className="auto-layout-pill">
+            <span className="auto-layout-spinner" />
+            <span>Optimizing layout{autoLayoutPhase ? `… ${autoLayoutPhase}` : '…'}</span>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Persistent attribution — bottom-left corner */}
       <div className={styles.credit}>

@@ -40,6 +40,7 @@ export function useSummonMode(): SummonData {
   const positions = useGraphStore(s => s.positions);
   const summonActive = useGraphStore(s => s.summonActive);
   const summonSourceId = useGraphStore(s => s.summonSourceId);
+  const summonSourceIds = useGraphStore(s => s.summonSourceIds);
   const summonFilter = useGraphStore(s => s.summonFilter);
   const summonShowRing = useGraphStore(s => s.summonShowRing);
   const summonConnected = useGraphStore(s => s.summonConnected);
@@ -60,8 +61,9 @@ export function useSummonMode(): SummonData {
       };
     }
 
-    const sourceNode = allNodes.find(n => n.id === summonSourceId);
-    if (!sourceNode) {
+    const sourceSet = new Set(summonSourceIds);
+    const primaryNode = allNodes.find(n => n.id === summonSourceId);
+    if (!primaryNode) {
       return {
         ownerGroups: [],
         totalCount: 0,
@@ -72,10 +74,16 @@ export function useSummonMode(): SummonData {
       };
     }
 
-    const sourceTags = new Set((sourceNode.tags ?? []).map(t => t.label));
+    // Union of tags across all source nodes for badge inference
+    const sourceTags = new Set(
+      summonSourceIds.flatMap(id => {
+        const n = allNodes.find(x => x.id === id);
+        return (n?.tags ?? []).map(t => t.label);
+      })
+    );
     const edgeSet = new Set(allEdges.map(e => `${e.from}:${e.to}`));
 
-    const candidates = allNodes.filter(n => n.id !== summonSourceId);
+    const candidates = allNodes.filter(n => !sourceSet.has(n.id));
     const totalCount = candidates.length;
 
     const filterLower = summonFilter.toLowerCase();
@@ -85,13 +93,14 @@ export function useSummonMode(): SummonData {
     const filteredCount = filtered.length;
 
     const mapped: FilteredNode[] = filtered.map(n => {
-      const hasEdgeToSource = edgeSet.has(`${n.id}:${summonSourceId}`);
-      const hasEdgeFromSource = edgeSet.has(`${summonSourceId}:${n.id}`);
-      const connected = hasEdgeToSource || hasEdgeFromSource || summonConnected.has(n.id);
+      // Connected if any source→target or target→source edge exists for any source
+      const hasEdgeToAnySource = summonSourceIds.some(sid => edgeSet.has(`${n.id}:${sid}`));
+      const hasEdgeFromAnySource = summonSourceIds.some(sid => edgeSet.has(`${sid}:${n.id}`));
+      const connected = hasEdgeToAnySource || hasEdgeFromAnySource || summonConnected.has(n.id);
 
       let badge: FilteredNode['badge'] = null;
-      if (hasEdgeToSource) badge = 'upstream';
-      else if (hasEdgeFromSource) badge = 'downstream';
+      if (hasEdgeToAnySource) badge = 'upstream';
+      else if (hasEdgeFromAnySource) badge = 'downstream';
       else if (!connected && (n.tags ?? []).some(t => sourceTags.has(t.label))) badge = 'likely';
 
       return {
@@ -129,15 +138,16 @@ export function useSummonMode(): SummonData {
     const ghostRingNodes = summonShowRing && filteredCount <= 12 ? mapped : [];
     const showRingButton = filteredCount <= 12 && filteredCount > 0 && !summonShowRing;
 
+    // Create edges from ALL source nodes to the chosen target
     const connectToSource = (targetId: string) => {
-      addEdge(summonSourceId, targetId);
+      summonSourceIds.forEach(sid => addEdge(sid, targetId));
       addSummonConnected(targetId);
     };
 
     return { ownerGroups, totalCount, filteredCount, ghostRingNodes, showRingButton, connectToSource };
   }, [
     allNodes, allEdges, ownerColors, positions,
-    summonActive, summonSourceId, summonFilter, summonShowRing, summonConnected,
+    summonActive, summonSourceId, summonSourceIds, summonFilter, summonShowRing, summonConnected,
     addEdge, addSummonConnected,
   ]);
 }

@@ -139,6 +139,7 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
       }
       if (dragRef.current.moved) {
         groupRef.current?.classList.add('node-dragging');
+        document.getElementById('graph-content')?.classList.add('dragging-suppressed');
 
         if (isInMultiSelect) {
           // Move all selected items, clamping each to its own lane in LANES view
@@ -271,12 +272,9 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
           }
 
           if (shouldSnapBack) {
-            const el = groupRef.current;
-            el?.classList.add('node-snapping');
             useGraphStore.setState((s) => ({
               positions: { ...s.positions, [node.id]: { x: startX, y: startY } },
             }));
-            setTimeout(() => el?.classList.remove('node-snapping'), 300);
           } else {
             // Valid drop — anchor this node, resolve all other overlaps around it
             settleAndResolve(new Set([node.id]));
@@ -288,6 +286,7 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
       dragRef.current = null;
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      setTimeout(() => document.getElementById('graph-content')?.classList.remove('dragging-suppressed'), 0);
     }
 
     window.addEventListener('mousemove', onMouseMove);

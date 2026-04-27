@@ -24,7 +24,7 @@ export function DesignToolbar() {
     phases, assignNodesToPhase, assignGroupsToPhase,
     tracePathSource, tracePathResults, tracePathSelectedIndex,
     nextTracePath, prevTracePath, clearTracePath, setEdgePathTypeBatch,
-    allNodes, marqueeMode, toggleMarqueeMode,
+    allNodes,
   } = useGraphStore();
 
   const [phasePickerOpen, setPhasePickerOpen] = useState(false);
@@ -103,21 +103,6 @@ export function DesignToolbar() {
         onClick={() => setDesignTool('select')}
         title="Select / move nodes"
       >Select</button>
-
-      {/* Marquee selection toggle — only shown when Select tool is active */}
-      {designTool === 'select' && (
-        <button
-          className={styles.toolBtn}
-          onClick={() => toggleMarqueeMode()}
-          title={marqueeMode ? 'Marquee select: ON — drag to select nodes (click to disable)' : 'Marquee select: drag to select multiple nodes'}
-          style={marqueeMode ? { borderColor: '#3b82f6', color: '#3b82f6', background: 'rgba(59,130,246,0.12)' } : {}}
-        >
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" style={{ verticalAlign: 'middle', marginRight: 4 }}>
-            <rect x="1" y="1" width="12" height="12" rx="1"/>
-          </svg>
-          Marquee
-        </button>
-      )}
 
       <button
         className={`${styles.toolBtn} ${designTool === 'add' ? styles.active : ''}`}

@@ -118,6 +118,7 @@ export const GroupCard = memo(function GroupCard({
       }
       if (dragRef.current.moved) {
         groupRef.current?.classList.add('node-dragging');
+        document.getElementById('graph-content')?.classList.add('dragging-suppressed');
 
         if (isInMultiSelect) {
           // Move all selected items, clamping each to its own lane in LANES view
@@ -259,12 +260,9 @@ export const GroupCard = memo(function GroupCard({
           }
 
           if (shouldSnapBack) {
-            const el = groupRef.current;
-            el?.classList.add('node-snapping');
             useGraphStore.setState((s) => ({
               positions: { ...s.positions, [group.id]: { x: startX, y: startY } },
             }));
-            setTimeout(() => el?.classList.remove('node-snapping'), 300);
           } else {
             // Valid drop — anchor this group, run full phase + overlap settlement
             settleAndResolve(new Set([group.id]));
@@ -276,6 +274,7 @@ export const GroupCard = memo(function GroupCard({
       dragRef.current = null;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      setTimeout(() => document.getElementById('graph-content')?.classList.remove('dragging-suppressed'), 0);
     }
 
     window.addEventListener('mousemove', onMove);

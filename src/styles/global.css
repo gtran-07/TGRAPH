@@ -360,6 +360,13 @@ body {
   transition: none;
 }
 
+/* Kill all position transitions while any drag is active (covers the dragged node,
+   its neighbors being pushed by overlap resolution, and snap-back resets). */
+.dragging-suppressed .node-group,
+.dragging-suppressed .group-overlay {
+  transition: none !important;
+}
+
 /* ─── OWNER FILTER FADE ANIMATIONS ─────────────────────────────────────────
  * Triggered only when an owner is toggled in the sidebar — not on view-mode
  * switches (those use graphFadeIn on #graph-content instead).
@@ -374,23 +381,6 @@ body {
 }
 .node-fading-in  { animation: nodeFadeIn  280ms ease-out; }
 .node-fading-out { animation: nodeFadeOut 300ms ease-out forwards; pointer-events: none; }
-
-/* ─── PHASE SNAP-BACK ───────────────────────────────────────────────────────
- * Applied briefly when a node/group is dropped onto a foreign phase band.
- * The transition on `transform` makes the position revert animate smoothly.
- * The opacity flash draws attention to the rejection.
- */
-@keyframes snapBackFlash {
-  0%   { opacity: 0.5; }
-  60%  { opacity: 0.9; }
-  100% { opacity: 1; }
-}
-
-.node-group.node-snapping,
-.group-overlay.node-snapping {
-  transition: transform 220ms ease-out !important;
-  animation: snapBackFlash 220ms ease-out;
-}
 
 /* ─── EMPTY-STATE ANIMATIONS ─────────────────────────────────────────────────
  * Defined here (global scope) so Canvas.module.css can reference them by name
@@ -726,11 +716,6 @@ body {
   --summon-ghost-bg: rgba(25, 28, 35, 0.9);
 }
 
-@keyframes summon-aura {
-  0%, 100% { box-shadow: 0 0 15px var(--aura-color, rgba(79,158,255,0.3)); }
-  50%      { box-shadow: 0 0 30px var(--aura-color, rgba(79,158,255,0.6)); }
-}
-
 @keyframes summon-ping {
   0%   { r: 10; opacity: 0.8; }
   100% { r: 60; opacity: 0; }
@@ -742,11 +727,60 @@ body {
   100% { transform: scale(1); }
 }
 
-@keyframes summon-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+@keyframes summon-source-pulse {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  60%  { transform: scale(1.22); opacity: 0.15; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 
-.summon-source-aura {
-  animation: summon-aura 2s ease-in-out infinite;
+.summon-source-ring {
+  opacity: 1;
+  filter: drop-shadow(0 0 8px var(--ring-color));
+}
+
+/* ─── AUTO-LAYOUT OVERLAY ─────────────────────────────────────────────────── */
+
+.auto-layout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.auto-layout-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(22, 28, 39, 0.92);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 9999px;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: #a7f3d0;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  animation: auto-layout-pulse 1.6s ease-in-out infinite;
+}
+
+.auto-layout-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(34, 197, 94, 0.25);
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: auto-layout-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes auto-layout-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes auto-layout-pulse {
+  0%, 100% { box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 0 0 rgba(34,197,94,0.15); }
+  50%       { box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 0 6px rgba(34,197,94,0); }
 }

@@ -99,3 +99,12 @@
   font-family: inherit;
 }
 .sectionToggle:hover { color: var(--text2); }
+
+.depRow {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 4px 6px; border-radius: 5px;
+  background: none; border: none; cursor: pointer; text-align: left;
+  transition: background 0.12s;
+}
+.depRow:hover { background: rgba(99,102,241,0.09); }
+.depRow:hover .depRowName { color: var(--text1); }

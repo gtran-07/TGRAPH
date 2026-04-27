@@ -15,14 +15,12 @@ export function SummonDock(): React.ReactElement | null {
   const summonFilter = useGraphStore(s => s.summonFilter);
   const setSummonFilter = useGraphStore(s => s.setSummonFilter);
   const deactivateSummon = useGraphStore(s => s.deactivateSummon);
-  const setSummonPingTarget = useGraphStore(s => s.setSummonPingTarget);
   const toggleSummonRing = useGraphStore(s => s.toggleSummonRing);
 
   const { ownerGroups, totalCount, filteredCount, showRingButton, connectToSource } = useSummonMode();
 
   const dockRef = useRef<HTMLDivElement>(null);
   const [expandedOwners, setExpandedOwners] = useState<Set<string>>(new Set());
-  const pingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Entry animation: double rAF to guarantee layout before adding .visible
   useEffect(() => {
@@ -51,21 +49,6 @@ export function SummonDock(): React.ReactElement | null {
       else next.add(owner);
       return next;
     });
-  };
-
-  const handleRowMouseEnter = (node: FilteredNode) => {
-    if (!node.position) return;
-    pingTimerRef.current = setTimeout(() => {
-      setSummonPingTarget({ x: node.position!.x, y: node.position!.y, color: node.color });
-    }, 1000);
-  };
-
-  const handleRowMouseLeave = () => {
-    if (pingTimerRef.current != null) {
-      clearTimeout(pingTimerRef.current);
-      pingTimerRef.current = null;
-    }
-    setSummonPingTarget(null);
   };
 
   const content = (
@@ -102,8 +85,6 @@ export function SummonDock(): React.ReactElement | null {
                   className={styles.nodeRow}
                   style={{ borderLeftColor: group.color }}
                   onClick={() => connectToSource(node.id)}
-                  onMouseEnter={() => handleRowMouseEnter(node)}
-                  onMouseLeave={handleRowMouseLeave}
                 >
                   {node.connected && <span className={styles.connectedCheck}>✓</span>}
                   <span className={styles.nodeLabel}>{node.label}</span>

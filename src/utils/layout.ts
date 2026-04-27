@@ -24,23 +24,23 @@ export const COLLAPSED_W = 48;
 /** Height of each node rectangle in SVG user-space units */
 export const NODE_H = 72;
 /** Horizontal gap between node columns (the space between layers) */
-export const GAP_X = 140;
+export const GAP_X = 320;
 /** Vertical gap between nodes within the same column */
-export const GAP_Y = 52;
+export const GAP_Y = 150;
 /** Width reserved on the left of each swim lane for the lane label */
 export const LANE_LABEL_W = 130;
 /** Vertical padding inside each swim lane (space above first node and below last node) */
-export const LANE_PAD_Y = 28;
+export const LANE_PAD_Y = 44;
 /** Vertical gap between swim lanes */
-export const LANE_GAP = 18;
+export const LANE_GAP = 30;
 /** Minimum horizontal gap enforced between node/group edges for legibility */
-export const LEGIBILITY_PAD_X = 24;
+export const LEGIBILITY_PAD_X = 50;
 /** Minimum vertical gap enforced between node/group edges for legibility */
-export const LEGIBILITY_PAD_Y = 16;
+export const LEGIBILITY_PAD_Y = 50;
 /** Extra horizontal spacing injected at each phase boundary for clear visual column separation */
-export const PHASE_INTER_GAP = 80;
+export const PHASE_INTER_GAP = 100;
 /** Vertical gap between independently laid-out connected components when stacking them */
-export const COMPONENT_GAP = 120;
+export const COMPONENT_GAP = 200;
 
 // ─── INTERNAL TYPES (not exported — only used within this file) ──────────────
 
@@ -178,6 +178,36 @@ export function computeLayout(
     if (layer[nodeId] === undefined) layer[nodeId] = maxLayer;
   });
 
+  // ── Step 2.1: Right-justify layers (compact toward successors) ───────────
+  // The BFS above gives each node its EARLIEST valid layer. This step pushes
+  // every non-phase node as far RIGHT as possible without breaking topological
+  // order: layer[node] = min(successor layers) − 1.
+  //
+  // Why: a root with one edge to column 5 stays at column 0 under min-layering,
+  // producing a 5-column-long diagonal edge. Right-justify moves it to column 4,
+  // right beside its only dependent. Internal "relay" nodes with long incoming
+  // edges also compact rightward, so most edges end up spanning exactly one column.
+  //
+  // Phase-assigned nodes are excluded — step 2.5 controls their placement.
+  // Sinks (no out-edges) are already as far right as possible — skip them.
+  // Layers only ever increase here (never moved left), so the topological
+  // invariant (parent layer < child layer) is automatically preserved when
+  // nodes are processed in descending layer order (successors first).
+  const phaseOwnedIds = new Set<string>();
+  if (phases) phases.forEach((ph) => ph.nodeIds.forEach((id) => phaseOwnedIds.add(id)));
+
+  const nodesByDescLayer = [...nodeIds].sort((a, b) => (layer[b] ?? 0) - (layer[a] ?? 0));
+  nodesByDescLayer.forEach((nodeId) => {
+    if (phaseOwnedIds.has(nodeId)) return;
+    const successors = (outAdjacency[nodeId] ?? []).filter((s) => nodeIdSet.has(s));
+    if (successors.length === 0) return; // sink — leave as-is
+    const minSuccLayer = Math.min(...successors.map((s) => layer[s] ?? 0));
+    const desired = minSuccLayer - 1;
+    if (desired > (layer[nodeId] ?? 0)) {
+      layer[nodeId] = desired;
+    }
+  });
+
   // ── Step 2.5: Phase-stratified layer floors ──────────────────────────────
   // Enforce phase sequence order in layer space: each phase's nodes must occupy
   // layers strictly greater than all nodes in earlier phases. This makes phase columns
@@ -247,7 +277,7 @@ export function computeLayout(
     });
   }
 
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 24; pass++) {
     // Forward sweep: sort each layer based on positions of nodes in the PREVIOUS layer
     sortedLayerIndices.forEach((layerIndex, positionInSortedList) => {
       if (positionInSortedList === 0) return; // No previous layer to reference
@@ -268,6 +298,34 @@ export function computeLayout(
       layerGroups[layerIndex] = sortWithGroupCohesion(layerGroups[layerIndex], barycenters, nodeToGroupId);
     }
   }
+
+  // ── Step 4.5: Implicit cluster sort ─────────────────────────────────────
+  // After the barycenter passes have settled node order, do one final pass that
+  // groups tightly-connected same-layer nodes (≥2 shared neighbors) into blocks.
+  // Explicit group membership takes priority; implicit clusters act as a fallback.
+  sortedLayerIndices.forEach((layerIndex, positionInSortedList) => {
+    const nodesInLayer = layerGroups[layerIndex];
+    if (nodesInLayer.length < 2) return;
+
+    const implicitClusters = buildImplicitClusters(nodesInLayer, inAdjacency, outAdjacency);
+
+    const mergedGrouping = new Map<string, string>();
+    nodesInLayer.forEach((nid) => {
+      mergedGrouping.set(nid, nodeToGroupId.get(nid) ?? implicitClusters.get(nid) ?? nid);
+    });
+
+    const barycenters = new Map<string, number>();
+    nodesInLayer.forEach((nid) => {
+      barycenters.set(
+        nid,
+        positionInSortedList > 0
+          ? computeBarycenter(nid, inAdjacency, layerGroups, layer, sortedLayerIndices, positionInSortedList)
+          : sortedLayerIndices.length / 2
+      );
+    });
+
+    layerGroups[layerIndex] = sortWithGroupCohesion(nodesInLayer, barycenters, mergedGrouping);
+  });
 
   // ── Step 5: Assign final (x, y) coordinates ─────────────────────────────
   // X = layer × (NODE_W + GAP_X) + phase-gap offset.
@@ -301,15 +359,12 @@ export function computeLayout(
   }
 
   const positions: Record<string, Position> = {};
-  const STEP = NODE_H + GAP_Y;
 
   sortedLayerIndices.forEach((layerIndex) => {
     const nodesInLayer = layerGroups[layerIndex];
     const xOffset = phaseGapOffsets.get(layerIndex) ?? 0;
 
-    // Gravity center: collect the center-Y of every predecessor that is already placed.
-    // We gather from ALL nodes in this layer (not per-node) to get one stable anchor for
-    // the whole column — competing per-node pulls would scatter the layer unpredictably.
+    // Column-level gravity center: mean predecessor center-Y, used as fallback for orphan nodes.
     const gravitySamples: number[] = [];
     nodesInLayer.forEach((id) => {
       (inAdjacency[id] ?? []).forEach((pid) => {
@@ -320,21 +375,358 @@ export function computeLayout(
     });
     const gravityCenterY = gravitySamples.length > 0
       ? gravitySamples.reduce((a, b) => a + b, 0) / gravitySamples.length
-      : 0; // no predecessors yet (first layer): center at canvas origin
+      : 0;
 
-    // Place nodes evenly spaced, centered around the gravity anchor.
-    // Formula: startY positions the midpoint of all node centers at gravityCenterY.
-    const startY = gravityCenterY - NODE_H / 2 - (nodesInLayer.length - 1) * STEP / 2;
+    // Per-node ideal Y: mean center-Y of this node's direct placed predecessors.
+    // This lets each node "seek" its natural vertical position based on what feeds it,
+    // creating intelligent spatial gaps between subgraphs within the same column.
+    const nodeIdealY = new Map<string, number>();
+    nodesInLayer.forEach((nodeId) => {
+      const predCenters = (inAdjacency[nodeId] ?? [])
+        .filter((pid) => positions[pid] !== undefined)
+        .map((pid) => positions[pid].y + NODE_H / 2);
+      if (predCenters.length > 0) {
+        nodeIdealY.set(
+          nodeId,
+          predCenters.reduce((a, b) => a + b, 0) / predCenters.length - NODE_H / 2
+        );
+      }
+    });
 
-    nodesInLayer.forEach((nodeId, indexWithinLayer) => {
+    // Nodes with no placed predecessors are spread evenly around gravityCenterY,
+    // preserving their existing barycenter sort order within that fallback block.
+    const orphans = nodesInLayer.filter((id) => !nodeIdealY.has(id));
+    const orphanStep = NODE_H + GAP_Y;
+    const orphanStart = gravityCenterY - NODE_H / 2 - ((orphans.length - 1) * orphanStep) / 2;
+    orphans.forEach((id, i) => {
+      nodeIdealY.set(id, orphanStart + i * orphanStep);
+    });
+
+    // Sort nodes by idealY — allows the natural vertical order that minimises edge length,
+    // even if it differs slightly from the crossing-minimisation barycenter order.
+    const sortedByIdeal = [...nodesInLayer].sort(
+      (a, b) => (nodeIdealY.get(a) ?? 0) - (nodeIdealY.get(b) ?? 0)
+    );
+
+    // Greedy forward placement: honour idealY when possible, push down only when too close.
+    // Nodes whose targets are far apart get a large gap (spatial skipping);
+    // nodes whose targets converge get the minimum separation.
+    const MIN_INIT_SEP = NODE_H + GAP_Y;
+    let prevY = -Infinity;
+    sortedByIdeal.forEach((nodeId) => {
+      const idealY = nodeIdealY.get(nodeId)!;
+      const y = prevY === -Infinity ? idealY : Math.max(idealY, prevY + MIN_INIT_SEP);
       positions[nodeId] = {
         x: layerIndex * (NODE_W + GAP_X) + xOffset,
-        y: startY + indexWithinLayer * STEP,
+        y,
       };
+      prevY = y;
     });
   });
 
-  return positions;
+  // ── Step 5.5: Backward Y-refinement pass ────────────────────────────────
+  // Right-to-left: for each layer that has successors already placed to its right,
+  // pull the layer's Y center 40% toward the mean Y of those successors.
+  // This shortens edges by aligning each column with what it flows into,
+  // complementing the predecessor-gravity forward pass.
+  for (let i = sortedLayerIndices.length - 2; i >= 0; i--) {
+    const layerIndex = sortedLayerIndices[i];
+    const nodesInLayer = layerGroups[layerIndex];
+
+    const successorSamples: number[] = [];
+    nodesInLayer.forEach((id) => {
+      (outAdjacency[id] ?? []).forEach((sid) => {
+        if (positions[sid]) successorSamples.push(positions[sid].y + NODE_H / 2);
+      });
+    });
+    if (successorSamples.length === 0) continue;
+
+    const successorMeanY = successorSamples.reduce((a, b) => a + b, 0) / successorSamples.length;
+    const currentMeanY = nodesInLayer.reduce((s, id) => s + positions[id].y + NODE_H / 2, 0) / nodesInLayer.length;
+    const shift = (successorMeanY - currentMeanY) * 0.4;
+
+    nodesInLayer.forEach((id) => {
+      positions[id] = { ...positions[id], y: positions[id].y + shift };
+    });
+  }
+
+  // ── Step 5.6: Per-node Y spring relaxation ───────────────────────────────
+  // The gravity passes (5 and 5.5) center each *column* around its neighbors'
+  // mean Y. But within a multi-node column individual nodes may still be far
+  // from their specific successors or predecessors (e.g. the top node in a
+  // 5-node column whose only connection is the bottom node of the next column).
+  //
+  // This step runs a lightweight spring: each node is pulled toward the mean
+  // center-Y of all its direct neighbors (predecessors + successors combined).
+  // The only constraint is that nodes must preserve their vertical order within
+  // the column — they can slide but never swap past a neighbor.
+  //
+  // Forward + backward sweeps per iteration ensure the constraint propagates
+  // correctly in both directions (pushing up OR down as needed).
+
+  // Capture column order (top→bottom) from current Y positions before spring modifies them.
+  const columnNodeOrder = new Map<number, string[]>();
+  sortedLayerIndices.forEach((li) => {
+    const sorted = [...layerGroups[li]].sort((a, b) => positions[a].y - positions[b].y);
+    columnNodeOrder.set(li, sorted);
+  });
+
+  const SPRING_PASSES = 28;
+  const SPRING_ALPHA = 0.18;
+  const MIN_COL_SEP = NODE_H + LEGIBILITY_PAD_Y;
+
+  for (let sp = 0; sp < SPRING_PASSES; sp++) {
+    sortedLayerIndices.forEach((layerIndex) => {
+      const ordered = columnNodeOrder.get(layerIndex)!;
+      if (ordered.length === 0) return;
+
+      // Spring: pull each node toward the median center-Y of its direct neighbors.
+      // Median is more robust than mean for crossing reduction — a single far-away
+      // outlier connection won't drag the node away from a dense cluster.
+      ordered.forEach((nodeId) => {
+        const neighbors = [
+          ...(inAdjacency[nodeId] ?? []),
+          ...(outAdjacency[nodeId] ?? []),
+        ].filter((nid) => positions[nid] !== undefined);
+        if (neighbors.length === 0) return;
+        const nCenters = neighbors.map(nid => positions[nid].y + NODE_H / 2).sort((a, b) => a - b);
+        const nMid = Math.floor(nCenters.length / 2);
+        const medianCY = nCenters.length % 2 === 0
+          ? (nCenters[nMid - 1] + nCenters[nMid]) / 2
+          : nCenters[nMid];
+        const targetY = medianCY - NODE_H / 2;
+        positions[nodeId] = {
+          ...positions[nodeId],
+          y: positions[nodeId].y + (targetY - positions[nodeId].y) * SPRING_ALPHA,
+        };
+      });
+
+      // Forward constraint pass: each node must not overlap the node above it.
+      for (let rank = 1; rank < ordered.length; rank++) {
+        const minY = positions[ordered[rank - 1]].y + MIN_COL_SEP;
+        if (positions[ordered[rank]].y < minY) {
+          positions[ordered[rank]] = { ...positions[ordered[rank]], y: minY };
+        }
+      }
+
+      // Backward constraint pass: each node must not overlap the node below it.
+      for (let rank = ordered.length - 2; rank >= 0; rank--) {
+        const maxY = positions[ordered[rank + 1]].y - MIN_COL_SEP;
+        if (positions[ordered[rank]].y > maxY) {
+          positions[ordered[rank]] = { ...positions[ordered[rank]], y: maxY };
+        }
+      }
+    });
+  }
+
+  // ── Step 5.7: Long-edge corridor clearing ───────────────────────────────
+  // A long edge (spanning 2+ columns) travels through intermediate columns at a
+  // predictable Y. If a node in an intermediate column happens to sit in that Y
+  // corridor it creates a visual crossing/obstruction — the "traffic jam" effect.
+  //
+  // For each long edge from→to, we linearly interpolate its Y at every intermediate
+  // column and nudge any blocking node up or down to clear the corridor.
+  //
+  // Constraints: nodes in a column may slide but never swap past a neighbour
+  // (the order captured in columnNodeOrder is the invariant). Multiple passes
+  // converge the nudges; Step 6 below cleans up any remaining overlaps.
+
+  const CORRIDOR_HALF_H = NODE_H * 1.1;    // half-height of the "blocked" zone around the edge
+  const CORRIDOR_MAX_NUDGE = GAP_Y * 1.4; // cap on how far we'll push a blocker
+  const CORRIDOR_PASSES = 8;
+
+  for (let cp = 0; cp < CORRIDOR_PASSES; cp++) {
+    edges.forEach((edge) => {
+      if (!nodeIdSet.has(edge.from) || !nodeIdSet.has(edge.to)) return;
+      const fromLayer = layer[edge.from] ?? 0;
+      const toLayer   = layer[edge.to]   ?? 0;
+      const span = toLayer - fromLayer;
+      if (span < 2) return; // only long edges that skip at least one column
+
+      const fromCY = positions[edge.from].y + NODE_H / 2;
+      const toCY   = positions[edge.to].y   + NODE_H / 2;
+
+      for (let midLayer = fromLayer + 1; midLayer < toLayer; midLayer++) {
+        const nodesInMidLayer = layerGroups[midLayer] ?? [];
+        if (nodesInMidLayer.length === 0) continue;
+
+        // Linearly interpolate edge Y at this column
+        const t = (midLayer - fromLayer) / span;
+        const edgeY = fromCY + t * (toCY - fromCY);
+
+        nodesInMidLayer.forEach((blockerId) => {
+          const blockerCY = positions[blockerId].y + NODE_H / 2;
+          const dist = blockerCY - edgeY; // signed: positive → blocker is below edge
+          if (Math.abs(dist) >= CORRIDOR_HALF_H) return; // already clear
+
+          // Push the blocker further in the direction it already leans;
+          // if it sits dead-centre push downward to avoid ambiguity.
+          const nudgeDir = dist >= 0 ? 1 : -1;
+          const nudgeAmt = Math.min(CORRIDOR_HALF_H - Math.abs(dist) + NODE_H * 0.6, CORRIDOR_MAX_NUDGE);
+
+          const ordered = columnNodeOrder.get(midLayer)!;
+          const rank = ordered.indexOf(blockerId);
+          let newY = positions[blockerId].y + nudgeDir * nudgeAmt;
+
+          // Cascade push: make room in the nudge direction before clamping.
+          // Without this a densely-packed column can only move the blocker a
+          // fraction of a gap before it hits a neighbour that itself has nowhere to go.
+          if (nudgeDir === -1) {
+            // Moving up — push nodes above upward first to clear a path.
+            let cascadeY = newY;
+            for (let r = rank - 1; r >= 0; r--) {
+              const needed = cascadeY - MIN_COL_SEP;
+              if (positions[ordered[r]].y > needed - 1) {
+                positions[ordered[r]] = { ...positions[ordered[r]], y: needed };
+                cascadeY = needed;
+              } else break;
+            }
+            // Hard-clamp so the blocker itself never crosses its immediate upper neighbour.
+            if (rank > 0) {
+              newY = Math.max(newY, positions[ordered[rank - 1]].y + MIN_COL_SEP);
+            }
+          } else {
+            // Moving down — push nodes below downward first.
+            let cascadeY = newY;
+            for (let r = rank + 1; r < ordered.length; r++) {
+              const needed = cascadeY + MIN_COL_SEP;
+              if (positions[ordered[r]].y < needed + 1) {
+                positions[ordered[r]] = { ...positions[ordered[r]], y: needed };
+                cascadeY = needed;
+              } else break;
+            }
+            if (rank < ordered.length - 1) {
+              newY = Math.min(newY, positions[ordered[rank + 1]].y - MIN_COL_SEP);
+            }
+          }
+
+          positions[blockerId] = { ...positions[blockerId], y: newY };
+        });
+      }
+    });
+  }
+
+  // ── Step 5.8: Crossing-aware column reorder ─────────────────────────────────
+  // After spring + corridor clearing, each column's vertical ordering may still have
+  // locally-suboptimal adjacent pairs where swapping them reduces crossings with
+  // neighboring columns.  Bubble-sort style passes: for each pair (a above b), count
+  // crossings contributed by edges to the immediately adjacent left and right columns
+  // in the current order vs. the swapped order.  Swap when it helps.
+  //
+  // Y values are exchanged directly — relative gap between every pair is preserved
+  // (verified: swapping positions[a] and positions[b] keeps all surrounding gaps
+  // identical), so no overlap re-check is needed.  `columnNodeOrder` is updated in
+  // place so subsequent passes see the new order.
+
+  const REORDER_PASSES = 8;
+  for (let rp = 0; rp < REORDER_PASSES; rp++) {
+    let anySwap = false;
+    sortedLayerIndices.forEach((layerIndex, posInSorted) => {
+      const ordered = columnNodeOrder.get(layerIndex)!;
+      if (ordered.length < 2) return;
+
+      const prevLI = posInSorted > 0 ? sortedLayerIndices[posInSorted - 1] : -1;
+      const nextLI = posInSorted < sortedLayerIndices.length - 1 ? sortedLayerIndices[posInSorted + 1] : -1;
+
+      const prevRank = new Map<string, number>();
+      const nextRank = new Map<string, number>();
+      if (prevLI >= 0) columnNodeOrder.get(prevLI)!.forEach((nid, r) => prevRank.set(nid, r));
+      if (nextLI >= 0) columnNodeOrder.get(nextLI)!.forEach((nid, r) => nextRank.set(nid, r));
+
+      let i = 0;
+      while (i < ordered.length - 1) {
+        const a = ordered[i];     // currently above
+        const b = ordered[i + 1]; // currently below
+
+        let crossCurr = 0;
+        let crossSwap = 0;
+
+        // Left: predecessor ranks in prevLI column
+        const aPredR = (inAdjacency[a] ?? []).filter(p => (layer[p] ?? -1) === prevLI).map(p => prevRank.get(p) ?? 0);
+        const bPredR = (inAdjacency[b] ?? []).filter(p => (layer[p] ?? -1) === prevLI).map(p => prevRank.get(p) ?? 0);
+        for (const ap of aPredR) {
+          for (const bp of bPredR) {
+            if (ap > bp) crossCurr++;   // a above b, but a's pred is below b's pred → crossing
+            else if (ap < bp) crossSwap++; // would cross if swapped
+          }
+        }
+
+        // Right: successor ranks in nextLI column
+        const aSuccR = (outAdjacency[a] ?? []).filter(s => (layer[s] ?? -1) === nextLI).map(s => nextRank.get(s) ?? 0);
+        const bSuccR = (outAdjacency[b] ?? []).filter(s => (layer[s] ?? -1) === nextLI).map(s => nextRank.get(s) ?? 0);
+        for (const as_ of aSuccR) {
+          for (const bs of bSuccR) {
+            if (as_ > bs) crossCurr++;
+            else if (as_ < bs) crossSwap++;
+          }
+        }
+
+        if (crossSwap < crossCurr) {
+          ordered[i] = b;
+          ordered[i + 1] = a;
+          const aY = positions[a].y;
+          positions[a] = { ...positions[a], y: positions[b].y };
+          positions[b] = { ...positions[b], y: aY };
+          anySwap = true;
+          // Don't advance i — recheck the new neighbor at this slot
+        } else {
+          i++;
+        }
+      }
+    });
+    if (!anySwap) break;
+  }
+
+  // ── Step 6: Resolve overlaps ─────────────────────────────────────────────
+  // Gravity centering + bidirectional refinement can still leave nodes overlapping
+  // on dense layers. One pass of separation guarantees zero overlap with clean padding.
+  return resolveNodeOverlaps(positions, new Set(), 0, LEGIBILITY_PAD_X, LEGIBILITY_PAD_Y);
+}
+
+/**
+ * buildImplicitClusters — detects tightly-connected node clusters within a single layer.
+ *
+ * Two nodes in the same layer are "cluster-connected" when they share ≥2 common neighbors
+ * (across all edges, both in and out). Merging these pairs via union-find produces implicit
+ * clusters that are then used as sort blocks — placing densely connected nodes adjacent to
+ * each other vertically in the column, tightening subgraph cohesion without explicit groups.
+ */
+function buildImplicitClusters(
+  nodeIds: string[],
+  inAdjacency: AdjacencyMap,
+  outAdjacency: AdjacencyMap
+): Map<string, string> {
+  const parent = new Map<string, string>();
+  nodeIds.forEach((id) => parent.set(id, id));
+
+  function find(x: string): string {
+    while (parent.get(x) !== x) {
+      parent.set(x, parent.get(parent.get(x)!)!);
+      x = parent.get(x)!;
+    }
+    return x;
+  }
+
+  for (let i = 0; i < nodeIds.length; i++) {
+    for (let j = i + 1; j < nodeIds.length; j++) {
+      const a = nodeIds[i];
+      const b = nodeIds[j];
+      const aNeighbors = new Set([...(inAdjacency[a] ?? []), ...(outAdjacency[a] ?? [])]);
+      let shared = 0;
+      [...(inAdjacency[b] ?? []), ...(outAdjacency[b] ?? [])].forEach((n) => {
+        if (aNeighbors.has(n)) shared++;
+      });
+      if (shared >= 2) {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent.set(ra, rb);
+      }
+    }
+  }
+
+  const result = new Map<string, string>();
+  nodeIds.forEach((id) => result.set(id, find(id)));
+  return result;
 }
 
 /**
@@ -383,12 +775,12 @@ function computeBarycenter(
   // If no neighbors in the reference layer, place this node in the middle
   if (relevantNeighbors.length === 0) return referenceLayerNodes.length / 2;
 
-  // Average index of the relevant neighbors in their layer
-  const totalIndex = relevantNeighbors.reduce(
-    (sum, neighborId) => sum + referenceLayerNodes.indexOf(neighborId),
-    0
-  );
-  return totalIndex / relevantNeighbors.length;
+  // Median index of relevant neighbors — more robust crossing reduction than mean
+  const indices = relevantNeighbors
+    .map((neighborId) => referenceLayerNodes.indexOf(neighborId))
+    .sort((a, b) => a - b);
+  const mid = Math.floor(indices.length / 2);
+  return indices.length % 2 === 0 ? (indices[mid - 1] + indices[mid]) / 2 : indices[mid];
 }
 
 /**
@@ -548,20 +940,24 @@ function stackComponentsVertically(
 // ─── SWIM LANE LAYOUT ────────────────────────────────────────────────────────
 
 /**
- * computeLaneLayout — Swim lane layout that groups nodes by owner into horizontal bands.
+ * computeLaneLayout — Swim lane layout with optimized lane and node ordering.
  *
- * How it works:
- *   1. Uses the DAG layout to determine each node's "depth" (which column it belongs to)
- *   2. Groups nodes by owner, then within each owner group, positions them by depth
- *   3. Stacks the owner groups (lanes) vertically with padding and gaps between them
- *
- * The X position comes from the DAG depth (same column system as DAG layout).
- * The Y position is determined by which lane the node belongs to.
+ * Algorithm:
+ *   1. Column assignment  — reuse DAG layout X depths for consistent column placement
+ *   2. Adjacency build    — in/out maps over the visible edge set
+ *   3. Lane ordering      — barycenter heuristic (32 passes) sorts lanes by mean index
+ *                           of all lanes they connect to, minimising cross-lane edge crossings
+ *   4. Lane metrics       — compute Y / height from the optimised lane order
+ *   5. Node ordering      — forward (left→right, sort by predecessor Y) + backward
+ *                           (right→left, sort by successor Y) sweeps (20 passes) sort nodes
+ *                           within each (lane, column) bucket by mean Y of their neighbours,
+ *                           minimising intra-column vertical crossing angles
+ *   6. Final positions    — emit (x, y) from lane metrics + node ranks
  *
  * @param nodes        - Nodes to lay out
  * @param edges        - Edges connecting those nodes
  * @param activeOwners - Set of owner names that are currently visible
- * @param allNodes     - The full node list (needed to preserve owner ordering)
+ * @param allNodes     - The full node list (needed to derive stable initial owner ordering)
  * @returns            - Object containing positions for each node AND lane metrics for rendering
  */
 export function computeLaneLayout(
@@ -572,69 +968,191 @@ export function computeLaneLayout(
 ): { positions: Record<string, Position>; laneMetrics: Record<string, LaneMetrics> } {
   if (nodes.length === 0) return { positions: {}, laneMetrics: {} };
 
-  // Get the DAG depth for each node (we reuse DAG X positions as the column index)
+  // ── Step 1: Column assignments from DAG layout ──────────────────────────
   const dagPositions = computeLayout(nodes, edges);
+  const nodeIdSet = new Set(nodes.map((n) => n.id));
 
-  // Build the ordered list of active owners, preserving the order they first appear in allNodes.
-  // We use allNodes (not just the current visible nodes) so the order stays stable
-  // even when some owners are filtered out.
-  const presentOwnerSet = new Set(
-    nodes.map((node) => node.owner).filter((owner) => activeOwners.has(owner))
-  );
-  const ownerOrder: string[] = [];
+  const nodeToOwner = new Map<string, string>();
+  const nodeToDepth = new Map<string, number>();
+  nodes.forEach((node) => {
+    if (!activeOwners.has(node.owner)) return;
+    nodeToOwner.set(node.id, node.owner);
+    const dagPos = dagPositions[node.id];
+    nodeToDepth.set(node.id, dagPos ? Math.round(dagPos.x / (NODE_W + GAP_X)) : 0);
+  });
+
+  // Initial lane order: first occurrence in allNodes (stable baseline before optimisation)
+  const presentOwnerSet = new Set<string>();
+  nodeToOwner.forEach((owner) => presentOwnerSet.add(owner));
+  let ownerOrder: string[] = [];
   allNodes.forEach((node) => {
     if (presentOwnerSet.has(node.owner) && !ownerOrder.includes(node.owner)) {
       ownerOrder.push(node.owner);
     }
   });
 
-  // Group each owner's nodes by their DAG depth column
-  // Structure: ownerDepthGroups[owner][depthIndex] = [nodeId, nodeId, ...]
+  // ownerDepthGroups[owner][depth] — mutable ordered buckets; sorted in step 5
   const ownerDepthGroups: Record<string, Record<number, string[]>> = {};
-  nodes.forEach((node) => {
-    const dagPos = dagPositions[node.id];
-    // Convert the DAG x coordinate back to a column index (integer depth)
-    const depthIndex = dagPos ? Math.round(dagPos.x / (NODE_W + GAP_X)) : 0;
-    if (!ownerDepthGroups[node.owner]) ownerDepthGroups[node.owner] = {};
-    if (!ownerDepthGroups[node.owner][depthIndex]) ownerDepthGroups[node.owner][depthIndex] = [];
-    ownerDepthGroups[node.owner][depthIndex].push(node.id);
+  nodeToOwner.forEach((owner, nodeId) => {
+    const depth = nodeToDepth.get(nodeId) ?? 0;
+    if (!ownerDepthGroups[owner]) ownerDepthGroups[owner] = {};
+    if (!ownerDepthGroups[owner][depth]) ownerDepthGroups[owner][depth] = [];
+    ownerDepthGroups[owner][depth].push(nodeId);
   });
 
-  // Compute each lane's vertical metrics (y position and height)
-  // Start below y=0 to reserve space for phase header strips (48px = HEADER_H in PhaseLayer).
+  // ── Step 2: Build adjacency ─────────────────────────────────────────────
+  const inAdj = new Map<string, string[]>();
+  const outAdj = new Map<string, string[]>();
+  nodes.forEach((n) => { inAdj.set(n.id, []); outAdj.set(n.id, []); });
+  edges.forEach((e) => {
+    if (nodeIdSet.has(e.from) && nodeIdSet.has(e.to)) {
+      inAdj.get(e.to)!.push(e.from);
+      outAdj.get(e.from)!.push(e.to);
+    }
+  });
+
+  // ── Step 3: Optimise lane order via barycenter heuristic ─────────────────
+  // Each lane's barycenter = mean current index of every lane it connects to
+  // (via any edge, in or out). Sorting lanes by that score reduces the number
+  // of cross-lane edges that must skip over unrelated lanes.
+  const LANE_PASSES = 32;
+  for (let pass = 0; pass < LANE_PASSES; pass++) {
+    const ownerToIdx = new Map<string, number>();
+    ownerOrder.forEach((o, i) => ownerToIdx.set(o, i));
+
+    const barycenters = new Map<string, number>();
+    ownerOrder.forEach((owner) => {
+      const connectedIndices: number[] = [];
+      const ownedNodes = Object.values(ownerDepthGroups[owner] ?? {}).flat();
+      ownedNodes.forEach((nid) => {
+        [...(inAdj.get(nid) ?? []), ...(outAdj.get(nid) ?? [])].forEach((neighborId) => {
+          const neighborOwner = nodeToOwner.get(neighborId);
+          if (neighborOwner && neighborOwner !== owner) {
+            const idx = ownerToIdx.get(neighborOwner);
+            if (idx !== undefined) connectedIndices.push(idx);
+          }
+        });
+      });
+      barycenters.set(
+        owner,
+        connectedIndices.length > 0
+          ? connectedIndices.reduce((a, b) => a + b, 0) / connectedIndices.length
+          : ownerToIdx.get(owner) ?? 0
+      );
+    });
+
+    const newOrder = [...ownerOrder].sort(
+      (a, b) => (barycenters.get(a) ?? 0) - (barycenters.get(b) ?? 0)
+    );
+    const changed = newOrder.some((o, i) => o !== ownerOrder[i]);
+    ownerOrder = newOrder;
+    if (!changed) break;
+  }
+
+  // ── Step 4: Compute lane metrics ─────────────────────────────────────────
+  // Start at y=48 to leave room for phase header strips (HEADER_H in PhaseLayer).
   const laneMetrics: Record<string, LaneMetrics> = {};
   let currentY = 48;
-
   ownerOrder.forEach((owner) => {
-    const depthGroups = ownerDepthGroups[owner] ?? {};
-    // Lane height is determined by the tallest column within this lane
-    const maxNodesInOneColumn = Object.values(depthGroups).reduce(
-      (maximum, groupArray) => Math.max(maximum, groupArray.length),
-      1 // Minimum of 1 to avoid zero-height lanes
+    const maxNodesInColumn = Object.values(ownerDepthGroups[owner] ?? {}).reduce(
+      (max, arr) => Math.max(max, arr.length), 1
     );
-    const laneHeight = maxNodesInOneColumn * (NODE_H + GAP_Y) - GAP_Y + LANE_PAD_Y * 2;
+    const laneHeight = maxNodesInColumn * (NODE_H + GAP_Y) - GAP_Y + LANE_PAD_Y * 2;
     laneMetrics[owner] = { y: currentY, height: laneHeight };
     currentY += laneHeight + LANE_GAP;
   });
 
-  // Assign final (x, y) positions for each node
+  // ── Step 5: Optimise node ordering within each (lane, column) ────────────
+  // nodeRank tracks each node's vertical rank within its (owner, depth) bucket.
+  const nodeRank = new Map<string, number>();
+  Object.values(ownerDepthGroups).forEach((depthMap) => {
+    Object.values(depthMap).forEach((bucket) => {
+      bucket.forEach((nid, i) => nodeRank.set(nid, i));
+    });
+  });
+
+  // Y center of a node given its current rank and lane metrics
+  const getNodeCY = (nodeId: string): number => {
+    const owner = nodeToOwner.get(nodeId);
+    const depth = nodeToDepth.get(nodeId);
+    if (owner === undefined || depth === undefined) return 0;
+    const bucket = ownerDepthGroups[owner]?.[depth] ?? [];
+    const rank = nodeRank.get(nodeId) ?? 0;
+    const lm = laneMetrics[owner];
+    if (!lm) return 0;
+    const groupH = bucket.length * (NODE_H + GAP_Y) - GAP_Y;
+    const startY = lm.y + LANE_PAD_Y + (lm.height - LANE_PAD_Y * 2 - groupH) / 2;
+    return startY + rank * (NODE_H + GAP_Y) + NODE_H / 2;
+  };
+
+  const allDepths = [
+    ...new Set(nodes.map((n) => nodeToDepth.get(n.id) ?? 0)),
+  ].sort((a, b) => a - b);
+
+  const NODE_PASSES = 20;
+  for (let pass = 0; pass < NODE_PASSES; pass++) {
+    // Forward sweep: left→right, sort by mean Y of predecessors
+    for (const depth of allDepths) {
+      for (const owner of ownerOrder) {
+        const bucket = ownerDepthGroups[owner]?.[depth];
+        if (!bucket || bucket.length < 2) continue;
+
+        const bary = new Map<string, number>();
+        bucket.forEach((nid) => {
+          const preds = inAdj.get(nid) ?? [];
+          bary.set(
+            nid,
+            preds.length > 0
+              ? preds.reduce((s, pid) => s + getNodeCY(pid), 0) / preds.length
+              : getNodeCY(nid) // no predecessors — hold current position
+          );
+        });
+
+        bucket.sort((a, b) => (bary.get(a) ?? 0) - (bary.get(b) ?? 0));
+        bucket.forEach((nid, i) => nodeRank.set(nid, i));
+      }
+    }
+
+    // Backward sweep: right→left, sort by mean Y of successors
+    for (let di = allDepths.length - 1; di >= 0; di--) {
+      const depth = allDepths[di];
+      for (const owner of ownerOrder) {
+        const bucket = ownerDepthGroups[owner]?.[depth];
+        if (!bucket || bucket.length < 2) continue;
+
+        const bary = new Map<string, number>();
+        bucket.forEach((nid) => {
+          const succs = outAdj.get(nid) ?? [];
+          bary.set(
+            nid,
+            succs.length > 0
+              ? succs.reduce((s, sid) => s + getNodeCY(sid), 0) / succs.length
+              : getNodeCY(nid) // no successors — hold current position
+          );
+        });
+
+        bucket.sort((a, b) => (bary.get(a) ?? 0) - (bary.get(b) ?? 0));
+        bucket.forEach((nid, i) => nodeRank.set(nid, i));
+      }
+    }
+  }
+
+  // ── Step 6: Assign final positions ────────────────────────────────────────
   const positions: Record<string, Position> = {};
   nodes.forEach((node) => {
-    const dagPos = dagPositions[node.id];
-    const depthIndex = dagPos ? Math.round(dagPos.x / (NODE_W + GAP_X)) : 0;
-    const nodesAtThisDepth = ownerDepthGroups[node.owner]?.[depthIndex] ?? [];
-    const indexWithinDepth = nodesAtThisDepth.indexOf(node.id);
+    if (!presentOwnerSet.has(node.owner)) return;
+    const depth = nodeToDepth.get(node.id) ?? 0;
+    const bucket = ownerDepthGroups[node.owner]?.[depth] ?? [];
+    const rank = nodeRank.get(node.id) ?? 0;
     const laneMeta = laneMetrics[node.owner];
+    if (!laneMeta) return;
 
-    if (!laneMeta) return; // Should never happen, but guard anyway
-
-    // Center the group of nodes at this depth vertically within the lane
-    const groupHeight = nodesAtThisDepth.length * (NODE_H + GAP_Y) - GAP_Y;
-    const groupStartY = laneMeta.y + LANE_PAD_Y + (laneMeta.height - LANE_PAD_Y * 2 - groupHeight) / 2;
+    const groupH = bucket.length * (NODE_H + GAP_Y) - GAP_Y;
+    const startY = laneMeta.y + LANE_PAD_Y + (laneMeta.height - LANE_PAD_Y * 2 - groupH) / 2;
 
     positions[node.id] = {
-      x: LANE_LABEL_W + depthIndex * (NODE_W + GAP_X),
-      y: groupStartY + indexWithinDepth * (NODE_H + GAP_Y),
+      x: LANE_LABEL_W + depth * (NODE_W + GAP_X),
+      y: startY + rank * (NODE_H + GAP_Y),
     };
   });
 
@@ -663,18 +1181,49 @@ export function computeEdgePath(from: Position, to: Position): string {
   const startY = from.y + NODE_H / 2;
 
   // End point: slightly before the left-center of the target node.
-  // Stopping 10px before the node edge ensures the arrowhead sits in the gap
-  // and isn't covered by the node rectangle (which renders above the edge layer).
   const endX = to.x - 10;
   const endY = to.y + NODE_H / 2;
 
-  // Control points: slightly past each endpoint in the horizontal direction.
-  // The 0.45/0.55 split (rather than 0.5/0.5) gives a slight asymmetry that
-  // makes the curve look more natural when nodes are at different Y positions.
-  const controlX1 = startX + (endX - startX) * 0.45;
-  const controlY1 = startY;
-  const controlX2 = startX + (endX - startX) * 0.55;
-  const controlY2 = endY;
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const absDy = Math.abs(dy);
+  const absDx = Math.abs(dx);
+
+  let controlX1: number, controlX2: number, controlY1: number, controlY2: number;
+
+  if (absDy > absDx * 1.2 && dx > 0) {
+    // Steep cross-lane edge: Sankey-style S-curve.
+    // Both control points share the horizontal midpoint so the curve departs
+    // horizontally from the source and arrives horizontally at the target,
+    // producing a clean S-shape instead of a near-vertical line.
+    const midX = (startX + endX) / 2;
+    controlX1 = midX;
+    controlX2 = midX;
+    controlY1 = startY;
+    controlY2 = endY;
+  } else if (dx <= 0) {
+    // Back-edge (target is left of source, same column or reversed):
+    // bow both control points out to the right so the curve arcs around.
+    const hSpread = Math.max(absDy * 0.35, absDx * 0.5, 80);
+    controlX1 = startX + hSpread;
+    controlX2 = endX + hSpread;
+    controlY1 = startY;
+    controlY2 = endY;
+  } else {
+    // Mostly horizontal edge: original offset formula.
+    // Horizontal reach: use the larger of 50% of dx or 50% of the vertical distance,
+    // so shallow-steep edges arc wide enough to avoid an S-curve inflection.
+    // Cap at 47% of dx so control points never cross past each other.
+    const cpOffset = Math.min(
+      Math.max(dx * 0.5, absDy * 0.5),
+      Math.max(dx * 0.47, 40),
+    );
+    controlX1 = startX + cpOffset;
+    controlX2 = endX - cpOffset;
+    // Blend control Y 15% toward destination for a smooth forward arc.
+    controlY1 = startY + dy * 0.15;
+    controlY2 = endY - dy * 0.15;
+  }
 
   return `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
 }

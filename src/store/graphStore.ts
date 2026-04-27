@@ -50,6 +50,8 @@ import {
   resolveNodeOverlaps,
   NODE_W,
   NODE_H,
+  GAP_Y,
+  LANE_PAD_Y,
   LANE_LABEL_W,
   LEGIBILITY_PAD_X,
   LEGIBILITY_PAD_Y,
@@ -292,6 +294,8 @@ export interface GraphStore {
   clipboard: GraphNode[];
   /** Incremented each time pasteClipboard runs; Canvas uses it to suppress entrance animation */
   pasteCount: number;
+  /** Incremented each time loadData runs; Canvas uses it to detect file loads for entrance animation */
+  loadCount: number;
   /** Copy selected nodes to the clipboard */
   copySelection: () => void;
   /** Paste clipboard nodes as new nodes, offset by +80/+80, no edges */
@@ -479,8 +483,10 @@ export interface GraphStore {
   // ── Summon Mode ────────────────────────────────────────────────────────────
   /** True when summon mode is active (modal connection mode) */
   summonActive: boolean;
-  /** The node ID from which new edges will be created */
+  /** The primary node ID from which new edges will be created (first of summonSourceIds) */
   summonSourceId: string | null;
+  /** All node IDs selected as sources when summon was activated (multi-select support) */
+  summonSourceIds: string[];
   /** Search filter string for the summon dock */
   summonFilter: string;
   /** Whether the connection ring visualization is shown */
@@ -490,12 +496,28 @@ export interface GraphStore {
   /** Set of node IDs that have been connected in this summon session */
   summonConnected: Set<string>;
 
-  activateSummon: (sourceId: string) => void;
+  activateSummon: (sourceIds: string | string[]) => void;
   deactivateSummon: () => void;
   setSummonFilter: (q: string) => void;
   toggleSummonRing: () => void;
   setSummonPingTarget: (t: { x: number; y: number; color: string } | null) => void;
   addSummonConnected: (nodeId: string) => void;
+
+  // ── Auto Layout ────────────────────────────────────────────────────────────
+  /** True while the auto-layout worker is running */
+  autoLayoutRunning: boolean;
+  /** Current phase name reported by the layout worker (e.g. 'assignRanks') */
+  autoLayoutPhase: string;
+  /**
+   * Positions captured immediately before the last auto-layout run started.
+   * Canvas.tsx reads this to animate nodes from their old positions to the new ones.
+   * Cleared by Canvas after the transition animation completes.
+   */
+  autoLayoutFromPositions: Record<string, Position> | null;
+  /** Trigger an auto-layout run. Pass selectedNodeIds for partial layout. */
+  runAutoLayout: (selectedNodeIds?: string[]) => void;
+  /** Called by Canvas after the transition animation ends to release from-positions. */
+  clearAutoLayoutFromPositions: () => void;
 }
 
 // ─── HELPER: compute visible nodes/edges from current state ─────────────────
@@ -615,6 +637,10 @@ function derivePositions(
   }
 }
 
+// ─── AUTO-LAYOUT WORKER (module-level singleton) ────────────────────────────
+// Kept outside the store so we can terminate/recreate it without triggering renders.
+let autoLayoutWorker: Worker | null = null;
+
 // ─── STORE ──────────────────────────────────────────────────────────────────
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -664,6 +690,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   fileHandle: null,
   clipboard: [],
   pasteCount: 0,
+  loadCount: 0,
   tagRegistry: [],
   ownerRegistry: [],
   meta: null,
@@ -684,10 +711,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   tracePathSelectedIndex: 0,
   summonActive: false,
   summonSourceId: null,
+  summonSourceIds: [],
   summonFilter: '',
   summonShowRing: false,
   summonPingTarget: null,
   summonConnected: new Set(),
+  autoLayoutRunning: false,
+  autoLayoutPhase: '',
+  autoLayoutFromPositions: null,
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -750,10 +781,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       tracePathSelectedIndex: 0,
       summonActive: false,
       summonSourceId: null,
+      summonSourceIds: [],
       summonFilter: '',
       summonShowRing: false,
       summonPingTarget: null,
       summonConnected: new Set(),
+      autoLayoutRunning: false,
+      autoLayoutPhase: '',
+      autoLayoutFromPositions: null,
+      loadCount: 0,
         });
   },
 
@@ -899,6 +935,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       tracePathSource: null,
       tracePathResults: [],
       tracePathSelectedIndex: 0,
+      loadCount: get().loadCount + 1,
         });
   },
 
@@ -920,7 +957,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       return;
     }
 
-    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] };
+    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], laneMetrics: { ...state.laneMetrics } };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
 
     const allNodes = [...state.allNodes, newNode];
@@ -976,7 +1013,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   updateNode: (id: string, changes: Partial<Omit<GraphNode, 'id'>>) => {
     const state = get();
 
-    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] };
+    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], laneMetrics: { ...state.laneMetrics } };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
 
     const allNodes = state.allNodes.map((node) =>
@@ -988,21 +1025,55 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       state.ownerColors
     );
 
-    const activeOwners = new Set([
-      ...state.activeOwners,
-      ...(changes.owner ? [changes.owner] : []),
-    ]);
+    const ownerChanged = changes.owner !== undefined &&
+      changes.owner !== state.allNodes.find((n) => n.id === id)?.owner;
+
+    // Compute activeOwners based on current filter context.
+    let activeOwners: Set<string>;
+    if (ownerChanged && state.focusedOwner) {
+      // Owner Focus Mode: re-derive the connected-owners set so the focused
+      // owner's upstream/downstream lanes stay correct after the node's owner changes.
+      const fo = state.focusedOwner;
+      const foNodeIds = new Set(allNodes.filter((n) => n.owner === fo).map((n) => n.id));
+      const connected = new Set([fo]);
+      allNodes.forEach((n) => {
+        if (n.owner === fo) {
+          n.dependencies.forEach((dep) => {
+            const d = allNodes.find((x) => x.id === dep);
+            if (d && d.owner !== fo) connected.add(d.owner);
+          });
+        }
+        if (n.owner !== fo && n.dependencies.some((dep) => foNodeIds.has(dep))) {
+          connected.add(n.owner);
+        }
+      });
+      activeOwners = connected;
+    } else if (ownerChanged && changes.owner) {
+      // Regular filter: auto-show the new owner only if it is brand new
+      // (not in ownerRegistry and not used by any other node). If it's a
+      // known owner that was deliberately filtered out, respect the filter.
+      const isNewOwner =
+        !state.ownerRegistry.includes(changes.owner) &&
+        !state.allNodes.some((n) => n.id !== id && n.owner === changes.owner);
+      activeOwners = new Set(state.activeOwners);
+      if (isNewOwner) activeOwners.add(changes.owner);
+    } else {
+      activeOwners = new Set(state.activeOwners);
+    }
 
     const { visibleNodes, visibleEdges } = deriveVisibility(
       allNodes, state.allEdges, activeOwners, state.focusMode, state.focusNodeId, state.groups
     );
 
-    // When owner changes in lanes view, snap the node into its new lane and
-    // translate all other nodes by the lane-Y delta (same pattern as toggleOwner).
-    const ownerChanged = changes.owner !== undefined &&
-      changes.owner !== state.allNodes.find((n) => n.id === id)?.owner;
-
-    if (ownerChanged && state.viewMode === 'lanes') {
+    if (ownerChanged && state.focusedOwner) {
+      // Full position reflow — same as re-entering owner focus with updated graph.
+      const { positions, laneMetrics } = derivePositions(
+        visibleNodes, visibleEdges, state.viewMode, activeOwners, allNodes
+      );
+      set({ allNodes, visibleNodes, visibleEdges, ownerColors, activeOwners, positions, laneMetrics, designDirty: true, undoStack, redoStack: [] });
+    } else if (ownerChanged && state.viewMode === 'lanes') {
+      // Lanes view without owner focus: snap the node into its new lane and
+      // translate all other nodes by the lane-Y delta (same pattern as toggleOwner).
       const { positions: freshPositions, laneMetrics } =
         computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes);
 
@@ -1021,9 +1092,27 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         }
       });
 
-      // Place the changed node at the fresh position in its new lane
+      // Place the changed node in its new lane without overlapping existing nodes.
+      // Use the fresh layout's X (column based on dependency depth), and find Y
+      // by looking only at occupants in the same column — so nodes in other columns
+      // don't push the new node unnecessarily far down.
       if (freshPositions[id]) {
-        positions[id] = freshPositions[id];
+        const newOwner = changes.owner as string;
+        const targetLane = laneMetrics[newOwner];
+        const laneTop = (targetLane?.y ?? 0) + LANE_PAD_Y;
+        const targetX = freshPositions[id].x;
+        const laneOccupants = visibleNodes.filter((n) => n.id !== id && n.owner === newOwner);
+        // Nodes sharing the same column (within half a node width).
+        const colOccupants = laneOccupants.filter(
+          (n) => Math.abs((positions[n.id]?.x ?? 0) - targetX) < NODE_W * 0.5
+        );
+        if (colOccupants.length === 0) {
+          // Column is clear — anchor to lane top.
+          positions[id] = { x: targetX, y: laneTop };
+        } else {
+          const maxColY = Math.max(...colOccupants.map((n) => positions[n.id]?.y ?? laneTop));
+          positions[id] = { x: targetX, y: maxColY + NODE_H + GAP_Y };
+        }
       }
 
       set({ allNodes, visibleNodes, visibleEdges, ownerColors, activeOwners, positions, laneMetrics, designDirty: true, undoStack, redoStack: [] });
@@ -1043,7 +1132,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   deleteNode: (id: string) => {
     const state = get();
 
-    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] };
+    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], laneMetrics: { ...state.laneMetrics } };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
 
     // Remove from node list
@@ -1094,7 +1183,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     // Guard: no duplicate edges
     if (state.allEdges.find((edge) => edge.from === fromId && edge.to === toId)) return;
 
-    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] };
+    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], laneMetrics: { ...state.laneMetrics } };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
 
     // Add fromId to toNode's dependencies array
@@ -1124,7 +1213,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   deleteEdge: (fromId: string, toId: string) => {
     const state = get();
 
-    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups] };
+    const undoSnapshot: UndoSnapshot = { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], laneMetrics: { ...state.laneMetrics } };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
 
     const allNodes = state.allNodes.map((node) => {
@@ -1288,7 +1377,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     if (state.undoStack.length === 0) return;
     const prev = state.undoStack[state.undoStack.length - 1];
     const newUndoStack = state.undoStack.slice(0, -1);
-    const newRedoStack = [...state.redoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], edgePathTypes: { ...state.edgePathTypes } }];
+    const newRedoStack = [...state.redoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], edgePathTypes: { ...state.edgePathTypes }, laneMetrics: { ...state.laneMetrics } }];
 
     const allNodes = prev.nodes;
     const prevGroups = prev.groups ?? [];
@@ -1310,6 +1399,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       allNodes, allEdges, visibleNodes, visibleEdges,
       positions: prev.positions, ownerColors, activeOwners, groups: prevGroups,
       edgePathTypes: prevEdgePathTypes,
+      laneMetrics: prev.laneMetrics ?? state.laneMetrics,
       undoStack: newUndoStack, redoStack: newRedoStack, designDirty: true,
     });
   },
@@ -1320,7 +1410,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     if (state.redoStack.length === 0) return;
     const next = state.redoStack[state.redoStack.length - 1];
     const newRedoStack = state.redoStack.slice(0, -1);
-    const newUndoStack = [...state.undoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], edgePathTypes: { ...state.edgePathTypes } }];
+    const newUndoStack = [...state.undoStack, { nodes: [...state.allNodes], positions: { ...state.positions }, groups: [...state.groups], edgePathTypes: { ...state.edgePathTypes }, laneMetrics: { ...state.laneMetrics } }];
 
     const allNodes = next.nodes;
     const nextGroups = next.groups ?? [];
@@ -1342,6 +1432,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       allNodes, allEdges, visibleNodes, visibleEdges,
       positions: next.positions, ownerColors, activeOwners, groups: nextGroups,
       edgePathTypes: nextEdgePathTypes,
+      laneMetrics: next.laneMetrics ?? state.laneMetrics,
       undoStack: newUndoStack, redoStack: newRedoStack, designDirty: true,
     });
   },
@@ -1799,6 +1890,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       nodes: [...state.allNodes],
       positions: { ...state.positions },
       groups: [...state.groups],
+      laneMetrics: { ...state.laneMetrics },
     };
 
     const id = generateGroupId(state.groups);
@@ -1869,6 +1961,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       nodes: [...state.allNodes],
       positions: { ...state.positions },
       groups: [...state.groups],
+      laneMetrics: { ...state.laneMetrics },
     };
 
     let groups = state.groups.filter((g) => g.id !== id);
@@ -2024,6 +2117,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       positions: { ...state.positions },
       groups: [...state.groups],
       phases: [...state.phases],
+      laneMetrics: { ...state.laneMetrics },
     };
 
     const nextSeq = state.phases.length > 0
@@ -2093,6 +2187,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       positions: { ...state.positions },
       groups: [...state.groups],
       phases: [...state.phases],
+      laneMetrics: { ...state.laneMetrics },
     };
 
     const phases = state.phases.filter((p) => p.id !== id);
@@ -2361,6 +2456,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       nodes: [...allNodes],
       positions: { ...positions },
       groups: [...state.groups],
+      laneMetrics: { ...state.laneMetrics },
     };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
 
@@ -2675,6 +2771,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       positions: { ...state.positions },
       groups: [...state.groups],
       edgePathTypes: { ...state.edgePathTypes },
+      laneMetrics: { ...state.laneMetrics },
     };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
     const edgePathTypes = { ...state.edgePathTypes, [edgeKey]: pathType };
@@ -2702,6 +2799,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       positions: { ...state.positions },
       groups: [...state.groups],
       edgePathTypes: { ...state.edgePathTypes },
+      laneMetrics: { ...state.laneMetrics },
     };
     const undoStack = [...state.undoStack, undoSnapshot].slice(-50);
     const edgePathTypes = { ...state.edgePathTypes };
@@ -2750,11 +2848,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   }),
 
   // ── Summon Mode actions ───────────────────────────────────────────────────
-  activateSummon: (sourceId) => {
+  activateSummon: (sourceIds) => {
     if (get().discoveryActive) return;
+    const ids = Array.isArray(sourceIds) ? sourceIds : [sourceIds];
     set({
       summonActive: true,
-      summonSourceId: sourceId,
+      summonSourceId: ids[0] ?? null,
+      summonSourceIds: ids,
       summonFilter: '',
       summonShowRing: false,
       summonPingTarget: null,
@@ -2766,6 +2866,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({
       summonActive: false,
       summonSourceId: null,
+      summonSourceIds: [],
       summonFilter: '',
       summonShowRing: false,
       summonPingTarget: null,
@@ -2786,4 +2887,66 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       return { summonConnected: next };
     });
   },
+
+  // ── runAutoLayout ─────────────────────────────────────────────────────────
+  runAutoLayout: (selectedNodeIds) => {
+    const state = get();
+
+    // Cancel any in-progress run before starting a new one
+    if (autoLayoutWorker) {
+      autoLayoutWorker.terminate();
+      autoLayoutWorker = null;
+    }
+
+    set({
+      autoLayoutRunning: true,
+      autoLayoutPhase: '',
+      autoLayoutFromPositions: { ...state.positions },
+    });
+
+    const worker = new Worker(
+      new URL('../workers/autoLayout.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    autoLayoutWorker = worker;
+
+    const msg = {
+      nodes: state.visibleNodes,
+      edges: state.visibleEdges,
+      groups: state.groups,
+      mode: state.viewMode,
+      selectedOnly: selectedNodeIds && selectedNodeIds.length > 0
+        ? new Set(selectedNodeIds)
+        : undefined,
+    };
+
+    worker.onmessage = (event) => {
+      const data = event.data as { type: string; phase?: string; positions?: Record<string, { x: number; y: number }>; message?: string };
+      if (data.type === 'progress') {
+        set({ autoLayoutPhase: data.phase ?? '' });
+      } else if (data.type === 'done' && data.positions) {
+        const currentState = get();
+        const newPositions = { ...currentState.positions, ...data.positions };
+        set({ positions: newPositions, autoLayoutRunning: false, autoLayoutPhase: '' });
+        get().saveLayoutToCache();
+        autoLayoutWorker = null;
+        setTimeout(() => get().fitToScreen(true), 50);
+      } else if (data.type === 'error') {
+        console.error('Auto-layout error:', data.message);
+        set({ autoLayoutRunning: false, autoLayoutPhase: '', autoLayoutFromPositions: null });
+        autoLayoutWorker = null;
+      }
+    };
+
+    worker.onerror = (err) => {
+      console.error('Auto-layout worker error:', err);
+      set({ autoLayoutRunning: false, autoLayoutPhase: '', autoLayoutFromPositions: null });
+      autoLayoutWorker = null;
+    };
+
+    worker.postMessage(msg);
+  },
+
+  // ── clearAutoLayoutFromPositions ──────────────────────────────────────────
+  clearAutoLayoutFromPositions: () => set({ autoLayoutFromPositions: null }),
 }));

@@ -257,47 +257,34 @@
   box-shadow: 0 4px 14px rgba(0,0,0,.5);
 }
 
-/* Node hover tooltip */
-.nodeTooltip {
+/* Node hover status bar — fixed bottom strip, never covers graph content */
+.nodeHoverBar {
   position: absolute;
-  background: var(--surface2, #1a1a2e);
-  border: 1px solid var(--border2);
-  border-radius: 8px;
-  padding: 8px 11px;
+  bottom: 28px; /* sits above the attribution credit line */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 15, 30, 0.82);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 4px 12px;
   pointer-events: none;
   z-index: 300;
-  box-shadow: 0 6px 20px rgba(0,0,0,.55);
-  animation: tooltipFadeIn 0.1s ease;
+  backdrop-filter: blur(6px);
+  max-width: 480px;
+  animation: hoverBarIn 0.12s ease;
 }
-@keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes hoverBarIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
-.nodeTooltipName {
+.nodeHoverBarName {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text);
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.4;
-}
-.nodeTooltipTags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-.nodeTooltipTag {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Design mode active state — cursor changes handled inline */

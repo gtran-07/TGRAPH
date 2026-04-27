@@ -863,25 +863,25 @@ export function InspectorContent() {
               open={dependenciesOpen}
               onToggle={() => setDependenciesOpen((o) => !o)}
             >
-              <div className={styles.tags}>
-                {selectedNode.dependencies.length === 0 ? (
-                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>No dependencies</span>
-                ) : (
-                  selectedNode.dependencies.map((depId) => {
+              {selectedNode.dependencies.length === 0 ? (
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>No dependencies</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, margin: '0 -6px' }}>
+                  {selectedNode.dependencies.map((depId) => {
                     const depNode = allNodes.find((n) => n.id === depId);
+                    const edgeKey = `${depId}:${selectedNode.id}`;
+                    const pathType: PathType = edgePathTypes[edgeKey] ?? 'standard';
                     return (
-                      <button
+                      <DepConnectionRow
                         key={depId}
-                        className={`${styles.tag} ${styles.tagDep} ${styles.tagDepLink}`}
-                        title="Fly to this node"
+                        label={depNode ? depNode.name : depId}
+                        type={pathType}
                         onClick={() => navigateTo(depId)}
-                      >
-                        {depNode ? depNode.name : depId}
-                      </button>
+                      />
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
             </CollapsibleSection>
 
             {(() => {
@@ -894,25 +894,25 @@ export function InspectorContent() {
                   open={dependentsOpen}
                   onToggle={() => setDependentsOpen((o) => !o)}
                 >
-                  <div className={styles.tags}>
-                    {dependentIds.length === 0 ? (
-                      <span style={{ fontSize: 11, color: 'var(--text3)' }}>No dependents</span>
-                    ) : (
-                      dependentIds.map((depId) => {
+                  {dependentIds.length === 0 ? (
+                    <span style={{ fontSize: 11, color: 'var(--text3)' }}>No dependents</span>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, margin: '0 -6px' }}>
+                      {dependentIds.map((depId) => {
                         const depNode = allNodes.find((n) => n.id === depId);
+                        const edgeKey = `${selectedNode.id}:${depId}`;
+                        const pathType: PathType = edgePathTypes[edgeKey] ?? 'standard';
                         return (
-                          <button
+                          <DepConnectionRow
                             key={depId}
-                            className={`${styles.tag} ${styles.tagDep} ${styles.tagDepLink}`}
-                            title="Fly to this node"
+                            label={depNode ? depNode.name : depId}
+                            type={pathType}
                             onClick={() => navigateTo(depId)}
-                          >
-                            {depNode ? depNode.name : depId}
-                          </button>
+                          />
                         );
-                      })
-                    )}
-                  </div>
+                      })}
+                    </div>
+                  )}
                 </CollapsibleSection>
               );
             })()}
@@ -1246,6 +1246,42 @@ export function InspectorContent() {
 
 /** @deprecated Use InspectorContent inside the LeftPane tabs instead */
 export { InspectorContent as Inspector };
+
+// ─── Read-only dependency / dependent connection row ─────────────────────────
+
+const DEP_STROKE_W: Record<PathType, number>  = { critical: 7, priority: 4.5, standard: 3.5, optional: 2.5 };
+const DEP_HL_W: Record<PathType, number>      = { critical: 3, priority: 2,   standard: 1.5, optional: 1   };
+const DEP_HL_OP: Record<PathType, number>     = { critical: 0.25, priority: 0.22, standard: 0.18, optional: 0.15 };
+const DEP_TYPE_COLOR: Record<PathType, string> = {
+  critical: '#ef4444', priority: '#f59e0b', standard: 'var(--text3)', optional: 'var(--text3)',
+};
+
+function DepConnectionRow({ label, type, onClick }: { label: string; type: PathType; onClick: () => void }) {
+  return (
+    <button className={styles.depRow} onClick={onClick} title={`Go to: ${label}`}>
+      <svg width={24} height={14} style={{ flexShrink: 0 }}>
+        <line x1={2} y1={8} x2={22} y2={8}
+          stroke="var(--accent)" strokeWidth={Math.min(DEP_STROKE_W[type], 7)} strokeLinecap="round" />
+        <line x1={3.5} y1={9.5} x2={23.5} y2={9.5}
+          stroke={`rgba(255,255,255,${DEP_HL_OP[type]})`} strokeWidth={DEP_HL_W[type]} strokeLinecap="round" />
+      </svg>
+      <span className={styles.depRowName} style={{
+        flex: 1, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 600,
+        letterSpacing: '0.5px', textTransform: 'uppercase', flexShrink: 0,
+        color: DEP_TYPE_COLOR[type],
+        opacity: type === 'standard' || type === 'optional' ? 0.55 : 1,
+      }}>
+        {type}
+      </span>
+    </button>
+  );
+}
 
 // ─── Edge type row sub-component ─────────────────────────────────────────────
 

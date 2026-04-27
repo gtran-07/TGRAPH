@@ -26,7 +26,7 @@ export function Header() {
   const {
     allNodes, allEdges, visibleNodes, viewMode, designMode, designDirty,
     setViewMode, setDesignMode, loadData, rebuildGraph, clearGraph,
-    saveNamedLayout, loadNamedLayout, fitToScreen, resolveOverlaps,
+    saveNamedLayout, loadNamedLayout, fitToScreen,
     setSelectedNode, setLastJumpedNode, positions, setTransform, transform, flyTo,
     activeOwners, toggleOwner, layoutCache, currentFileName, ownerColors,
     fileHandle, setFileHandle, setCurrentFileName, groups, phases, tagRegistry, ownerRegistry, meta,
@@ -691,20 +691,6 @@ export function Header() {
           {designDirty && <span className={styles.unsavedDot} title="Unsaved changes">●</span>}
         </div>
 
-        {/* Auto-space */}
-        <button
-          className={styles.btnIcon}
-          title="Auto-space — detect and spread apart any overlapping nodes or groups"
-          onClick={() => resolveOverlaps()}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="0.75" y="0.75" width="4" height="4" rx="0.8"/>
-            <rect x="9.25" y="0.75" width="4" height="4" rx="0.8"/>
-            <rect x="0.75" y="9.25" width="4" height="4" rx="0.8"/>
-            <rect x="9.25" y="9.25" width="4" height="4" rx="0.8"/>
-          </svg>
-        </button>
-
         {/* Recalculate layout */}
         <button
           className={styles.btnIcon}
@@ -728,8 +714,8 @@ export function Header() {
           onClick={() => fitToScreen()}
         >⊞</button>
 
-        {/* Marquee selection toggle — view mode only */}
-        {hasData && !designMode && !discoveryActive && (
+        {/* Marquee selection toggle — view and design mode */}
+        {hasData && !discoveryActive && (
           <button
             className={styles.btnIcon}
             title={marqueeMode ? 'Marquee select: ON — drag to select nodes (click to disable)' : 'Marquee select: OFF — click to enable drag selection'}

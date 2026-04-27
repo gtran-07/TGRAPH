@@ -21,3 +21,10 @@
 .toolBtn:hover { border-color: var(--design); color: var(--design); }
 .active { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.18) !important; }
 .hint { font-size: 10px; color: var(--text3); font-family: var(--font-mono); margin-left: 4px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinnerIcon {
+  animation: spin 0.75s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
