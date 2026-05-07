@@ -159,7 +159,6 @@ export function NodeEditModal() {
     if (!editingNodeId) return;
     const node = allNodes.find((n) => n.id === editingNodeId);
     if (!node) return;
-    if (!confirm(`Delete "${node.name}"? All connections to/from this node will also be removed.`)) return;
     deleteNode(editingNodeId);
     setIsOpen(false);
   }

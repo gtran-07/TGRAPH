@@ -222,6 +222,13 @@
 .upBadge   { color: #4f9eff; background: rgba(79,  158, 255, 0.15); }
 .downBadge { color: #f5a623; background: rgba(245, 166,  35, 0.15); }
 
+/* ── Phases tab ──────────────────────────────────────────────────────────── */
+.phaseRowSelected {
+  background: rgba(79, 158, 255, 0.12);
+  outline: 1px solid rgba(79, 158, 255, 0.35);
+  outline-offset: -1px;
+}
+
 .tagRemoveError {
   font-size: 10px;
   color: #e05555;

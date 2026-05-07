@@ -60,6 +60,28 @@ export function PhaseEditModal() {
     };
   }, [phases]);
 
+  useEffect(() => {
+    function handleEdit(e: Event) {
+      const { phaseId } = (e as CustomEvent<{ phaseId: string }>).detail ?? {};
+      const phase = phases.find((p) => p.id === phaseId);
+      if (!phase) return;
+
+      setMode('edit');
+      setEditingPhaseId(phaseId);
+      setPreselectedNodeIds(phase.nodeIds);
+      setPreselectedGroupIds(phase.groupIds ?? []);
+      setFieldName(phase.name);
+      setFieldDesc(phase.description);
+      setFieldColor(phase.color);
+      setIsOpen(true);
+    }
+
+    document.addEventListener('flowgraph:edit-phase', handleEdit);
+    return () => {
+      document.removeEventListener('flowgraph:edit-phase', handleEdit);
+    };
+  }, [phases]);
+
   // Auto-focus name input
   useEffect(() => {
     if (isOpen) setTimeout(() => nameInputRef.current?.focus(), 80);
@@ -101,11 +123,6 @@ export function PhaseEditModal() {
     if (!editingPhaseId) return;
     const phase = phases.find((p) => p.id === editingPhaseId);
     if (!phase) return;
-
-    const confirmed = window.confirm(
-      `Delete phase "${phase.name}"?\n\nNodes assigned to this phase will remain unaffected.`
-    );
-    if (!confirmed) return;
 
     deletePhase(editingPhaseId);
     setIsOpen(false);

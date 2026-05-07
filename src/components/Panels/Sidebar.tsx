@@ -21,10 +21,10 @@ import { InspectorContent } from './Inspector';
 import { CinemaTabContent } from '../Cinema/CinemaOverlay';
 import { ColorSwatchPicker } from '../DesignMode/ColorSwatchPicker';
 import styles from './Sidebar.module.css';
-import type { NodeTag } from '../../types/graph';
+import type { NodeTag, GraphPhase } from '../../types/graph';
 import { PHASE_PALETTE } from '../../types/graph';
 
-type LeftTab = 'owners' | 'inspector' | 'tags' | 'cinema';
+type LeftTab = 'owners' | 'inspector' | 'tags' | 'phases' | 'cinema';
 
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 560;
@@ -207,6 +207,175 @@ function TagsPanel() {
         </>
       )}
 
+    </div>
+  );
+}
+
+// ─── Phases panel ────────────────────────────────────────────────────────────
+
+function PhasesPanel() {
+  const {
+    phases, allNodes, designMode,
+    createPhase: _createPhase,
+    updatePhase, deletePhase,
+    selectedPhaseId, setSelectedPhaseId,
+    focusedPhaseId, setFocusedPhaseId,
+    collapsePhase, expandPhase, collapsedPhaseIds,
+  } = useGraphStore();
+
+  const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function startEdit(phase: GraphPhase) {
+    setEditingPhaseId(phase.id);
+    setEditName(phase.name);
+    setEditColor(phase.color);
+    setEditError(null);
+  }
+
+  function commitEdit(phaseId: string) {
+    const trimmed = editName.trim();
+    if (!trimmed) { setEditError('Name required'); return; }
+    updatePhase(phaseId, { name: trimmed, color: editColor });
+    setEditingPhaseId(null);
+    setEditError(null);
+  }
+
+  function handleDelete(phase: GraphPhase) {
+    const count = phase.nodeIds.length + (phase.groupIds?.length ?? 0);
+    const confirmed = window.confirm(
+      `Delete phase "${phase.name}"?${count > 0 ? `\n\n${count} assigned item(s) will be unassigned.` : ''}`
+    );
+    if (!confirmed) return;
+    deletePhase(phase.id);
+    if (selectedPhaseId === phase.id) setSelectedPhaseId(null);
+    if (focusedPhaseId === phase.id) setFocusedPhaseId(null);
+  }
+
+  function handleOpenModal(phaseId: string) {
+    document.dispatchEvent(new CustomEvent('flowgraph:edit-phase', { detail: { phaseId } }));
+  }
+
+  function handleNewPhase() {
+    document.dispatchEvent(new CustomEvent('flowgraph:create-phase', { detail: {} }));
+  }
+
+  const sorted = [...phases].sort((a, b) => a.sequence - b.sequence);
+
+  return (
+    <div className={styles.tabContent}>
+      <div className={styles.sectionLabel}>Phases</div>
+
+      {sorted.length === 0 && (
+        <div className={styles.emptyHint}>
+          {designMode ? 'No phases yet. Create one below.' : 'No phases defined.'}
+        </div>
+      )}
+
+      {sorted.map((phase) => {
+        const nodeCount = phase.nodeIds.length + (phase.groupIds?.length ?? 0);
+        const isSelected = selectedPhaseId === phase.id;
+        const isFocused = focusedPhaseId === phase.id;
+        const isCollapsed = collapsedPhaseIds.includes(phase.id);
+
+        if (designMode && editingPhaseId === phase.id) {
+          return (
+            <React.Fragment key={phase.id}>
+              <div className={styles.tagRow}>
+                <span className={styles.tagSwatch} style={{ background: editColor }} />
+                <input
+                  className={styles.tagLabelInput}
+                  value={editName}
+                  maxLength={60}
+                  onChange={(e) => { setEditName(e.target.value); setEditError(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit(phase.id);
+                    if (e.key === 'Escape') setEditingPhaseId(null);
+                  }}
+                  autoFocus
+                />
+                <button className={styles.tagActionBtn} onClick={() => commitEdit(phase.id)} title="Save">✓</button>
+                <button className={styles.tagActionBtn} onClick={() => setEditingPhaseId(null)} title="Cancel">
+                  <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 6.5A4.5 4.5 0 1 1 6.5 11"/>
+                    <polyline points="2,3.5 2,6.5 5,6.5"/>
+                  </svg>
+                </button>
+              </div>
+              <div style={{ padding: '4px 0 4px 0' }}>
+                <ColorSwatchPicker value={editColor} onChange={setEditColor} />
+              </div>
+              {editError && <div className={styles.tagRemoveError}>{editError}</div>}
+            </React.Fragment>
+          );
+        }
+
+        return (
+          <div
+            key={phase.id}
+            className={`${styles.tagRow} ${isSelected ? styles.phaseRowSelected : ''}`}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setSelectedPhaseId(isSelected ? null : phase.id)}
+          >
+            <span className={styles.tagSwatch} style={{ background: phase.color }} />
+            <span className={styles.tagLabel}>{phase.name}</span>
+            <span className={styles.filterCount}>{nodeCount}</span>
+            {designMode && (
+              <>
+                <button
+                  className={styles.tagActionBtn}
+                  onClick={(e) => { e.stopPropagation(); startEdit(phase); }}
+                  title="Rename / recolor"
+                >✎</button>
+                <button
+                  className={styles.tagActionBtn}
+                  onClick={(e) => { e.stopPropagation(); handleOpenModal(phase.id); }}
+                  title="Edit description in modal"
+                >⚙</button>
+                <button
+                  className={`${styles.tagActionBtn} ${isFocused ? styles.focusBtnActive : ''}`}
+                  onClick={(e) => { e.stopPropagation(); setFocusedPhaseId(isFocused ? null : phase.id); }}
+                  title={isFocused ? 'Exit phase spotlight' : 'Spotlight this phase on canvas'}
+                >◎</button>
+                <button
+                  className={styles.tagActionBtn}
+                  onClick={(e) => { e.stopPropagation(); isCollapsed ? expandPhase(phase.id) : collapsePhase(phase.id); }}
+                  title={isCollapsed ? 'Expand phase band' : 'Collapse phase band'}
+                >{isCollapsed ? '▶' : '▼'}</button>
+                <button
+                  className={styles.tagActionBtn}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(phase); }}
+                  title="Delete phase"
+                >
+                  <svg width="11" height="12" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="1,3 11,3"/>
+                    <path d="M4,3V1.5h4V3"/>
+                    <rect x="1.5" y="3" width="9" height="8.5" rx="1.2"/>
+                    <line x1="4.5" y1="6" x2="4.5" y2="9.5"/>
+                    <line x1="7.5" y1="6" x2="7.5" y2="9.5"/>
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      {designMode && (
+        <>
+          <div className={styles.sep} style={{ marginTop: 8 }} />
+          <div className={styles.addRow}>
+            <button
+              className={styles.addBtn}
+              onClick={handleNewPhase}
+              title="Create a new phase"
+              style={{ width: '100%', borderRadius: 4, fontSize: 12, height: 28 }}
+            >+ New Phase</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -562,9 +731,9 @@ export function Sidebar() {
     prevPhaseId.current = selectedPhaseId;
   }, [selectedPhaseId, collapsed, discoveryActive]);
 
-  // Fall back from Tags tab when leaving design mode
+  // Fall back from Tags / Phases tab when leaving design mode
   useEffect(() => {
-    if (!designMode && activeTab === 'tags') setActiveTab('owners');
+    if (!designMode && (activeTab === 'tags' || activeTab === 'phases')) setActiveTab('owners');
   }, [designMode, activeTab]);
 
   // Hide hint when pane opens or selection is cleared
@@ -679,6 +848,13 @@ export function Sidebar() {
               title="Tags & owner colour management"
             >Tags</button>
           )}
+          {designMode && (
+            <button
+              className={`${styles.tab} ${activeTab === 'phases' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('phases')}
+              title="Phase management"
+            >Phases</button>
+          )}
           {discoveryActive && (
             <button
               className={`${styles.tab} ${styles.tabCinema} ${activeTab === 'cinema' ? styles.tabActive : ''}`}
@@ -702,6 +878,7 @@ export function Sidebar() {
             </div>
           )}
           {activeTab === 'tags' && <TagsPanel />}
+          {activeTab === 'phases' && <PhasesPanel />}
           {discoveryActive && (
             <div style={activeTab !== 'cinema' ? { display: 'none' } : { height: '100%' }}>
               <CinemaTabContent />

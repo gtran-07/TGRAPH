@@ -72,6 +72,19 @@ export function GroupEditModal() {
         return;
       }
 
+      // Validate same owner — all expanded nodes must share a single owner.
+      const ownerSet = new Set<string>();
+      for (const id of expandedIds) {
+        const node = allNodes.find((n) => n.id === id);
+        if (node) ownerSet.add(node.owner);
+      }
+      if (ownerSet.size > 1) {
+        alert(
+          `Cannot create group: selected nodes belong to multiple owners (${[...ownerSet].join(', ')}).\n\nAll nodes in a group must have the same owner.`
+        );
+        return;
+      }
+
       setMode('create');
       setEditingGroupId(null);
       setChildNodeIds(nodeIds);
@@ -147,10 +160,6 @@ export function GroupEditModal() {
     const group = groups.find((g) => g.id === editingGroupId);
     if (!group) return;
 
-    const choice = window.confirm(
-      `Delete group "${group.name}"?\n\nClick OK to dissolve the group (keep child nodes as standalone).\nClick Cancel to keep the group.`
-    );
-    if (!choice) return;
     deleteGroup(editingGroupId, true); // dissolve = keep children
     setIsOpen(false);
   }

@@ -1,26 +1,147 @@
+/* DesignToolbar.module.css — Vertical icon strip anchored to the right edge of the canvas */
+
 .banner {
-  position: absolute; top: 12px; left: 50%;
-  transform: translateX(-50%);
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px;
-  background: rgba(167,139,250,.1);
-  border: 1px solid var(--design);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.4);
-  z-index: 150; white-space: nowrap;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 5px;
+  background: rgba(18,12,36,.72);
+  border: 1px solid rgba(167,139,250,.5);
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  z-index: 150;
   animation: fadeIn .2s ease;
+  /* No overflow:hidden — flyout panels must escape the bounds */
 }
-.label { font-size: 11px; font-family: var(--font-mono); color: var(--design); }
-.sep { width: 1px; height: 16px; background: var(--border2); }
+
+.label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--design);
+  letter-spacing: 0.04em;
+  user-select: none;
+  line-height: 1;
+  padding-bottom: 1px;
+}
+
+.sep {
+  width: 18px;
+  height: 1px;
+  background: var(--border2);
+  margin: 2px 0;
+  flex-shrink: 0;
+}
+
 .toolBtn {
-  padding: 4px 10px; border-radius: 4px;
-  border: 1px solid var(--border2); background: transparent;
-  color: var(--text3); font-family: var(--font-mono);
-  font-size: 10px; cursor: pointer; transition: all .12s;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all .12s;
+  flex-shrink: 0;
 }
+
 .toolBtn:hover { border-color: var(--design); color: var(--design); }
-.active { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.18) !important; }
-.hint { font-size: 10px; color: var(--text3); font-family: var(--font-mono); margin-left: 4px; }
+.toolBtn:disabled { cursor: not-allowed; }
+
+.active {
+  border-color: var(--design) !important;
+  color: var(--design) !important;
+  background: rgba(167,139,250,.18) !important;
+}
+
+/* Trace results panel — floats to the left of the vertical strip */
+.tracePanel {
+  position: absolute;
+  right: calc(100% + 10px);
+  left: auto;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(34,211,238,.07);
+  border: 1px solid #22d3ee;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  z-index: 155;
+  white-space: nowrap;
+  animation: fadeIn .15s ease;
+  min-width: 150px;
+}
+
+.traceMeta {
+  font-size: 10px;
+  color: #22d3ee;
+  font-family: var(--font-mono);
+  padding: 0 2px 2px;
+}
+
+.traceNav {
+  display: flex;
+  gap: 3px;
+}
+
+.traceAssign {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.traceAssignBtn {
+  width: 100%;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all .12s;
+}
+.traceAssignBtn:hover { border-color: #22d3ee; color: #22d3ee; }
+
+/* Phase picker dropdown — floats to the left of the toolbar */
+.phasePicker {
+  position: absolute;
+  right: calc(100% + 10px);
+  left: auto;
+  top: 0;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  min-width: 160px;
+  z-index: 200;
+  padding: 5px 0;
+  animation: fadeIn .15s ease;
+}
+
+/* Kept for any legacy references — hidden in new design */
+.hint { display: none; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinnerIcon {

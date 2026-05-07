@@ -85,6 +85,7 @@ export function Canvas() {
     allNodes,
     allEdges,
     ownerColors,
+    activeOwners,
     laneMetrics,
     viewMode,
     enterFocusMode,
@@ -349,6 +350,14 @@ export function Canvas() {
     ).length;
     return { ownedIds, upstreamIds, downstreamIds, hiddenLaneCount };
   }, [focusedOwner, allNodes]);
+
+  // Count owners present in the graph but excluded from activeOwners (sidebar filter)
+  const hiddenOwnerCount = useMemo(() => {
+    const graphOwners = new Set(allNodes.map((n) => n.owner).filter(Boolean));
+    let count = 0;
+    graphOwners.forEach((o) => { if (!activeOwners.has(o)) count++; });
+    return count;
+  }, [allNodes, activeOwners]);
 
   // Helper: derive the owner focus role for a given node
   function getOwnerFocusRole(
@@ -1033,29 +1042,15 @@ export function Canvas() {
             groups.some((g) => g.id === id),
           );
           const total = multiSelectIds.length;
-          if (
-            !confirm(
-              `Delete ${total} selected item${total > 1 ? "s" : ""}? This cannot be undone.`,
-            )
-          )
-            return;
           groupIds.forEach((id) => deleteGroup(id, false));
           nodeIds.forEach((id) => deleteNode(id));
         } else if (selectedNodeId) {
           const node = allNodes.find((n) => n.id === selectedNodeId);
           if (!node) return;
-          if (
-            !confirm(
-              `Delete "${node.name}"? All connections to/from this node will also be removed.`,
-            )
-          )
-            return;
           deleteNode(selectedNodeId);
         } else if (selectedGroupId) {
           const group = groups.find((g) => g.id === selectedGroupId);
           if (!group) return;
-          if (!confirm(`Delete group "${group.name}" and all its contents?`))
-            return;
           deleteGroup(selectedGroupId, false);
         }
       }
@@ -1356,9 +1351,55 @@ export function Canvas() {
       {/* Cinema mode badge */}
       {discoveryActive && <div className={styles.cinemaBadge}>🎬 Cinema</div>}
 
-      {/* Owner Focus badge — top-left, visible in all modes including cinema */}
-      {focusedOwner && (
-        <div className={styles.ownerFocusBadge}>◎ {focusedOwner}</div>
+      {/* Top-left badges — focus mode + owner focus + owner filter, stacked */}
+      {(focusedOwner || hiddenOwnerCount > 0 || (focusMode && focusedNode)) && (
+        <div className={styles.topLeftBadges}>
+          {focusMode && focusedNode && (
+            <div className={styles.focusBanner}>
+              <span className={styles.focusBannerIcon}>🎯</span>
+              <button
+                className={styles.focusBannerLocate}
+                title="Click to fly to this node"
+                onClick={() => {
+                  if (!focusNodeId) return;
+                  setSelectedNode(focusNodeId);
+                  setLastJumpedNode(focusNodeId);
+                  const pos = positions[focusNodeId];
+                  if (pos) {
+                    const canvasEl = document.getElementById('canvas-wrap');
+                    if (canvasEl) {
+                      const { width: W, height: H } = canvasEl.getBoundingClientRect();
+                      flyTo({ x: W / 2 - (pos.x + 90) * 0.75, y: H / 2 - (pos.y + 36) * 0.75, k: 0.75 });
+                    }
+                  }
+                }}
+              >
+                <strong>{focusedNode.name}</strong>
+              </button>
+              <div className={styles.focusDepthToggle}>
+                <button
+                  className={`${styles.focusDepthBtn} ${focusDepth === 'neighbors' ? styles.focusDepthBtnActive : ''}`}
+                  onClick={() => setFocusDepth('neighbors')}
+                  title="Show only direct parents and children"
+                >Neighbors</button>
+                <button
+                  className={`${styles.focusDepthBtn} ${focusDepth === 'full' ? styles.focusDepthBtnActive : ''}`}
+                  onClick={() => setFocusDepth('full')}
+                  title="Show all ancestors and descendants"
+                >Full</button>
+              </div>
+              <button className={styles.focusBannerClose} onClick={exitFocusMode} title="Exit focus (Esc)">✕</button>
+            </div>
+          )}
+          {focusedOwner && (
+            <div className={styles.ownerFocusBadge}>◎ {focusedOwner}</div>
+          )}
+          {hiddenOwnerCount > 0 && (
+            <div className={styles.ownerFilterBadge}>
+              ⊘ {hiddenOwnerCount} owner{hiddenOwnerCount !== 1 ? "s" : ""} filtered
+            </div>
+          )}
+        </div>
       )}
 
       {/* Empty state — shown when no JSON has been loaded yet (hidden in design mode) */}
@@ -1797,53 +1838,6 @@ export function Canvas() {
       {/* Design mode toolbar banner */}
       {designMode && <DesignToolbar />}
 
-      {/* Focus mode banner */}
-      {focusMode && focusedNode && (
-        <div className={styles.focusBanner}>
-          <span className={styles.focusBannerIcon}>🎯</span>
-          <button
-            className={styles.focusBannerLocate}
-            title="Click to fly to this node"
-            onClick={() => {
-              if (!focusNodeId) return;
-              setSelectedNode(focusNodeId);
-              setLastJumpedNode(focusNodeId);
-              const pos = positions[focusNodeId];
-              if (pos) {
-                const canvasEl = document.getElementById('canvas-wrap');
-                if (canvasEl) {
-                  const { width: W, height: H } = canvasEl.getBoundingClientRect();
-                  flyTo({ x: W / 2 - (pos.x + 90) * 0.75, y: H / 2 - (pos.y + 36) * 0.75, k: 0.75 });
-                }
-              }
-            }}
-          >
-            Focus: <strong>{focusedNode.name}</strong>
-          </button>
-          <div className={styles.focusDepthToggle}>
-            <button
-              className={`${styles.focusDepthBtn} ${focusDepth === 'neighbors' ? styles.focusDepthBtnActive : ''}`}
-              onClick={() => setFocusDepth('neighbors')}
-              title="Show only direct parents and children"
-            >
-              Neighbors
-            </button>
-            <button
-              className={`${styles.focusDepthBtn} ${focusDepth === 'full' ? styles.focusDepthBtnActive : ''}`}
-              onClick={() => setFocusDepth('full')}
-              title="Show all ancestors and descendants"
-            >
-              Full Path
-            </button>
-          </div>
-          <span className={styles.focusBannerHint}>
-            Esc or double-click background to exit
-          </span>
-          <button className={styles.focusBannerClose} onClick={exitFocusMode}>
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Phase Crowns — sticky context bars at top edge when headers scroll out of view. */}
       {hasData && phases.length > 0 && (
@@ -1936,7 +1930,7 @@ export function Canvas() {
       />
 
       {/* Zoom controls — bottom center */}
-      <div className={styles.zoomControls}>
+      {hasData && <div className={styles.zoomControls}>
         <button
           className={styles.zoomBtn}
           onClick={() => {
@@ -1972,7 +1966,7 @@ export function Canvas() {
         >
           −
         </button>
-      </div>
+      </div>}
 
       {/* Edge delete tooltip — shown when hovering an edge in design mode */}
       <div

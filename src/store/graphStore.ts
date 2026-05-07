@@ -1713,11 +1713,24 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     // If already in owner focus (switching owners), preserve the ORIGINAL snapshot
     // so exit always returns to the state before any owner focus was entered.
     const existingSnap = state.preLaneFocusSnapshot;
+    // When entering from within node focus, save the full-graph positions (from preFocusSnapshot)
+    // rather than the subgraph positions currently in state.positions. Those subgraph positions
+    // would be invalid for the full owner-filter node set restored on exit.
+    const basePositions = !existingSnap && state.focusMode && state.preFocusSnapshot
+      ? state.preFocusSnapshot.positions
+      : state.positions;
+    const baseLaneMetrics = !existingSnap && state.focusMode && state.preFocusSnapshot
+      ? state.preFocusSnapshot.laneMetrics
+      : state.laneMetrics;
     const preLaneFocusSnapshot: OwnerFocusSnapshot = {
-      activeOwners: existingSnap ? existingSnap.activeOwners : new Set(state.activeOwners),
-      positions:    existingSnap ? existingSnap.positions    : { ...state.positions },
-      laneMetrics:  existingSnap ? existingSnap.laneMetrics  : { ...state.laneMetrics },
-      transform:    existingSnap ? existingSnap.transform    : { ...state.transform },
+      activeOwners:     existingSnap ? existingSnap.activeOwners     : new Set(state.activeOwners),
+      positions:        existingSnap ? existingSnap.positions        : { ...basePositions },
+      laneMetrics:      existingSnap ? existingSnap.laneMetrics      : { ...baseLaneMetrics },
+      transform:        existingSnap ? existingSnap.transform        : { ...state.transform },
+      focusMode:        existingSnap ? existingSnap.focusMode        : state.focusMode,
+      focusNodeId:      existingSnap ? existingSnap.focusNodeId      : state.focusNodeId,
+      focusDepth:       existingSnap ? existingSnap.focusDepth       : state.focusDepth,
+      preFocusSnapshot: existingSnap ? existingSnap.preFocusSnapshot : state.preFocusSnapshot,
     };
 
     const { visibleNodes, visibleEdges } = deriveVisibility(
@@ -1738,6 +1751,11 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       visibleEdges,
       positions,
       laneMetrics,
+      // Clear node focus — owner focus overrides it; state is saved in the snapshot
+      focusMode: false,
+      focusNodeId: null,
+      focusDepth: 'neighbors',
+      preFocusSnapshot: null,
     });
 
     setTimeout(() => get().fitToScreen(), 60);
@@ -1753,24 +1771,50 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const snap = state.preLaneFocusSnapshot;
     if (!snap) return;
 
-    const { visibleNodes, visibleEdges } = deriveVisibility(
-      state.allNodes, state.allEdges, snap.activeOwners, false, null, state.groups
-    );
-
     set({ suppressEntranceAnimation: true });
     setTimeout(() => set({ suppressEntranceAnimation: false }), 100);
 
-    set({
-      focusedOwner: null,
-      preLaneFocusSnapshot: null,
-      activeOwners: snap.activeOwners,
-      visibleNodes,
-      visibleEdges,
-      positions: snap.positions,
-      laneMetrics: snap.laneMetrics,
-      transform: snap.transform,
-      flyTarget: null, // stop any in-flight fitToScreen animation from enterOwnerFocus
-    });
+    if (snap.focusMode && snap.focusNodeId) {
+      // Owner focus was entered from within node focus mode — restore it.
+      // Re-derive the focus neighborhood visibility and fresh positions.
+      const { visibleNodes, visibleEdges } = deriveVisibility(
+        state.allNodes, state.allEdges, snap.activeOwners,
+        true, snap.focusNodeId, state.groups, snap.focusDepth
+      );
+      const { positions, laneMetrics } = derivePositions(
+        visibleNodes, visibleEdges, state.viewMode, snap.activeOwners, state.allNodes
+      );
+      set({
+        focusedOwner: null,
+        preLaneFocusSnapshot: null,
+        activeOwners: snap.activeOwners,
+        focusMode: true,
+        focusNodeId: snap.focusNodeId,
+        focusDepth: snap.focusDepth,
+        preFocusSnapshot: snap.preFocusSnapshot,
+        visibleNodes,
+        visibleEdges,
+        positions,
+        laneMetrics,
+        flyTarget: null,
+      });
+      setTimeout(() => get().fitToScreen(), 60);
+    } else {
+      const { visibleNodes, visibleEdges } = deriveVisibility(
+        state.allNodes, state.allEdges, snap.activeOwners, false, null, state.groups
+      );
+      set({
+        focusedOwner: null,
+        preLaneFocusSnapshot: null,
+        activeOwners: snap.activeOwners,
+        visibleNodes,
+        visibleEdges,
+        positions: snap.positions,
+        laneMetrics: snap.laneMetrics,
+        transform: snap.transform,
+        flyTarget: null, // stop any in-flight fitToScreen animation from enterOwnerFocus
+      });
+    }
   },
 
   // ── saveLayoutToCache ─────────────────────────────────────────────────────

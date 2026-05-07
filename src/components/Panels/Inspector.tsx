@@ -239,10 +239,8 @@ export function InspectorContent() {
                   className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
                   title="Delete phase"
                   onClick={() => {
-                    if (window.confirm(`Delete phase "${selectedPhase.name}"?`)) {
-                      deletePhase(selectedPhase.id);
-                      setSelectedPhaseId(null);
-                    }
+                    deletePhase(selectedPhase.id);
+                    setSelectedPhaseId(null);
                   }}
                 >
                   <svg width="12" height="13" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -353,10 +351,8 @@ export function InspectorContent() {
                   className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
                   title="Delete group"
                   onClick={() => {
-                    if (window.confirm(`Delete group "${selectedGroup.name}"?`)) {
-                      deleteGroup(selectedGroup.id);
-                      setSelectedGroup(null);
-                    }
+                    deleteGroup(selectedGroup.id);
+                    setSelectedGroup(null);
                   }}
                 >
                   <svg width="12" height="13" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -722,10 +718,8 @@ export function InspectorContent() {
                   className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
                   title="Delete node"
                   onClick={() => {
-                    if (window.confirm(`Delete node "${selectedNode.name}"?`)) {
-                      deleteNode(selectedNode.id);
-                      setSelectedNode(null);
-                    }
+                    deleteNode(selectedNode.id);
+                    setSelectedNode(null);
                   }}
                 >
                   <svg width="12" height="13" viewBox="0 0 12 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

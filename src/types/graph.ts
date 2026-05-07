@@ -168,6 +168,14 @@ export interface OwnerFocusSnapshot {
   laneMetrics: Record<string, LaneMetrics>;
   /** Viewport transform before owner focus was entered */
   transform: Transform;
+  /** Whether node focus mode was active when owner focus was entered */
+  focusMode: boolean;
+  /** The focused node ID when owner focus was entered (null if not in node focus) */
+  focusNodeId: string | null;
+  /** The focus depth when owner focus was entered */
+  focusDepth: 'neighbors' | 'full';
+  /** The pre-node-focus snapshot when owner focus was entered (null if not in node focus) */
+  preFocusSnapshot: FocusSnapshot | null;
 }
 
 /**
