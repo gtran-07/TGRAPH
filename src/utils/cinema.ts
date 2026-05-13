@@ -46,12 +46,12 @@ const PHASE_COVERAGE_THRESHOLD = 0.30;
 
 // ─── STEP 1: TOPOLOGICAL SORT (Kahn's algorithm) ──────────────────────────────
 
-interface TopoResult {
+export interface TopoResult {
   order: string[];       // nodeIds in topological order
   cycleDetected: boolean;
 }
 
-function topologicalSort(nodes: GraphNode[], edges: GraphEdge[]): TopoResult {
+export function topologicalSort(nodes: GraphNode[], edges: GraphEdge[]): TopoResult {
   const inDegree = new Map<string, number>();
   const adjList = new Map<string, string[]>(); // from → [to]
 

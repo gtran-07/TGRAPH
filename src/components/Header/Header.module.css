@@ -355,17 +355,18 @@
 }
 .btnModeMenu:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
 .btnModeMenuOpen { border-color: var(--accent); color: var(--accent); background: rgba(79,158,255,.07); }
-.btnModeMenuDesign { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.1) !important; }
+.btnModeMenuDesign   { border-color: var(--design) !important; color: var(--design) !important; background: rgba(167,139,250,.1) !important; }
+.btnModeMenuDiscover { border-color: var(--cinema-focus-color) !important; color: var(--cinema-focus-color) !important; background: rgba(79,158,255,.1) !important; }
+.btnModeMenuPaths    { border-color: var(--highlight) !important; color: var(--highlight) !important; background: rgba(245,158,11,.1) !important; }
 
 .modeMenuDropdown {
-  position: absolute;
-  top: calc(100% + 5px); right: 0; left: auto;
+  position: fixed;
   min-width: 180px;
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 8px;
   box-shadow: 0 12px 40px rgba(0,0,0,.6);
-  z-index: 400;
+  z-index: 10000;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -392,7 +393,9 @@
 .modeMenuItem:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
 .modeMenuItem:disabled { opacity: .35; cursor: not-allowed; }
 .modeMenuItemActive { color: var(--accent) !important; }
-.modeMenuItemDesign { color: var(--design) !important; }
+.modeMenuItemDesign   { color: var(--design) !important; }
+.modeMenuItemDiscover { color: var(--cinema-focus-color) !important; }
+.modeMenuItemPaths    { color: var(--highlight) !important; }
 .modeMenuCheck { margin-left: auto; font-size: 11px; }
 
 /* Icon buttons */

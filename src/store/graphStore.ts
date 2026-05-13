@@ -37,7 +37,10 @@ import type {
   DiscoveryPhase,
   HeatTier,
   PathType,
+  CriticalChain,
+  BottleneckNode,
 } from '../types/graph';
+import { extractCriticalChains } from '../utils/criticalPath';
 import { PHASE_PALETTE } from '../types/graph';
 import { computeNormalizedEngagement, assignHeatTier } from '../utils/cinema';
 import {
@@ -48,6 +51,7 @@ import {
   pushNodesOutOfPhaseBand,
   enforceAllPhaseBoundaries,
   resolveNodeOverlaps,
+  computePhaseAdjustedPositions,
   NODE_W,
   NODE_H,
   GAP_Y,
@@ -156,6 +160,8 @@ export interface GraphStore {
   multiSelectIds: string[];
   /** True when marquee (rubber-band) selection mode is active */
   marqueeMode: boolean;
+  /** True when pan/hand tool mode is active (persistent, button-toggled) */
+  panMode: boolean;
   /** ID of the selected group (shown in Inspector). Null when nothing selected. */
   selectedGroupId: string | null;
 
@@ -262,6 +268,8 @@ export interface GraphStore {
   setMultiSelectIds: (ids: string[]) => void;
   /** Toggle the marquee (rubber-band) selection mode on/off */
   toggleMarqueeMode: () => void;
+  /** Toggle the pan/hand tool mode on/off */
+  togglePanMode: () => void;
 
   // ── Phase actions ──────────────────────────────────────────────────────────
   /** Create a new phase, optionally pre-assigning nodes and/or collapsed groups */
@@ -280,6 +288,8 @@ export interface GraphStore {
   updatePhase: (id: string, changes: Partial<Omit<GraphPhase, 'id'>>) => void;
   /** Delete a phase (nodes are unaffected — they simply no longer belong to a phase) */
   deletePhase: (id: string) => void;
+  /** Swap this phase one step earlier ('left') or later ('right') in the sequence */
+  movePhase: (id: string, direction: 'left' | 'right') => void;
   /** Assign a set of nodes to a phase, removing them from any previous phase first */
   assignNodesToPhase: (nodeIds: string[], phaseId: string) => void;
   /** Remove a set of nodes from whichever phase they belong to */
@@ -518,6 +528,51 @@ export interface GraphStore {
   runAutoLayout: (selectedNodeIds?: string[]) => void;
   /** Called by Canvas after the transition animation ends to release from-positions. */
   clearAutoLayoutFromPositions: () => void;
+
+  // ── Critical Path Explorer ────────────────────────────────────────────────
+  /** True when the Critical Path Explorer panel is open */
+  criticalPathActive: boolean;
+  /** All critical chains extracted from edgePathTypes at activation time */
+  criticalChains: CriticalChain[];
+  /** Nodes that appear in two or more chains (shared bottlenecks) */
+  criticalBottlenecks: BottleneckNode[];
+  /** IDs of chains currently selected (highlighted on canvas) */
+  criticalSelectedIds: Set<string>;
+  /** True when ≥2 chains are selected for side-by-side comparison */
+  criticalCompareMode: boolean;
+  /** Which chain is currently being walked step-by-step. Null = browse mode. */
+  criticalWalkChainId: string | null;
+  /** Current step index within the walk chain (0-based) */
+  criticalWalkCursor: number;
+
+  /** Open/close the Critical Path Explorer. Opening recomputes chains from edgePathTypes. */
+  toggleCriticalPath: () => void;
+  /** Enter compare mode so subsequent card clicks add to the selection. */
+  enterCriticalCompareMode: () => void;
+  /** Exit compare mode, keeping only the first selected path. */
+  exitCriticalCompareMode: () => void;
+  /** Select all chains at once, enter compare mode, and fit viewport. */
+  selectAllCriticalPaths: () => void;
+  /** Select a chain (radio) or toggle it in/out of compare set (checkbox). */
+  setCriticalSelection: (chainId: string, multi: boolean) => void;
+  /** Enter step-through walk mode for the given chain. */
+  enterCriticalWalk: (chainId: string) => void;
+  /** Advance the walk cursor by +1 or -1 with wrap-around. */
+  stepCriticalWalk: (dir: 1 | -1) => void;
+  /** Exit walk mode and return to browse view. */
+  exitCriticalWalk: () => void;
+  /** Jump directly to a specific step in the current walk chain. */
+  setCriticalWalkCursor: (index: number) => void;
+
+  // ── Critical Path Focus Mode ──────────────────────────────────────────────
+  /** True when the canvas is filtered to show only a single chain's nodes */
+  criticalFocusActive: boolean;
+  /** Snapshot captured before entering critical focus — restored on exit */
+  preCriticalFocusSnapshot: FocusSnapshot | null;
+  /** Enter focus view for the given chain: hide all non-chain nodes, fresh layout */
+  enterCriticalFocus: (chainId: string) => void;
+  /** Exit critical focus and restore the full graph */
+  exitCriticalFocus: () => void;
 }
 
 // ─── HELPER: compute visible nodes/edges from current state ─────────────────
@@ -627,7 +682,11 @@ function derivePositions(
   groups?: GraphGroup[]
 ): { positions: Record<string, Position>; laneMetrics: Record<string, LaneMetrics> } {
   if (viewMode === 'lanes') {
-    return computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes);
+    const { positions: rawPositions, laneMetrics } = computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes, phases);
+    const positions = phases && phases.length > 0
+      ? enforcePhaseZones(rawPositions, phases, NODE_W)
+      : rawPositions;
+    return { positions, laneMetrics };
   } else {
     const raw = computeLayout(visibleNodes, visibleEdges, phases, groups);
     const positions = phases && phases.length > 0
@@ -675,6 +734,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   groups: [],
   multiSelectIds: [],
   marqueeMode: false,
+  panMode: false,
   selectedGroupId: null,
   phases: [],
   selectedPhaseId: null,
@@ -719,6 +779,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   autoLayoutRunning: false,
   autoLayoutPhase: '',
   autoLayoutFromPositions: null,
+  criticalPathActive: false,
+  criticalChains: [],
+  criticalBottlenecks: [],
+  criticalSelectedIds: new Set(),
+  criticalCompareMode: false,
+  criticalWalkChainId: null,
+  criticalWalkCursor: 0,
+  criticalFocusActive: false,
+  preCriticalFocusSnapshot: null,
 
   // ── clearGraph ────────────────────────────────────────────────────────────
   clearGraph: () => {
@@ -790,7 +859,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       autoLayoutPhase: '',
       autoLayoutFromPositions: null,
       loadCount: 0,
-        });
+      criticalPathActive: false,
+      criticalChains: [],
+      criticalBottlenecks: [],
+      criticalSelectedIds: new Set(),
+      criticalCompareMode: false,
+      criticalWalkChainId: null,
+      criticalWalkCursor: 0,
+      criticalFocusActive: false,
+      preCriticalFocusSnapshot: null,
+    });
   },
 
   // ── setFileHandle ─────────────────────────────────────────────────────────
@@ -866,12 +944,19 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       }
     }
 
+    // A saved layout is only usable when it actually contains positions.
+    // If the active view's positions are empty (e.g. file saved while in Lanes view so
+    // dag.positions = {}), fall back to a fresh layout rather than rendering all nodes
+    // stacked at the origin.
+    const hasValidSavedPositions =
+      activeLayout != null && Object.keys(activeLayout.positions).length > 0;
+
     // Compute fresh layout for the active view (used as fallback for missing positions)
-    const { positions: freshPositions, laneMetrics } = activeLayout
+    const { positions: freshPositions, laneMetrics } = hasValidSavedPositions
       ? derivePositions(visibleNodes, visibleEdges, restoredViewMode, activeOwners, nodes)
       : derivePositions(visibleNodes, visibleEdges, 'dag', activeOwners, nodes, phases);
 
-    const rawActivePositions = activeLayout ? activeLayout.positions : freshPositions;
+    const rawActivePositions = hasValidSavedPositions ? activeLayout!.positions : freshPositions;
     const activePositions = restoredViewMode === 'lanes' && phases.length > 0
       ? enforceAllPhaseBoundaries(rawActivePositions, phases, groups, GROUP_R, LANE_LABEL_W)
       : rawActivePositions;
@@ -916,7 +1001,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       tagRegistry,
       ownerRegistry,
       meta,
-      transform: activeLayout ? activeLayout.transform : { x: 0, y: 0, k: 1 },
+      transform: hasValidSavedPositions ? activeLayout!.transform : { x: 0, y: 0, k: 1 },
       currentFileName: fileName ?? null,
       fileHandle: null, // caller sets this via setFileHandle after loadData
       // Extract persisted engagement scores — stored under _layout.discoveryEngagement
@@ -936,7 +1021,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       tracePathResults: [],
       tracePathSelectedIndex: 0,
       loadCount: get().loadCount + 1,
-        });
+      criticalPathActive: false,
+      criticalChains: [],
+      criticalBottlenecks: [],
+      criticalSelectedIds: new Set(),
+      criticalCompareMode: false,
+      criticalWalkChainId: null,
+      criticalWalkCursor: 0,
+      criticalFocusActive: false,
+      preCriticalFocusSnapshot: null,
+    });
   },
 
   // ── addNode ───────────────────────────────────────────────────────────────
@@ -1075,7 +1169,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       // Lanes view without owner focus: snap the node into its new lane and
       // translate all other nodes by the lane-Y delta (same pattern as toggleOwner).
       const { positions: freshPositions, laneMetrics } =
-        computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes);
+        computeLaneLayout(visibleNodes, visibleEdges, activeOwners, allNodes, state.phases.length > 0 ? state.phases : undefined);
 
       const positions: Record<string, Position> = { ...state.positions };
 
@@ -1315,7 +1409,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         layoutCache: cache,
         positions: restoredPositions,
         laneMetrics: mode === 'lanes'
-          ? computeLaneLayout(state.visibleNodes, state.visibleEdges, state.activeOwners, state.allNodes).laneMetrics
+          ? computeLaneLayout(state.visibleNodes, state.visibleEdges, state.activeOwners, state.allNodes, state.phases.length > 0 ? state.phases : undefined).laneMetrics
           : {},
       });
       set({ flyTarget: cachedLayout.transform });
@@ -1463,7 +1557,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     // Compute fresh layout for the new visible set, then merge:
     // nodes that already have a position keep it; only newly-visible nodes get a fresh slot.
     const { positions: freshPositions, laneMetrics } = derivePositions(
-      visibleNodes, visibleEdges, state.viewMode, activeOwners, state.allNodes
+      visibleNodes, visibleEdges, state.viewMode, activeOwners, state.allNodes, state.phases, state.groups
     );
     const positions: Record<string, Position> = { ...freshPositions };
 
@@ -1478,9 +1572,12 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         ? null
         : state.selectedNodeId;
 
-    const finalPositions = state.viewMode === 'lanes' && state.phases.length > 0
-      ? enforceAllPhaseBoundaries(positions, state.phases, state.groups, GROUP_R, LANE_LABEL_W)
+    const enforcedPositions = state.phases.length > 0
+      ? enforceAllPhaseBoundaries(positions, state.phases, state.groups, GROUP_R,
+          state.viewMode === 'lanes' ? LANE_LABEL_W : 0)
       : positions;
+    const collapsedGroupIds = new Set(state.groups.filter((g) => g.collapsed).map((g) => g.id));
+    const finalPositions = resolveNodeOverlaps(enforcedPositions, collapsedGroupIds, GROUP_R);
 
     // Compute fading-out and fading-in node sets for animation
     const newVisibleIds = new Set(visibleNodes.map((n) => n.id));
@@ -1521,14 +1618,17 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     );
 
     const { positions: freshPositions, laneMetrics } = derivePositions(
-      visibleNodes, visibleEdges, state.viewMode, activeOwners, state.allNodes
+      visibleNodes, visibleEdges, state.viewMode, activeOwners, state.allNodes, state.phases, state.groups
     );
     const positions: Record<string, Position> = { ...freshPositions };
     // Always use freshPositions for all visible nodes — full reflow in both directions.
 
-    const finalPositions = state.viewMode === 'lanes' && state.phases.length > 0
-      ? enforceAllPhaseBoundaries(positions, state.phases, state.groups, GROUP_R, LANE_LABEL_W)
+    const enforcedPositions2 = state.phases.length > 0
+      ? enforceAllPhaseBoundaries(positions, state.phases, state.groups, GROUP_R,
+          state.viewMode === 'lanes' ? LANE_LABEL_W : 0)
       : positions;
+    const collapsedGroupIds2 = new Set(state.groups.filter((g) => g.collapsed).map((g) => g.id));
+    const finalPositions = resolveNodeOverlaps(enforcedPositions2, collapsedGroupIds2, GROUP_R);
 
     const newVisibleIds = new Set(visibleNodes.map((n) => n.id));
     const oldVisibleIds = new Set(state.visibleNodes.map((n) => n.id));
@@ -1897,11 +1997,29 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     const { width: canvasW, height: canvasH } = canvasEl.getBoundingClientRect();
 
-    // Find the bounding box of all visible nodes.
+    // When phases are collapsed, the accordion shifts nodes left and hides nodes inside
+    // collapsed bands. Use the phase-adjusted positions so the bounding box matches
+    // what is actually visible on screen.
+    let displayPositions = state.positions;
+    let hiddenIds = new Set<string>();
+    if (state.collapsedPhaseIds.length > 0 && state.phases.length > 0) {
+      const adjusted = computePhaseAdjustedPositions(
+        state.phases, state.positions, state.collapsedPhaseIds, NODE_W,
+        state.viewMode === 'lanes' ? LANE_LABEL_W : undefined,
+      );
+      displayPositions = adjusted.adjustedPositions;
+      hiddenIds = adjusted.hiddenNodeIds;
+    }
+
+    // Find the bounding box of all visible (non-hidden) nodes.
     // In lanes view, lane labels sit at x=0..LANE_LABEL_W, so we extend minX to 0
     // to prevent them from being clipped when fitting to screen.
-    const xs = Object.values(state.positions).map((pos) => pos.x);
-    const ys = Object.values(state.positions).map((pos) => pos.y);
+    const visiblePositions = Object.entries(displayPositions)
+      .filter(([id]) => !hiddenIds.has(id))
+      .map(([, pos]) => pos);
+    if (visiblePositions.length === 0) return;
+    const xs = visiblePositions.map((pos) => pos.x);
+    const ys = visiblePositions.map((pos) => pos.y);
     const minX = state.viewMode === 'lanes' ? 0 : Math.min(...xs);
     const maxX = Math.max(...xs) + NODE_W;
     const minY = Math.min(...ys);
@@ -1969,6 +2087,26 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const groups = [...state.groups, newGroup];
     const positions = { ...state.positions, [id]: { x: cx, y: cy } };
 
+    // Adopt the phase shared by children: add the new group to that phase's groupIds
+    const childPhaseId = (() => {
+      for (const nid of childNodeIds) {
+        const ph = state.phases.find((p) => p.nodeIds.includes(nid));
+        if (ph) return ph.id;
+      }
+      for (const gid of childGroupIds) {
+        const ph = state.phases.find((p) => (p.groupIds ?? []).includes(gid));
+        if (ph) return ph.id;
+      }
+      return null;
+    })();
+    const phases = childPhaseId
+      ? state.phases.map((p) =>
+          p.id === childPhaseId
+            ? { ...p, groupIds: [...(p.groupIds ?? []), id] }
+            : p
+        )
+      : state.phases;
+
     const { visibleNodes, visibleEdges } = deriveVisibility(
       state.allNodes, state.allEdges, state.activeOwners, state.focusMode, state.focusNodeId, groups
     );
@@ -1976,6 +2114,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({
       groups,
       positions,
+      phases,
       visibleNodes,
       visibleEdges,
       multiSelectIds: [],
@@ -2140,7 +2279,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   }),
 
   // ── toggleMarqueeMode ─────────────────────────────────────────────────────
-  toggleMarqueeMode: () => set((s) => ({ marqueeMode: !s.marqueeMode })),
+  toggleMarqueeMode: () => set((s) => ({ marqueeMode: !s.marqueeMode, panMode: false })),
+
+  // ── togglePanMode ─────────────────────────────────────────────────────────
+  togglePanMode: () => set((s) => ({ panMode: !s.panMode, marqueeMode: false })),
 
   // ── createPhase ───────────────────────────────────────────────────────────
   createPhase: (nodeIds, data, groupIds = []) => {
@@ -2220,6 +2362,23 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const state = get();
     const phases = state.phases.map((p) => (p.id === id ? { ...p, ...changes } : p));
     set({ phases, designDirty: true });
+  },
+
+  // ── movePhase ─────────────────────────────────────────────────────────────
+  movePhase: (id, direction) => {
+    const { phases } = get();
+    const sorted = [...phases].sort((a, b) => a.sequence - b.sequence);
+    const idx = sorted.findIndex((p) => p.id === id);
+    const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const a = sorted[idx];
+    const b = sorted[swapIdx];
+    const updated = phases.map((p) => {
+      if (p.id === a.id) return { ...p, sequence: b.sequence };
+      if (p.id === b.id) return { ...p, sequence: a.sequence };
+      return p;
+    });
+    set({ phases: updated, designDirty: true });
   },
 
   // ── deletePhase ───────────────────────────────────────────────────────────
@@ -2891,6 +3050,395 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     connectSourceId: null,
   }),
 
+  // ── Critical Path Explorer actions ───────────────────────────────────────
+  toggleCriticalPath: () => {
+    const s = get();
+    if (s.criticalPathActive) {
+      if (s.criticalFocusActive) {
+        // Restore graph from focus snapshot, then clear all critical state
+        const snapshot = s.preCriticalFocusSnapshot;
+        if (snapshot) {
+          const { visibleNodes, visibleEdges } = deriveVisibility(
+            s.allNodes, s.allEdges, s.activeOwners, false, null, s.groups
+          );
+          set({
+            criticalPathActive: false,
+            criticalChains: [],
+            criticalBottlenecks: [],
+            criticalSelectedIds: new Set(),
+            criticalCompareMode: false,
+            criticalWalkChainId: null,
+            criticalWalkCursor: 0,
+            criticalFocusActive: false,
+            preCriticalFocusSnapshot: null,
+            viewMode: snapshot.viewModeAtEnter,
+            visibleNodes,
+            visibleEdges,
+            positions: snapshot.positions,
+            laneMetrics: snapshot.laneMetrics,
+            flyTarget: snapshot.transform,
+          });
+          return;
+        }
+      }
+      set({
+        criticalPathActive: false,
+        criticalChains: [],
+        criticalBottlenecks: [],
+        criticalSelectedIds: new Set(),
+        criticalCompareMode: false,
+        criticalWalkChainId: null,
+        criticalWalkCursor: 0,
+        criticalFocusActive: false,
+        preCriticalFocusSnapshot: null,
+      });
+      return;
+    }
+    // Exit cinema if active before entering critical path mode
+    if (s.discoveryActive) s.exitDiscovery();
+    const { chains, bottlenecks } = extractCriticalChains(
+      s.allNodes, s.groups, s.allEdges, s.edgePathTypes, s.phases,
+    );
+
+    // Fly to fit the first auto-selected chain so the user immediately sees the relevant nodes.
+    let flyTarget: Transform | null = null;
+    if (chains.length > 0) {
+      const canvasEl = document.getElementById('canvas-wrap');
+      if (canvasEl) {
+        const chainPositions = chains[0].nodeIds
+          .map(id => s.positions[id])
+          .filter((p): p is Position => p !== undefined);
+        if (chainPositions.length > 0) {
+          const { width: canvasW, height: canvasH } = canvasEl.getBoundingClientRect();
+          const xs = chainPositions.map(p => p.x);
+          const ys = chainPositions.map(p => p.y);
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs) + NODE_W;
+          const minY = Math.min(...ys);
+          const maxY = Math.max(...ys) + NODE_H;
+          const graphW = maxX - minX;
+          const graphH = maxY - minY;
+          const padding = 80;
+          const scale = Math.min(
+            (canvasW - padding * 2) / graphW,
+            (canvasH - padding * 2) / graphH,
+            1.5,
+          );
+          flyTarget = {
+            x: (canvasW - graphW * scale) / 2 - minX * scale,
+            y: (canvasH - graphH * scale) / 2 - minY * scale,
+            k: scale,
+          };
+        }
+      }
+    }
+
+    set({
+      criticalPathActive: true,
+      criticalChains: chains,
+      criticalBottlenecks: bottlenecks,
+      criticalSelectedIds: chains.length > 0 ? new Set([chains[0].id]) : new Set(),
+      criticalCompareMode: false,
+      criticalWalkChainId: null,
+      criticalWalkCursor: 0,
+      ...(flyTarget ? { flyTarget } : {}),
+    });
+  },
+
+  enterCriticalCompareMode: () => set({ criticalCompareMode: true }),
+  exitCriticalCompareMode: () => {
+    const s = get();
+    const first = [...s.criticalSelectedIds][0];
+    set({ criticalCompareMode: false, criticalSelectedIds: first ? new Set([first]) : new Set() });
+    // Fit viewport to the remaining selected path.
+    if (first) {
+      const chain = s.criticalChains.find(c => c.id === first);
+      if (chain && chain.nodeIds.length > 0) {
+        const canvasEl = document.getElementById('canvas-wrap');
+        if (canvasEl) {
+          const { width: W, height: H } = canvasEl.getBoundingClientRect();
+          const pathPositions = chain.nodeIds.map(id => s.positions[id]).filter(Boolean);
+          if (pathPositions.length > 0) {
+            const xs = pathPositions.map(p => p.x);
+            const ys = pathPositions.map(p => p.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs) + NODE_W;
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys) + NODE_H;
+            const graphW = maxX - minX;
+            const graphH = maxY - minY;
+            const padding = 80;
+            const scaleX = (W - padding * 2) / graphW;
+            const scaleY = (H - padding * 2) / graphH;
+            const k = Math.min(scaleX, scaleY, 1.5);
+            const x = (W - graphW * k) / 2 - minX * k;
+            const y = (H - graphH * k) / 2 - minY * k;
+            set({ flyTarget: { x, y, k } });
+          }
+        }
+      }
+    }
+  },
+
+  selectAllCriticalPaths: () => {
+    const s = get();
+    if (s.criticalChains.length === 0) return;
+    const allIds = new Set(s.criticalChains.map(c => c.id));
+    set({ criticalSelectedIds: allIds, criticalCompareMode: true });
+    const canvasEl = document.getElementById('canvas-wrap');
+    if (canvasEl) {
+      const { width: W, height: H } = canvasEl.getBoundingClientRect();
+      const allNodeIds = new Set<string>();
+      s.criticalChains.forEach(c => c.nodeIds.forEach(id => allNodeIds.add(id)));
+      const pathPositions = [...allNodeIds].map(id => s.positions[id]).filter(Boolean);
+      if (pathPositions.length > 0) {
+        const xs = pathPositions.map(p => p.x);
+        const ys = pathPositions.map(p => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs) + NODE_W;
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys) + NODE_H;
+        const graphW = maxX - minX;
+        const graphH = maxY - minY;
+        const padding = 80;
+        const scaleX = (W - padding * 2) / graphW;
+        const scaleY = (H - padding * 2) / graphH;
+        const k = Math.min(scaleX, scaleY, 1.5);
+        const x = (W - graphW * k) / 2 - minX * k;
+        const y = (H - graphH * k) / 2 - minY * k;
+        set({ flyTarget: { x, y, k } });
+      }
+    }
+  },
+
+  setCriticalSelection: (chainId, multi) => {
+    const s = get();
+    if (!multi) {
+      set({ criticalSelectedIds: new Set([chainId]), criticalCompareMode: false });
+      // Fly canvas to fit all nodes of the newly selected path.
+      const chain = s.criticalChains.find(c => c.id === chainId);
+      if (chain && chain.nodeIds.length > 0) {
+        const canvasEl = document.getElementById('canvas-wrap');
+        if (canvasEl) {
+          const { width: W, height: H } = canvasEl.getBoundingClientRect();
+          const pathPositions = chain.nodeIds.map(id => s.positions[id]).filter(Boolean);
+          if (pathPositions.length > 0) {
+            const xs = pathPositions.map(p => p.x);
+            const ys = pathPositions.map(p => p.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs) + NODE_W;
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys) + NODE_H;
+            const graphW = maxX - minX;
+            const graphH = maxY - minY;
+            const padding = 80;
+            const scaleX = (W - padding * 2) / graphW;
+            const scaleY = (H - padding * 2) / graphH;
+            const k = Math.min(scaleX, scaleY, 1.5);
+            const x = (W - graphW * k) / 2 - minX * k;
+            const y = (H - graphH * k) / 2 - minY * k;
+            set({ flyTarget: { x, y, k } });
+          }
+        }
+      }
+      return;
+    }
+    const next = new Set(s.criticalSelectedIds);
+    if (next.has(chainId)) next.delete(chainId);
+    else next.add(chainId);
+    set({ criticalSelectedIds: next });
+    // Fit viewport to the union of all selected chains.
+    if (next.size > 0) {
+      const canvasEl = document.getElementById('canvas-wrap');
+      if (canvasEl) {
+        const { width: W, height: H } = canvasEl.getBoundingClientRect();
+        const allNodeIds = new Set<string>();
+        for (const cid of next) {
+          const chain = s.criticalChains.find(c => c.id === cid);
+          if (chain) chain.nodeIds.forEach(id => allNodeIds.add(id));
+        }
+        const pathPositions = [...allNodeIds].map(id => s.positions[id]).filter(Boolean);
+        if (pathPositions.length > 0) {
+          const xs = pathPositions.map(p => p.x);
+          const ys = pathPositions.map(p => p.y);
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs) + NODE_W;
+          const minY = Math.min(...ys);
+          const maxY = Math.max(...ys) + NODE_H;
+          const graphW = maxX - minX;
+          const graphH = maxY - minY;
+          const padding = 80;
+          const scaleX = (W - padding * 2) / graphW;
+          const scaleY = (H - padding * 2) / graphH;
+          const k = Math.min(scaleX, scaleY, 1.5);
+          const x = (W - graphW * k) / 2 - minX * k;
+          const y = (H - graphH * k) / 2 - minY * k;
+          set({ flyTarget: { x, y, k } });
+        }
+      }
+    }
+  },
+
+  enterCriticalWalk: (chainId) => set({
+    criticalWalkChainId: chainId,
+    criticalWalkCursor: 0,
+    criticalSelectedIds: new Set([chainId]),
+    criticalCompareMode: false,
+  }),
+
+  stepCriticalWalk: (dir) => {
+    const s = get();
+    const chain = s.criticalChains.find(c => c.id === s.criticalWalkChainId);
+    if (!chain || chain.nodeIds.length === 0) return;
+    const len = chain.nodeIds.length;
+    const next = ((s.criticalWalkCursor + dir) % len + len) % len;
+    set({ criticalWalkCursor: next });
+  },
+
+  exitCriticalWalk: () => set({ criticalWalkChainId: null, criticalWalkCursor: 0 }),
+
+  setCriticalWalkCursor: (index) => set({ criticalWalkCursor: index }),
+
+  enterCriticalFocus: (chainId) => {
+    const s = get();
+    const chain = s.criticalChains.find(c => c.id === chainId);
+    if (!chain) return;
+
+    // Cancel any running auto-layout so its result can't overwrite the focus positions.
+    if (autoLayoutWorker) {
+      autoLayoutWorker.terminate();
+      autoLayoutWorker = null;
+    }
+
+    // Keep the original snapshot when switching chains while already in focus —
+    // so exit always restores to the full graph, not a previous chain's layout.
+    const preCriticalFocusSnapshot: FocusSnapshot =
+      s.criticalFocusActive && s.preCriticalFocusSnapshot
+        ? s.preCriticalFocusSnapshot
+        : {
+            viewModeAtEnter: s.viewMode,
+            positions: { ...s.positions },
+            laneMetrics: { ...s.laneMetrics },
+            transform: { ...s.transform },
+            visibleNodes: [...s.visibleNodes],
+            visibleEdges: [...s.visibleEdges],
+          };
+
+    const chainNodeIdSet = new Set(chain.nodeIds);
+    const focusNodes = s.allNodes.filter(n => chainNodeIdSet.has(n.id));
+    const focusEdges = s.allEdges.filter(
+      e => chainNodeIdSet.has(e.from) && chainNodeIdSet.has(e.to)
+    );
+
+    const { positions, laneMetrics } = derivePositions(
+      focusNodes, focusEdges, s.viewMode, s.activeOwners, s.allNodes, s.phases, s.groups
+    );
+
+    // Compute the fit transform immediately from the freshly derived positions so
+    // the first render already shows the correct zoom — no 60ms delay needed.
+    let fitTransform: Transform = s.transform;
+    const canvasEl = document.getElementById('canvas-wrap');
+    if (canvasEl && Object.keys(positions).length > 0) {
+      const { width: canvasW, height: canvasH } = canvasEl.getBoundingClientRect();
+      const xs = Object.values(positions).map(p => p.x);
+      const ys = Object.values(positions).map(p => p.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs) + NODE_W;
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys) + NODE_H;
+      const graphW = maxX - minX;
+      const graphH = maxY - minY;
+      const padding = 60;
+      const scale = Math.min(
+        (canvasW - padding * 2) / graphW,
+        (canvasH - padding * 2) / graphH,
+        1.5,
+      );
+      fitTransform = {
+        x: (canvasW - graphW * scale) / 2 - minX * scale,
+        y: (canvasH - graphH * scale) / 2 - minY * scale,
+        k: scale,
+      };
+    }
+
+    set({
+      criticalFocusActive: true,
+      preCriticalFocusSnapshot,
+      criticalSelectedIds: new Set([chainId]),
+      criticalCompareMode: false,
+      criticalWalkChainId: null,
+      criticalWalkCursor: 0,
+      visibleNodes: focusNodes,
+      visibleEdges: focusEdges,
+      positions,
+      laneMetrics,
+      flyTarget: fitTransform,
+      autoLayoutRunning: false,
+      autoLayoutPhase: '',
+    });
+  },
+
+  exitCriticalFocus: () => {
+    const s = get();
+    const snapshot = s.preCriticalFocusSnapshot;
+    if (!snapshot) {
+      set({ criticalFocusActive: false });
+      get().rebuildGraph();
+      setTimeout(() => get().fitToScreen(), 60);
+      return;
+    }
+    // Re-derive from live allNodes (handles group changes made during focus)
+    const { visibleNodes, visibleEdges } = deriveVisibility(
+      s.allNodes, s.allEdges, s.activeOwners, false, null, s.groups
+    );
+
+    // Compute a fit around the currently selected chains at the restored positions
+    // so the viewport frames the relevant paths rather than jumping back to the
+    // arbitrary pre-focus position.
+    let exitFlyTarget: Transform = snapshot.transform;
+    const canvasEl = document.getElementById('canvas-wrap');
+    if (canvasEl && s.criticalSelectedIds.size > 0) {
+      const { width: W, height: H } = canvasEl.getBoundingClientRect();
+      const allNodeIds = new Set<string>();
+      for (const cid of s.criticalSelectedIds) {
+        const chain = s.criticalChains.find(c => c.id === cid);
+        if (chain) chain.nodeIds.forEach(id => allNodeIds.add(id));
+      }
+      const pathPositions = [...allNodeIds]
+        .map(id => snapshot.positions[id])
+        .filter(Boolean);
+      if (pathPositions.length > 0) {
+        const xs = pathPositions.map(p => p.x);
+        const ys = pathPositions.map(p => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs) + NODE_W;
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys) + NODE_H;
+        const graphW = maxX - minX;
+        const graphH = maxY - minY;
+        const padding = 80;
+        const k = Math.min((W - padding * 2) / graphW, (H - padding * 2) / graphH, 1.5);
+        exitFlyTarget = {
+          x: (W - graphW * k) / 2 - minX * k,
+          y: (H - graphH * k) / 2 - minY * k,
+          k,
+        };
+      }
+    }
+
+    set({
+      criticalFocusActive: false,
+      preCriticalFocusSnapshot: null,
+      // Restore the view mode the user was in before
+      viewMode: snapshot.viewModeAtEnter,
+      visibleNodes,
+      visibleEdges,
+      positions: snapshot.positions,
+      laneMetrics: snapshot.laneMetrics,
+      flyTarget: exitFlyTarget,
+    });
+  },
+
   // ── Summon Mode actions ───────────────────────────────────────────────────
   activateSummon: (sourceIds) => {
     if (get().discoveryActive) return;
@@ -2958,6 +3506,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       nodes: state.visibleNodes,
       edges: state.visibleEdges,
       groups: state.groups,
+      phases: state.phases.length > 0 ? state.phases : undefined,
       mode: state.viewMode,
       selectedOnly: selectedNodeIds && selectedNodeIds.length > 0
         ? new Set(selectedNodeIds)
@@ -2972,7 +3521,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         const currentState = get();
         const newPositions = { ...currentState.positions, ...data.positions };
         set({ positions: newPositions, autoLayoutRunning: false, autoLayoutPhase: '' });
-        get().saveLayoutToCache();
+        // Don't corrupt the layout cache with focus-only positions
+        if (!get().criticalFocusActive) get().saveLayoutToCache();
         autoLayoutWorker = null;
         setTimeout(() => get().fitToScreen(true), 50);
       } else if (data.type === 'error') {

@@ -34,6 +34,7 @@ import { PhaseNavigator } from "./PhaseNavigator";
 import { PhaseCrowns } from "./PhaseCrowns";
 import { LaneCrowns } from "./LaneCrowns";
 import { OwnerFocusBar } from "./OwnerFocusBar";
+import { CriticalPathExplorer } from "./CriticalPathExplorer";
 import { PhaseHoverCard } from "./PhaseHoverCard";
 import { PathTypePopover } from "../DesignMode/PathTypePopover";
 import type { CrownBand } from "./PhaseCrowns";
@@ -101,6 +102,8 @@ export function Canvas() {
     multiSelectIds,
     marqueeMode,
     toggleMarqueeMode,
+    panMode,
+    togglePanMode,
     setMultiSelectIds,
     copySelection,
     pasteClipboard,
@@ -136,6 +139,15 @@ export function Canvas() {
     clearAutoLayoutFromPositions,
     tracePathSource,
     clearTracePath,
+    criticalPathActive,
+    criticalChains,
+    criticalSelectedIds,
+    criticalCompareMode,
+    criticalWalkChainId,
+    criticalWalkCursor,
+    criticalBottlenecks,
+    criticalFocusActive,
+    exitCriticalFocus,
   } = useGraphStore();
 
   // ── Auto-layout animation positions (declared early — referenced by suppression IIFE below) ──
@@ -273,6 +285,9 @@ export function Canvas() {
   // Tracks current adjustedPositions without adding it to effect dep arrays.
   // Updated every render so effects always read fresh visual coordinates.
   const adjustedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  // Classes stripped from the hovered element so hover animation shows cleanly;
+  // restored when hover moves away.
+  const strippedHoverClassesRef = useRef<Map<Element, string[]>>(new Map());
 
   // ── Canvas height (SVG user-space) for PhaseLayer band height ─────────
   // We track the canvas pixel height and divide by the current zoom scale
@@ -387,36 +402,6 @@ export function Canvas() {
     ).adjustedPositions;
   }, [phases, displayPositions, collapsedPhaseIds, viewMode]);
   adjustedPositionsRef.current = adjustedPositions;
-
-  // ── Per-node entrance delay: column stagger + y-rank within column ─────
-  // Computed here (not in NodeCard) because it needs all visible nodes and their
-  // positions to determine each node's rank within its column.
-  // Column stagger: 120ms — keep in sync with EdgeLayer's COLUMN_STAGGER constant.
-  // Y stagger: 30ms per rank so nodes in the same column ripple top-to-bottom.
-  const nodeEntranceDelay = useMemo(() => {
-    const COLUMN_STAGGER = 120;
-    const Y_STAGGER = 30;
-    const STEP = NODE_W + GAP_X;
-
-    const columnMap = new Map<number, Array<{ id: string; y: number }>>();
-    visibleNodes.forEach((node) => {
-      const pos = adjustedPositions[node.id];
-      if (!pos) return;
-      const col = Math.max(0, Math.round(pos.x / STEP));
-      if (!columnMap.has(col)) columnMap.set(col, []);
-      columnMap.get(col)!.push({ id: node.id, y: pos.y });
-    });
-
-    const delays: Record<string, number> = {};
-    columnMap.forEach((nodes, col) => {
-      const sorted = [...nodes].sort((a, b) => a.y - b.y);
-      sorted.forEach(({ id }, rank) => {
-        delays[id] = Math.min(col * COLUMN_STAGGER + rank * Y_STAGGER, 600);
-      });
-    });
-
-    return delays;
-  }, [visibleNodes, adjustedPositions]);
 
   // ── Phase crown bands + viewport-presence set ─────────────────────────
   // Derived from phases + positions + transform. No store state needed.
@@ -667,8 +652,8 @@ export function Canvas() {
   // ── Pan: start on mousedown on SVG background ─────────────────────────
   function handleSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
     hasPannedRef.current = false;
-    // Space held: pan from anywhere (even over nodes); skip other tool logic
-    if (spaceHeld) {
+    // Space held or pan mode: pan from anywhere (even over nodes); skip other tool logic
+    if (spaceHeld || panMode) {
       cancelFlyAnimation();
       panState.current = {
         startX: e.clientX,
@@ -707,7 +692,7 @@ export function Canvas() {
   // ── Pan: update on mousemove ──────────────────────────────────────────
   function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     // Space pan mode: only run pan logic, skip all other pointer actions
-    if (!spaceHeld) {
+    if (!(spaceHeld || panMode)) {
       // Update ghost edge target if connecting
       if (designMode && designTool === "connect" && connectSourceId) {
         const pt = screenToSvg(e.clientX, e.clientY);
@@ -907,7 +892,7 @@ export function Canvas() {
 
   // ── Click on SVG background ───────────────────────────────────────────
   function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
-    if (spaceHeld) return; // space pan mode — no selections or tool actions
+    if (spaceHeld || panMode) return; // space/pan mode — no selections or tool actions
     const target = e.target as Element;
     const clickedNode = target.closest(".node-group");
     const clickedEdge = target.closest(".edge-hit");
@@ -957,7 +942,7 @@ export function Canvas() {
 
   // ── Double-click on SVG background — exit focus mode ─────────────────
   function handleSvgDblClick(e: React.MouseEvent<SVGSVGElement>) {
-    if (spaceHeld) return; // space pan mode — no actions
+    if (spaceHeld || panMode) return; // space/pan mode — no actions
     const target = e.target as Element;
     if (target.closest(".node-group")) return; // Node dblclick handled in NodeCard
     if (target.closest(".group-overlay")) return; // Group dblclick handled in GroupCard
@@ -974,6 +959,14 @@ export function Canvas() {
           e.preventDefault();
           e.stopPropagation();
           deact();
+          return;
+        }
+        if (panMode) {
+          useGraphStore.setState({ panMode: false });
+          return;
+        }
+        if (marqueeMode) {
+          useGraphStore.setState({ marqueeMode: false });
           return;
         }
         if (connectSourceId) {
@@ -1111,9 +1104,24 @@ export function Canvas() {
   // stroke) applied to ~140 leaf elements simultaneously invalidates paint tiles
   // across the whole canvas. At high zoom those tiles are large and Chrome can't
   // repaint them all in one frame — visible as grey/white box flicker everywhere.
+  //
+  // In critical path / path focus modes, path-highlight classes on the hovered
+  // element are stripped so the hover animation shows cleanly. They are restored
+  // when hover moves away.
+  const HOVER_STRIPS = [
+    'path-focus', 'path-ancestor', 'path-descendant', 'path-ghost',
+    'critical-member', 'critical-walk-current', 'critical-walk-visited', 'critical-bottleneck',
+  ] as const;
+
   useEffect(() => {
     const graphRoot = document.getElementById("graph-root");
     if (!graphRoot) return;
+
+    // Restore any path/critical-path classes stripped during the previous hover
+    strippedHoverClassesRef.current.forEach((classes, el) => {
+      el.classList.add(...classes);
+    });
+    strippedHoverClassesRef.current.clear();
 
     // Clear all highlight classes whenever hovered target changes
     graphRoot.querySelectorAll(".hovered, .neighbor").forEach((el) => {
@@ -1154,11 +1162,18 @@ export function Canvas() {
         .forEach((e) => directChildren.add(resolveToVisible(e.to)));
     }
 
-    // Apply .hovered / .neighbor — only to the handful of relevant elements
+    // Apply .hovered / .neighbor — only to the handful of relevant elements.
+    // For the hovered element, also strip path/critical-path classes so the hover
+    // animation is the only active highlight (restored when hover leaves).
     graphRoot.querySelectorAll(".node-group, .group-overlay").forEach((el) => {
       const id = el.getAttribute("data-id") ?? el.getAttribute("data-group-id");
       if (id === hoveredNodeId) {
         el.classList.add("hovered");
+        const stripped = HOVER_STRIPS.filter((c) => el.classList.contains(c));
+        if (stripped.length > 0) {
+          el.classList.remove(...stripped);
+          strippedHoverClassesRef.current.set(el, stripped);
+        }
       } else if (id && (directParents.has(id) || directChildren.has(id))) {
         el.classList.add("neighbor");
       }
@@ -1217,8 +1232,9 @@ export function Canvas() {
       }
     }
 
-    // Apply node classes
+    // Apply node classes — skip hovered elements so hover animation takes precedence
     graphRoot.querySelectorAll(".node-group, .group-overlay").forEach((el) => {
+      if (el.classList.contains("hovered")) return;
       const id = el.getAttribute("data-id") ?? el.getAttribute("data-group-id");
       if (!id) return;
       if (id === pathHighlightNodeId) {
@@ -1286,6 +1302,83 @@ export function Canvas() {
     }
   }, [pathHighlightNodeId, pathHighlightMode, allEdges, flyTo]);
 
+  // ── Critical Path Explorer overlay — highlight chain members (positive-only) ─
+  useEffect(() => {
+    const graphRoot = document.getElementById('graph-root');
+    if (!graphRoot) return;
+
+    // Clear all critical path classes, data attributes, and parent-class dim mode.
+    // data-critical-role is used (not .critical-member) for dim exclusion because React
+    // resets className on NodeCard re-renders, wiping imperatively-added classes.
+    // React never touches data-* attributes it doesn't own, so they survive re-renders.
+    graphRoot.querySelectorAll('.critical-member, .critical-walk-visited, .critical-walk-current, .critical-bottleneck').forEach(el => {
+      el.classList.remove('critical-member', 'critical-walk-visited', 'critical-walk-current', 'critical-bottleneck');
+      (el as HTMLElement).style.removeProperty('--chain-color');
+    });
+    graphRoot.querySelectorAll('[data-critical-role]').forEach(el => el.removeAttribute('data-critical-role'));
+    graphRoot.classList.remove('critical-path-dim-mode');
+
+    if (!criticalPathActive || criticalSelectedIds.size === 0) return;
+
+    const walkChain = criticalWalkChainId
+      ? criticalChains.find(c => c.id === criticalWalkChainId)
+      : null;
+
+    // In focus view without an active walk, nodes render with their normal appearance — no overlay needed.
+    if (criticalFocusActive && !walkChain) return;
+
+    // Collect node/group IDs in the selected chains and map them to their chain color
+    const chainNodeIds = new Set<string>();
+    const chainGroupIds = new Set<string>();
+    const nodeColorMap = new Map<string, string>();
+    const bottleneckIds = new Set(criticalBottlenecks.map(b => b.nodeId));
+
+    for (const chain of criticalChains) {
+      if (!criticalSelectedIds.has(chain.id)) continue;
+      chain.nodeIds.forEach(id => { chainNodeIds.add(id); nodeColorMap.set(id, chain.color); });
+      chain.groupIds.forEach(id => { chainGroupIds.add(id); nodeColorMap.set(id, chain.color); });
+    }
+
+    // Mark chain members with classes; CSS parent-class dims everything else.
+    graphRoot.querySelectorAll('.node-group, .group-overlay').forEach(el => {
+      if (el.classList.contains('hovered')) return;
+      const id = el.getAttribute('data-id') ?? el.getAttribute('data-group-id');
+      if (!id) return;
+
+      const inChain = chainNodeIds.has(id) || chainGroupIds.has(id);
+      if (!inChain) return;
+
+      const color = nodeColorMap.get(id) ?? '#f59e0b';
+      (el as HTMLElement).style.setProperty('--chain-color', color);
+
+      // In focus mode, skip member/bottleneck styling — nodes already render normally.
+      if (!criticalFocusActive) {
+        el.classList.add('critical-member');
+        // data-critical-role survives NodeCard re-renders (React never resets data-* it doesn't own).
+        // Used as the stable dim-exclusion anchor in CSS instead of .critical-member.
+        el.setAttribute('data-critical-role', 'member');
+        if (bottleneckIds.has(id) && criticalCompareMode) {
+          el.classList.add('critical-bottleneck');
+        }
+      }
+
+      if (walkChain) {
+        const walkIdx = walkChain.nodeIds.indexOf(id);
+        if (walkIdx === criticalWalkCursor) {
+          el.classList.add('critical-walk-current');
+        } else if (walkIdx >= 0 && walkIdx < criticalWalkCursor) {
+          el.classList.add('critical-walk-visited');
+        }
+      }
+    });
+
+    // Activate parent-class dim mode to ghost non-chain nodes via CSS.
+    // Focus mode renders everything normally — skip.
+    if (!criticalFocusActive) {
+      graphRoot.classList.add('critical-path-dim-mode');
+    }
+  }, [criticalPathActive, criticalSelectedIds, criticalChains, criticalCompareMode, criticalWalkChainId, criticalWalkCursor, criticalBottlenecks, criticalFocusActive]);
+
   // ── Stable focus-request handler (prevents NodeCard memo invalidation) ─
   const handleFocusRequest = useCallback(
     (id: string) => {
@@ -1317,7 +1410,7 @@ export function Canvas() {
   }, []);
 
   // ── Cursor style based on active tool ─────────────────────────────────
-  const canvasCursor = spaceHeld
+  const canvasCursor = (spaceHeld || panMode)
     ? panState.current
       ? "grabbing"
       : "grab"
@@ -1339,7 +1432,7 @@ export function Canvas() {
     <div
       id="canvas-wrap"
       ref={canvasWrapRef}
-      className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ""} ${discoveryActive ? styles.cinemaModeActive : ""} ${focusedOwner ? styles.ownerFocusModeActive : ""}`}
+      className={`${styles.canvasWrap} ${designMode ? styles.designModeActive : ""} ${criticalPathActive ? styles.criticalPathModeActive : ""} ${discoveryActive ? styles.cinemaModeActive : ""} ${focusedOwner ? styles.ownerFocusModeActive : ""}`}
       style={
         focusedOwner
           ? ({
@@ -1351,9 +1444,42 @@ export function Canvas() {
       {/* Cinema mode badge */}
       {discoveryActive && <div className={styles.cinemaBadge}>🎬 Cinema</div>}
 
-      {/* Top-left badges — focus mode + owner focus + owner filter, stacked */}
-      {(focusedOwner || hiddenOwnerCount > 0 || (focusMode && focusedNode)) && (
+      {/* Top-left badges — mode indicators + focus mode + critical focus + owner focus + owner filter, stacked */}
+      {((!discoveryActive && (designMode || criticalPathActive)) || focusedOwner || hiddenOwnerCount > 0 || (focusMode && focusedNode) || criticalFocusActive) && (
         <div className={styles.topLeftBadges}>
+          {!discoveryActive && designMode && (
+            <div className={`${styles.modeBadge} ${styles.designBadge}`}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 5 }}>
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              Design
+            </div>
+          )}
+          {!discoveryActive && criticalPathActive && (
+            <div className={`${styles.modeBadge} ${styles.pathBadge}`}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 5 }}>
+                <circle cx="3" cy="19" r="2" fill="currentColor" stroke="none"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+                <circle cx="21" cy="5" r="2" fill="currentColor" stroke="none"/>
+                <path d="M3 19 C 18 19 18 12 12 12 C 6 12 6 5 21 5"/>
+              </svg>
+              Path Analysis
+            </div>
+          )}
+          {criticalFocusActive && (() => {
+            const focusedChainId = [...criticalSelectedIds][0];
+            const focusedChain = criticalChains.find(c => c.id === focusedChainId);
+            const chainNum = focusedChain ? parseInt(focusedChain.id.replace('chain-', ''), 10) + 1 : 1;
+            return (
+              <div className={styles.focusBanner} style={{ borderColor: focusedChain?.color ?? 'var(--highlight)' }}>
+                <span className={styles.focusBannerIcon} style={{ color: focusedChain?.color }}>⊡</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text2)' }}>
+                  Path {chainNum} · {focusedChain?.nodeIds.length ?? 0} nodes
+                </span>
+                <button className={styles.focusBannerClose} onClick={exitCriticalFocus} title="Exit focus (Esc)">✕</button>
+              </div>
+            );
+          })()}
           {focusMode && focusedNode && (
             <div className={styles.focusBanner}>
               <span className={styles.focusBannerIcon}>🎯</span>
@@ -1583,7 +1709,7 @@ export function Canvas() {
             key={`${viewMode}-${focusMode ? focusNodeId : "normal"}`}
             id="graph-content"
             className={suppressEntrance ? "suppress-entrance" : undefined}
-            style={spaceHeld ? { pointerEvents: "none" } : undefined}
+            style={(spaceHeld || panMode) ? { pointerEvents: "none" } : undefined}
           >
             {/* Phase bands — fills + borders only, rendered first behind everything */}
             <g id="phase-layer">
@@ -1665,9 +1791,6 @@ export function Canvas() {
                       group.id,
                       group.owners[0] ?? "",
                     )}
-                    entranceDelay={
-                      Math.max(0, Math.round(pos.x / (NODE_W + GAP_X))) * 120
-                    }
                     animate={!suppressEntrance}
                   />
                 );
@@ -1712,8 +1835,7 @@ export function Canvas() {
                       onFocusRequest={handleFocusRequest}
                       laneFocusRole={getOwnerFocusRole(node.id, node.owner)}
                       isFocusNode={focusMode && node.id === focusNodeId}
-                      entranceDelay={nodeEntranceDelay[node.id] ?? 0}
-                      animate={!suppressEntrance}
+                        animate={!suppressEntrance}
                     />
                   );
                 })}
@@ -1767,9 +1889,6 @@ export function Canvas() {
                       group.id,
                       group.owners[0] ?? "",
                     )}
-                    entranceDelay={
-                      Math.max(0, Math.round(pos.x / (NODE_W + GAP_X))) * 120
-                    }
                     animate={!suppressEntrance}
                   />
                 );
@@ -1880,6 +1999,21 @@ export function Canvas() {
           onToggleCollapse={togglePhaseCollapse}
           onCollapseAll={collapseAllPhases}
           onExpandAll={expandAllPhases}
+        />
+      )}
+
+      {/* Critical Path Explorer panel */}
+      {criticalPathActive && (
+        <CriticalPathExplorer
+          chains={criticalChains}
+          bottlenecks={criticalBottlenecks}
+          selectedIds={criticalSelectedIds}
+          compareMode={criticalCompareMode}
+          walkChainId={criticalWalkChainId}
+          walkCursor={criticalWalkCursor}
+          nodes={allNodes}
+          positions={positions}
+          criticalFocusActive={criticalFocusActive}
         />
       )}
 

@@ -1,10 +1,11 @@
-import type { GraphNode, GraphEdge, GraphGroup, Position } from '../../types/graph';
+import type { GraphNode, GraphEdge, GraphGroup, GraphPhase, Position } from '../../types/graph';
 import { NODE_W, NODE_H, COMPONENT_GAP, computeLayout, computeLaneLayout } from '../layout';
 
 export interface AutoLayoutInput {
   nodes: GraphNode[];
   edges: GraphEdge[];
   groups?: GraphGroup[];
+  phases?: GraphPhase[];
   mode: 'dag' | 'lanes';
   /** If set, only lay out nodes with these IDs; fit result into their bounding box */
   selectedOnly?: Set<string>;
@@ -69,6 +70,7 @@ function runPipeline(
   nodes: GraphNode[],
   edges: GraphEdge[],
   groups: GraphGroup[],
+  phases: GraphPhase[] | undefined,
   mode: 'dag' | 'lanes',
   onProgress?: (phase: string) => void
 ): Map<string, Position> {
@@ -81,13 +83,13 @@ function runPipeline(
   if (mode === 'lanes') {
     onProgress?.('assignCoordinates');
     const allOwners = new Set(nodes.map((n) => n.owner));
-    const { positions } = computeLaneLayout(nodes, edges, allOwners, nodes);
+    const { positions } = computeLaneLayout(nodes, edges, allOwners, nodes, phases);
     record = positions;
   } else {
     onProgress?.('assignRanks');
     onProgress?.('minimizeCrossings');
     onProgress?.('assignCoordinates');
-    record = computeLayout(nodes, edges, undefined, groups);
+    record = computeLayout(nodes, edges, phases, groups);
   }
 
   onProgress?.('postprocess');
@@ -116,6 +118,7 @@ function runWithGroups(
   nodes: GraphNode[],
   edges: GraphEdge[],
   groups: GraphGroup[],
+  phases: GraphPhase[] | undefined,
   mode: 'dag' | 'lanes',
   onProgress?: (phase: string) => void
 ): Map<string, Position> {
@@ -125,7 +128,7 @@ function runWithGroups(
   });
 
   if (allCollapsed || topGroups.length === 0) {
-    return runPipeline(nodes, edges, groups, mode, onProgress);
+    return runPipeline(nodes, edges, groups, phases, mode, onProgress);
   }
 
   const superNodes: GraphNode[] = [];
@@ -171,7 +174,7 @@ function runWithGroups(
     }
   });
 
-  const outerPositions = runPipeline(allLayoutNodes, superEdges, [], mode, onProgress);
+  const outerPositions = runPipeline(allLayoutNodes, superEdges, [], phases, mode, onProgress);
 
   const result = new Map<string, Position>();
   outerPositions.forEach((pos, id) => {
@@ -183,7 +186,7 @@ function runWithGroups(
     const memberIds = getAllDescendantNodeIds(id, groups);
     const memberNodes = nodes.filter((n) => memberIds.has(n.id));
     const memberEdges = edges.filter((e) => memberIds.has(e.from) && memberIds.has(e.to));
-    const innerPos = runPipeline(memberNodes, memberEdges, groups, mode, onProgress);
+    const innerPos = runPipeline(memberNodes, memberEdges, groups, phases, mode, onProgress);
     innerPos.forEach((ipos, nid) => {
       result.set(nid, { x: pos.x + ipos.x, y: pos.y + ipos.y });
     });
@@ -195,7 +198,7 @@ function runWithGroups(
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
 export function autoLayout(input: AutoLayoutInput): AutoLayoutOutput {
-  const { nodes, edges, groups = [], mode, selectedOnly, onProgress } = input;
+  const { nodes, edges, groups = [], phases, mode, selectedOnly, onProgress } = input;
 
   let workNodes = nodes;
   let workEdges = edges;
@@ -246,13 +249,31 @@ export function autoLayout(input: AutoLayoutInput): AutoLayoutOutput {
   const componentIdSets = [...compMap.values()];
 
   if (componentIdSets.length > 1) {
-    componentIdSets.sort((a, b) => b.length - a.length);
+    // Sort by earliest phase sequence so disconnected components tile left-to-right
+    // in phase order, not by size. Without this, a large component that belongs to
+    // phase 2 would be placed leftmost (before a small phase 1 component), visually
+    // inverting the phase sequence when owner filtering breaks graph connectivity.
+    // Tie-break by size (largest first) when components share the same earliest phase.
+    const minPhaseSeq = (ids: string[]): number => {
+      if (!phases || phases.length === 0) return Infinity;
+      const idSet = new Set(ids);
+      let min = Infinity;
+      phases.forEach((ph) => {
+        if (ph.nodeIds.some((id) => idSet.has(id))) min = Math.min(min, ph.sequence);
+      });
+      return min;
+    };
+    componentIdSets.sort((a, b) => {
+      const seqDiff = minPhaseSeq(a) - minPhaseSeq(b);
+      if (seqDiff !== 0) return seqDiff;
+      return b.length - a.length;
+    });
 
     const compPositions = componentIdSets.map((ids) => {
       const idSet = new Set(ids);
       const compNodes = workNodes.filter((n) => idSet.has(n.id));
       const compEdges = workEdges.filter((e) => idSet.has(e.from) && idSet.has(e.to));
-      return runWithGroups(compNodes, compEdges, groups, mode, onProgress);
+      return runWithGroups(compNodes, compEdges, groups, phases, mode, onProgress);
     });
 
     const tiled = tileSideBySide(compPositions);
@@ -269,7 +290,7 @@ export function autoLayout(input: AutoLayoutInput): AutoLayoutOutput {
     return out;
   }
 
-  const result = runWithGroups(workNodes, workEdges, groups, mode, onProgress);
+  const result = runWithGroups(workNodes, workEdges, groups, phases, mode, onProgress);
 
   if (savedBox) {
     const fitted = fitIntoBoundingBox(result, savedBox);

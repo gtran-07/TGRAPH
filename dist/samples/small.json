@@ -1,0 +1,100 @@
+﻿{
+    "_meta":  {
+                  "note":  "This is a FlowGraph chart file. Open it with the FlowGraph app to view and edit the interactive dependency flowchart.",
+                  "app":  "https://gtran-07.github.io/ProcessFlowChart/",
+                  "author":  "Giang Tran",
+                  "usage":  "In the app: click the folder icon (or drag-and-drop this file) to load it. Use Design Mode to edit nodes, groups, and phases."
+              },
+    "nodes":  [
+                  {
+                      "id":  "OB-01",
+                      "name":  "Offer Accepted",
+                      "owner":  "HR",
+                      "description":  "Candidate verbally accepts the offer. Formal offer letter countersigned and filed. Triggers all parallel onboarding workstreams.",
+                      "dependencies":  [
+
+                                       ]
+                  },
+                  {
+                      "id":  "OB-02",
+                      "name":  "Background Check",
+                      "owner":  "HR",
+                      "description":  "Third-party screening for employment history, criminal record, and reference verification. Must clear before benefits enrollment can begin.",
+                      "dependencies":  [
+                                           "OB-01"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-03",
+                      "name":  "IT Setup Request",
+                      "owner":  "IT",
+                      "description":  "HR submits new-hire IT ticket. IT provisions accounts in Active Directory, assigns software licences, and queues hardware order.",
+                      "dependencies":  [
+                                           "OB-01"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-04",
+                      "name":  "Office Assignment",
+                      "owner":  "Facilities",
+                      "description":  "Desk, locker, and building access card assigned. Parking permit issued if applicable. Space ready before Day 1.",
+                      "dependencies":  [
+                                           "OB-01"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-05",
+                      "name":  "Benefits Enrollment",
+                      "owner":  "HR",
+                      "description":  "Employee selects health, dental, and retirement plan options through the HR portal. Requires cleared background check.",
+                      "dependencies":  [
+                                           "OB-02"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-06",
+                      "name":  "Equipment Ready",
+                      "owner":  "IT",
+                      "description":  "Laptop imaged with standard software load, peripherals sourced, and device enrolled in MDM. Staged for collection or delivery.",
+                      "dependencies":  [
+                                           "OB-03"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-07",
+                      "name":  "Access Provisioned",
+                      "owner":  "IT",
+                      "description":  "SSO accounts, VPN credentials, and role-based application access activated. Physical badge cloned to door-access groups.",
+                      "dependencies":  [
+                                           "OB-03",
+                                           "OB-04"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-08",
+                      "name":  "Day-1 Readiness",
+                      "owner":  "HR",
+                      "description":  "Final checklist: benefits confirmed, equipment staged, credentials active. Green-light given to manager to confirm start date.",
+                      "dependencies":  [
+                                           "OB-05",
+                                           "OB-06",
+                                           "OB-07"
+                                       ]
+                  },
+                  {
+                      "id":  "OB-09",
+                      "name":  "First Day",
+                      "owner":  "Manager",
+                      "description":  "Employee arrives, completes welcome session, meets team, and receives 30-60-90 day plan. Onboarding formally complete.",
+                      "dependencies":  [
+                                           "OB-08"
+                                       ]
+                  }
+              ],
+    "ownerRegistry":  [
+                          "HR",
+                          "IT",
+                          "Facilities",
+                          "Manager"
+                      ]
+}

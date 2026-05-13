@@ -1,0 +1,400 @@
+﻿{
+    "_meta":  {
+                  "note":  "This is a FlowGraph chart file. Open it with the FlowGraph app to view and edit the interactive dependency flowchart.",
+                  "app":  "https://gtran-07.github.io/ProcessFlowChart/",
+                  "author":  "Giang Tran",
+                  "usage":  "In the app: click the folder icon (or drag-and-drop this file) to load it. Use Design Mode to edit nodes, groups, and phases."
+              },
+    "nodes":  [
+                  {
+                      "id":  "M-01",
+                      "name":  "Stakeholder Interviews",
+                      "owner":  "Product",
+                      "description":  "Structured interviews with internal stakeholders and target customers. Captures pain points, jobs-to-be-done, and success metrics.",
+                      "dependencies":  [
+
+                                       ]
+                  },
+                  {
+                      "id":  "M-02",
+                      "name":  "Market Research",
+                      "owner":  "Product",
+                      "description":  "Competitive landscape analysis, market sizing, and positioning study. Informs feature prioritisation and go-to-market angle.",
+                      "dependencies":  [
+
+                                       ]
+                  },
+                  {
+                      "id":  "M-03",
+                      "name":  "Product Requirements",
+                      "owner":  "Product",
+                      "description":  "PRD consolidating all stakeholder input and market findings into a prioritised feature backlog with acceptance criteria.",
+                      "dependencies":  [
+                                           "M-01",
+                                           "M-02"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "All three workstreams converge here. This document sets the floor and ceiling for every decision downstream â€” scope creep or premature commitment at this stage propagates through design, architecture, and launch planning alike."
+                  },
+                  {
+                      "id":  "M-04",
+                      "name":  "Technical Assessment",
+                      "owner":  "Engineering",
+                      "description":  "Feasibility review of the PRD. Identifies technical risks, spikes needed, and preliminary effort estimates by engineering team leads.",
+                      "dependencies":  [
+                                           "M-03"
+                                       ]
+                  },
+                  {
+                      "id":  "M-05",
+                      "name":  "System Architecture",
+                      "owner":  "Engineering",
+                      "description":  "High-level architecture diagram: service boundaries, data flows, external integrations, and technology stack decisions.",
+                      "dependencies":  [
+                                           "M-04"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "The architecture sets the floor. Technology choices made here ripple into team structure, deployment costs, and the rate at which the system can evolve. Reversing a core decision after M-09 or M-10 are underway is expensive.",
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "M-06",
+                      "name":  "UX Research",
+                      "owner":  "Design",
+                      "description":  "Usability research: card sorting, task flows, and prototype testing with real users to validate key interaction patterns.",
+                      "dependencies":  [
+                                           "M-03"
+                                       ]
+                  },
+                  {
+                      "id":  "M-07",
+                      "name":  "UI Mockups",
+                      "owner":  "Design",
+                      "description":  "High-fidelity Figma designs for all screens in scope. Covers responsive breakpoints, component states, and empty-state handling.",
+                      "dependencies":  [
+                                           "M-06"
+                                       ]
+                  },
+                  {
+                      "id":  "M-08",
+                      "name":  "Design Handoff",
+                      "owner":  "Design",
+                      "description":  "Annotated specs exported to the design system. All tokens, spacing, and interactions documented for engineering consumption.",
+                      "dependencies":  [
+                                           "M-07"
+                                       ]
+                  },
+                  {
+                      "id":  "M-09",
+                      "name":  "Frontend Development",
+                      "owner":  "Engineering",
+                      "description":  "Component library built from design system. Page shells, routing, and data-binding layer wired to the API contract.",
+                      "dependencies":  [
+                                           "M-05",
+                                           "M-08"
+                                       ]
+                  },
+                  {
+                      "id":  "M-10",
+                      "name":  "API Development",
+                      "owner":  "Engineering",
+                      "description":  "RESTful endpoints implemented following the agreed API contract. OpenAPI spec kept in sync with implementation throughout.",
+                      "dependencies":  [
+                                           "M-05"
+                                       ]
+                  },
+                  {
+                      "id":  "M-11",
+                      "name":  "Database Schema",
+                      "owner":  "Engineering",
+                      "description":  "Relational schema designed, migrations authored, and indexing strategy defined. Reviewed by a DBA before merge.",
+                      "dependencies":  [
+                                           "M-05"
+                                       ]
+                  },
+                  {
+                      "id":  "M-12",
+                      "name":  "Authentication",
+                      "owner":  "Engineering",
+                      "description":  "OAuth 2.0 / OIDC flow implemented. Token lifecycle, session management, and RBAC roles wired to the user model.",
+                      "dependencies":  [
+                                           "M-10",
+                                           "M-11"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "M-13",
+                      "name":  "Core Features",
+                      "owner":  "Engineering",
+                      "description":  "Primary business logic: the three headline features from the PRD fully implemented, tested at the unit level, and behind feature flags.",
+                      "dependencies":  [
+                                           "M-09",
+                                           "M-12"
+                                       ]
+                  },
+                  {
+                      "id":  "M-14",
+                      "name":  "Notifications",
+                      "owner":  "Engineering",
+                      "description":  "Email and in-app notification system. Templates, delivery queues, user preferences, and opt-out mechanics.",
+                      "dependencies":  [
+                                           "M-10"
+                                       ]
+                  },
+                  {
+                      "id":  "M-15",
+                      "name":  "Unit \u0026 Component Tests",
+                      "owner":  "QA",
+                      "description":  "Automated test suite covering all critical paths, edge cases, and regression scenarios identified in the PRD.",
+                      "dependencies":  [
+                                           "M-13",
+                                           "M-14"
+                                       ]
+                  },
+                  {
+                      "id":  "M-16",
+                      "name":  "Integration Tests",
+                      "owner":  "QA",
+                      "description":  "End-to-end tests running against a staging environment. Covers full user journeys across the frontend and API layers.",
+                      "dependencies":  [
+                                           "M-15"
+                                       ]
+                  },
+                  {
+                      "id":  "M-17",
+                      "name":  "Security Audit",
+                      "owner":  "QA",
+                      "description":  "OWASP Top 10 review, dependency vulnerability scan, and manual penetration test of the authentication and data access flows.",
+                      "dependencies":  [
+                                           "M-15"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "M-18",
+                      "name":  "CI/CD Pipeline",
+                      "owner":  "DevOps",
+                      "description":  "Build, test, and deploy pipeline configured in GitHub Actions. Separate promotion gates for staging and production environments.",
+                      "dependencies":  [
+                                           "M-05"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Infrastructure",
+                                       "color":  "#FB8C00"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "M-19",
+                      "name":  "Staging Deploy",
+                      "owner":  "DevOps",
+                      "description":  "Full application stack deployed to the staging environment. Data seeded from anonymised production snapshot for realistic testing.",
+                      "dependencies":  [
+                                           "M-16",
+                                           "M-17",
+                                           "M-18"
+                                       ]
+                  },
+                  {
+                      "id":  "M-20",
+                      "name":  "Performance Testing",
+                      "owner":  "QA",
+                      "description":  "Load and stress tests run against staging. p95 latency and throughput benchmarks validated against the SLA targets in the PRD.",
+                      "dependencies":  [
+                                           "M-19"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Performance",
+                                       "color":  "#FFB300"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "M-21",
+                      "name":  "Production Deploy",
+                      "owner":  "DevOps",
+                      "description":  "Blue-green deployment to production. Feature flags toggled on incrementally. Rollback plan rehearsed and on standby.",
+                      "dependencies":  [
+                                           "M-20"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "M-22",
+                      "name":  "Launch",
+                      "owner":  "Product",
+                      "description":  "Public announcement, press release, in-app onboarding flow activated, and customer success team briefed. KPIs tracked from day one.",
+                      "dependencies":  [
+                                           "M-21"
+                                       ]
+                  }
+              ],
+    "groups":  [
+                   {
+                       "id":  "GROUP-01",
+                       "name":  "Frontend Stack",
+                       "description":  "All client-side implementation: components, routing, and state management",
+                       "owners":  [
+                                      "Engineering"
+                                  ],
+                       "childNodeIds":  [
+                                            "M-09",
+                                            "M-13"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-02",
+                       "name":  "Backend Stack",
+                       "description":  "Server-side services: API layer, database, authentication, and async messaging",
+                       "owners":  [
+                                      "Engineering"
+                                  ],
+                       "childNodeIds":  [
+                                            "M-10",
+                                            "M-11",
+                                            "M-12",
+                                            "M-14"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   }
+               ],
+    "phases":  [
+                   {
+                       "id":  "PHASE-01",
+                       "name":  "Discovery",
+                       "description":  "Understand the problem space before any solution work begins",
+                       "color":  "#039BE5",
+                       "nodeIds":  [
+                                       "M-01",
+                                       "M-02",
+                                       "M-03",
+                                       "M-04"
+                                   ],
+                       "sequence":  0
+                   },
+                   {
+                       "id":  "PHASE-02",
+                       "name":  "Design",
+                       "description":  "Define what to build â€” architecture, UX, and API contracts",
+                       "color":  "#43A047",
+                       "nodeIds":  [
+                                       "M-05",
+                                       "M-06",
+                                       "M-07",
+                                       "M-08"
+                                   ],
+                       "sequence":  1
+                   },
+                   {
+                       "id":  "PHASE-03",
+                       "name":  "Build",
+                       "description":  "Implement all features across the full stack",
+                       "color":  "#FB8C00",
+                       "nodeIds":  [
+                                       "M-09",
+                                       "M-10",
+                                       "M-11",
+                                       "M-12",
+                                       "M-13",
+                                       "M-14"
+                                   ],
+                       "sequence":  2
+                   },
+                   {
+                       "id":  "PHASE-04",
+                       "name":  "Ship",
+                       "description":  "Validate quality and deliver to production",
+                       "color":  "#E53935",
+                       "nodeIds":  [
+                                       "M-15",
+                                       "M-16",
+                                       "M-17",
+                                       "M-18",
+                                       "M-19",
+                                       "M-20",
+                                       "M-21",
+                                       "M-22"
+                                   ],
+                       "sequence":  3
+                   }
+               ],
+    "tagRegistry":  [
+                        {
+                            "label":  "Critical Path",
+                            "color":  "#E53935"
+                        },
+                        {
+                            "label":  "Security",
+                            "color":  "#8E24AA"
+                        },
+                        {
+                            "label":  "Infrastructure",
+                            "color":  "#FB8C00"
+                        },
+                        {
+                            "label":  "Performance",
+                            "color":  "#FFB300"
+                        }
+                    ],
+    "ownerRegistry":  [
+                          "Product",
+                          "Design",
+                          "Engineering",
+                          "QA",
+                          "DevOps"
+                      ],
+    "edgePathTypes":  {
+                          "M-03:M-04":  "critical",
+                          "M-04:M-05":  "critical",
+                          "M-05:M-10":  "critical",
+                          "M-05:M-11":  "priority",
+                          "M-10:M-12":  "priority",
+                          "M-11:M-12":  "priority",
+                          "M-12:M-13":  "critical",
+                          "M-13:M-15":  "priority",
+                          "M-15:M-16":  "standard",
+                          "M-15:M-17":  "priority",
+                          "M-17:M-19":  "priority",
+                          "M-16:M-19":  "standard",
+                          "M-18:M-19":  "priority",
+                          "M-19:M-20":  "standard",
+                          "M-20:M-21":  "critical",
+                          "M-21:M-22":  "standard",
+                          "M-05:M-09":  "standard",
+                          "M-08:M-09":  "standard",
+                          "M-10:M-14":  "standard",
+                          "M-14:M-15":  "standard",
+                          "M-05:M-18":  "optional"
+                      }
+}

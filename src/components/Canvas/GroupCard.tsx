@@ -29,7 +29,6 @@ interface GroupCardProps {
   laneMetrics: Record<string, LaneMetrics>;
   viewMode: ViewMode;
   laneFocusRole?: 'owned' | 'upstream' | 'downstream' | 'partial' | null;
-  entranceDelay?: number;
   animate?: boolean;
 }
 
@@ -44,7 +43,6 @@ export const GroupCard = memo(function GroupCard({
   laneMetrics,
   viewMode,
   laneFocusRole,
-  entranceDelay,
   animate = true,
 }: GroupCardProps) {
   const {
@@ -339,7 +337,7 @@ export const GroupCard = memo(function GroupCard({
         onMouseLeave={() => { setIsLocalHovered(false); setHoveredNode(null); }}
         style={{ cursor: 'default', opacity: discoveryActive ? undefined : laneFocusOpacityExpanded }}
       >
-        <g className={animateOnMount.current ? 'group-entrance-expand' : undefined} style={{ '--entrance-delay': `${entranceDelay ?? 0}ms` } as React.CSSProperties}>
+        <g className={animateOnMount.current ? 'group-entrance-expand' : undefined}>
         {/* Selection glow — multi-selected (any mode) or selected in design mode */}
         {(isMultiSel || (isSelected && designMode)) && (
           <rect
@@ -444,7 +442,7 @@ export const GroupCard = memo(function GroupCard({
       onMouseEnter={() => { setIsLocalHovered(true); setHoveredNode(group.id); }}
       onMouseLeave={() => { setIsLocalHovered(false); setHoveredNode(null); }}
     >
-      <g className={animateOnMount.current ? 'node-entrance' : undefined} style={{ '--entrance-delay': `${entranceDelay ?? 0}ms` } as React.CSSProperties}>
+      <g className={animateOnMount.current ? 'node-entrance' : undefined}>
       {/* Drop shadow — no blur filter (blur inside an opacity-animated group causes GPU flicker) */}
       <polygon
         points={computePolygonPoints(3, 5, GROUP_R + 2, sides)}

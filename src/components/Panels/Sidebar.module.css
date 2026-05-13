@@ -304,7 +304,7 @@
 /* ── Peek button (collapsed state) ──────────────────────────────────────── */
 .peekBtn {
   position: absolute;
-  top: 14px; left: 14px;
+  bottom: 20px; left: 14px;
   z-index: 120;
   width: 32px; height: 32px;
   border-radius: 8px;
@@ -318,20 +318,29 @@
 }
 .peekBtn:hover { border-color: var(--accent); color: var(--accent); }
 
+/* ── Hint stack — cinema + selection hints stacked above peek button ──────── */
+.hintStack {
+  position: absolute;
+  bottom: 62px; left: 14px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ── Floating hint (collapsed + selection) ───────────────────────────────── */
 .collapsedHint {
-  position: absolute;
-  top: 56px; left: 14px;
+  position: relative;
   z-index: 120;
   display: flex;
   align-items: center;
   gap: 7px;
   background: rgba(14,17,23,.92);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--hint-color, var(--accent));
   border-radius: 10px;
   padding: 8px 14px 8px 10px;
   font-size: 11px;
-  color: var(--accent);
+  color: var(--hint-color, var(--accent));
   font-family: var(--font-mono);
   cursor: pointer;
   max-width: 240px;
@@ -344,7 +353,7 @@
   animation: hintEnter .35s cubic-bezier(.22,1,.36,1), hintGlow 2.4s ease-in-out .35s infinite;
 }
 .collapsedHint:hover {
-  background: rgba(79,158,255,.12);
+  background: color-mix(in srgb, var(--hint-color, var(--accent)) 12%, transparent);
 }
 /* Hidden state: strips animation so CSS transition takes over for the exit slide */
 .collapsedHintHidden {
@@ -387,7 +396,7 @@
 }
 .hintCta {
   font-size: 9px;
-  color: var(--accent);
+  color: var(--hint-color, var(--accent));
   opacity: 0.7;
   margin-top: 3px;
   white-space: nowrap;
@@ -399,9 +408,9 @@
   to   { opacity: 1; transform: translateX(0)     scale(1); }
 }
 @keyframes hintGlow {
-  0%   { box-shadow: 0 0  6px 0px rgba(79,158,255,.45), 0 4px 16px rgba(0,0,0,.5); }
-  50%  { box-shadow: 0 0 16px 4px rgba(79,158,255,.70), 0 4px 20px rgba(0,0,0,.5); }
-  100% { box-shadow: 0 0  6px 0px rgba(79,158,255,.45), 0 4px 16px rgba(0,0,0,.5); }
+  0%   { box-shadow: 0 0  6px 0px color-mix(in srgb, var(--hint-color, var(--accent)) 45%, transparent), 0 4px 16px rgba(0,0,0,.5); }
+  50%  { box-shadow: 0 0 16px 4px color-mix(in srgb, var(--hint-color, var(--accent)) 70%, transparent), 0 4px 20px rgba(0,0,0,.5); }
+  100% { box-shadow: 0 0  6px 0px color-mix(in srgb, var(--hint-color, var(--accent)) 45%, transparent), 0 4px 16px rgba(0,0,0,.5); }
 }
 
 /* ── Cinema floating hint variant ────────────────────────────────────────── */

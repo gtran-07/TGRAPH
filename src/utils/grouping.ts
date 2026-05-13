@@ -10,7 +10,7 @@
  * Everything here is side-effect-free and React/DOM-free.
  */
 
-import type { GraphEdge, GraphGroup, GraphNode } from '../types/graph';
+import type { GraphEdge, GraphGroup, GraphNode, GraphPhase } from '../types/graph';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -184,6 +184,41 @@ export function getAllDescendantGroupIds(groupId: string, groups: GraphGroup[]):
     result.push(...getAllDescendantGroupIds(cgId, groups));
   }
   return result;
+}
+
+// ─── PHASE VALIDATION ─────────────────────────────────────────────────────────
+
+/**
+ * validateGroupPhase — checks that all given node IDs belong to the same phase
+ * (or that none of them belong to any phase).
+ *
+ * Returns `valid = true` when all nodes share one phase or all have no phase.
+ * `conflictingPhaseNames` lists the distinct phase names found when invalid.
+ */
+export function validateGroupPhase(
+  nodeIds: string[],
+  phases: GraphPhase[]
+): { valid: boolean; conflictingPhaseNames: string[] } {
+  if (nodeIds.length <= 1) return { valid: true, conflictingPhaseNames: [] };
+
+  const getPhaseFor = (nodeId: string): string | null => {
+    for (const phase of phases) {
+      if (phase.nodeIds.includes(nodeId)) return phase.id;
+    }
+    return null;
+  };
+
+  const phaseIds = nodeIds.map(getPhaseFor);
+  const phaseSet = new Set(phaseIds);
+
+  if (phaseSet.size <= 1) return { valid: true, conflictingPhaseNames: [] };
+
+  const conflictingPhaseNames = [...phaseSet].map((id) => {
+    if (id === null) return '(no phase)';
+    return phases.find((p) => p.id === id)?.name ?? id;
+  });
+
+  return { valid: false, conflictingPhaseNames };
 }
 
 // ─── OWNER DERIVATION ─────────────────────────────────────────────────────────

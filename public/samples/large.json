@@ -1,0 +1,804 @@
+﻿{
+    "_meta":  {
+                  "note":  "This is a FlowGraph chart file. Open it with the FlowGraph app to view and edit the interactive dependency flowchart.",
+                  "app":  "https://gtran-07.github.io/ProcessFlowChart/",
+                  "author":  "Giang Tran",
+                  "usage":  "In the app: click the folder icon (or drag-and-drop this file) to load it. Use Design Mode to edit nodes, groups, and phases."
+              },
+    "nodes":  [
+                  {
+                      "id":  "L-01",
+                      "name":  "Executive Mandate",
+                      "owner":  "Leadership",
+                      "description":  "Board-level approval for the cloud migration programme. Establishes strategic intent, risk appetite, and executive sponsor accountability.",
+                      "dependencies":  [
+
+                                       ],
+                      "cinemaScript":  "Nothing moves without the executive mandate. Budget, headcount, and vendor leverage all trace back to this single decision. If commitment wavers here, the entire programme stalls â€” modernisation debt compounds while the window of opportunity narrows."
+                  },
+                  {
+                      "id":  "L-02",
+                      "name":  "Business Case",
+                      "owner":  "Leadership",
+                      "description":  "Quantified cost-benefit analysis including TCO comparison, migration risk exposure, and 5-year ROI model. Required for budget committee sign-off.",
+                      "dependencies":  [
+                                           "L-01"
+                                       ]
+                  },
+                  {
+                      "id":  "L-03",
+                      "name":  "Budget Approval",
+                      "owner":  "Finance",
+                      "description":  "Finance committee review and formal capital allocation. Includes contingency reserve and exchange-rate hedging for multi-year cloud spend.",
+                      "dependencies":  [
+                                           "L-02"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-04",
+                      "name":  "Vendor Shortlist",
+                      "owner":  "Architecture",
+                      "description":  "RFP issued to hyperscalers. Evaluation criteria: security certifications, data residency options, managed service portfolio, and strategic partnership terms.",
+                      "dependencies":  [
+                                           "L-02"
+                                       ]
+                  },
+                  {
+                      "id":  "L-05",
+                      "name":  "Cloud Agreement",
+                      "owner":  "Leadership",
+                      "description":  "Enterprise Discount Programme (EDP) negotiated and signed. Reserved capacity committed. Data Processing Agreements countersigned by DPO.",
+                      "dependencies":  [
+                                           "L-03",
+                                           "L-04"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Vendor",
+                                       "color":  "#FB8C00"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-06",
+                      "name":  "Project Kickoff",
+                      "owner":  "Leadership",
+                      "description":  "Programme kick-off with all workstream leads. RACI matrix finalised, governance cadence established, and RAID log opened.",
+                      "dependencies":  [
+                                           "L-05"
+                                       ]
+                  },
+                  {
+                      "id":  "L-07",
+                      "name":  "Application Inventory",
+                      "owner":  "Architecture",
+                      "description":  "Full discovery of the application estate: owners, technology stacks, integration points, SLAs, and data classification labels.",
+                      "dependencies":  [
+                                           "L-06"
+                                       ]
+                  },
+                  {
+                      "id":  "L-08",
+                      "name":  "Infrastructure Audit",
+                      "owner":  "Infrastructure",
+                      "description":  "Rack-level audit of on-premises compute, storage, and networking. Capacity utilisation baselines captured for right-sizing cloud equivalents.",
+                      "dependencies":  [
+                                           "L-06"
+                                       ]
+                  },
+                  {
+                      "id":  "L-09",
+                      "name":  "Security Assessment",
+                      "owner":  "Security",
+                      "description":  "Current-state security posture review: IAM sprawl, unencrypted data stores, network segmentation gaps, and compliance control coverage.",
+                      "dependencies":  [
+                                           "L-07",
+                                           "L-08"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-10",
+                      "name":  "Dependency Mapping",
+                      "owner":  "Architecture",
+                      "description":  "Service dependency graph built from network flows and API contracts. Identifies tightly coupled clusters that must migrate together.",
+                      "dependencies":  [
+                                           "L-07"
+                                       ]
+                  },
+                  {
+                      "id":  "L-11",
+                      "name":  "Migration Wave Plan",
+                      "owner":  "Architecture",
+                      "description":  "Applications grouped into migration waves by complexity and coupling. Sequence optimised to unlock quick wins early while deferring high-risk workloads.",
+                      "dependencies":  [
+                                           "L-09",
+                                           "L-10"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "The wave plan is the fulcrum. It determines what moves first, what migrates in parallel, and what stays on-premises. Sequencing errors here propagate into every downstream workstream â€” a poorly ordered wave compounds risk with each subsequent phase.",
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-12",
+                      "name":  "Landing Zone Setup",
+                      "owner":  "Infrastructure",
+                      "description":  "Cloud foundation accounts, management hierarchy, and guardrails provisioned via Infrastructure-as-Code. Multi-region topology defined.",
+                      "dependencies":  [
+                                           "L-11"
+                                       ]
+                  },
+                  {
+                      "id":  "L-13",
+                      "name":  "IAM Framework",
+                      "owner":  "Security",
+                      "description":  "Identity federation configured between on-premises Active Directory and the cloud IdP. Role hierarchies, SCPs, and break-glass procedures defined.",
+                      "dependencies":  [
+                                           "L-12"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "Identity and Access Management is the load-bearing wall of cloud security. Every service, pipeline, and engineer account threads through this single control plane. A misconfiguration here silently undermines every security control built on top of it.",
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-14",
+                      "name":  "Network Architecture",
+                      "owner":  "Infrastructure",
+                      "description":  "VPC topology, transit gateway, Direct Connect / VPN connectivity, DNS strategy, and firewall rule migration from on-premises.",
+                      "dependencies":  [
+                                           "L-12"
+                                       ]
+                  },
+                  {
+                      "id":  "L-15",
+                      "name":  "Security Baseline",
+                      "owner":  "Security",
+                      "description":  "Detective controls activated: CSPM, SIEM ingestion, CloudTrail, GuardDuty. Preventive controls enforced via SCPs and Config rules.",
+                      "dependencies":  [
+                                           "L-13",
+                                           "L-09"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-16",
+                      "name":  "CI/CD Platform",
+                      "owner":  "DevOps",
+                      "description":  "Pipeline toolchain deployed and integrated with source control. Standard pipeline templates published for application teams to consume.",
+                      "dependencies":  [
+                                           "L-12"
+                                       ]
+                  },
+                  {
+                      "id":  "L-17",
+                      "name":  "Container Registry",
+                      "owner":  "Infrastructure",
+                      "description":  "Private container registry provisioned with image scanning, vulnerability policies, and retention rules. Base images hardened and published.",
+                      "dependencies":  [
+                                           "L-14"
+                                       ]
+                  },
+                  {
+                      "id":  "L-18",
+                      "name":  "Dev Environment",
+                      "owner":  "Engineering",
+                      "description":  "Developer workstations, cloud IDE configuration, and sandbox accounts provisioned. Inner-loop development workflow validated end-to-end.",
+                      "dependencies":  [
+                                           "L-13",
+                                           "L-16",
+                                           "L-17"
+                                       ]
+                  },
+                  {
+                      "id":  "L-19",
+                      "name":  "Auth Service",
+                      "owner":  "Security",
+                      "description":  "Centralised authentication and authorisation service deployed to the cloud. Token issuance, refresh flows, and MFA policies implemented and load-tested.",
+                      "dependencies":  [
+                                           "L-18",
+                                           "L-13"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-20",
+                      "name":  "API Gateway",
+                      "owner":  "Engineering",
+                      "description":  "Managed API gateway configured: routing rules, rate limiting, request validation, and mTLS between gateway and backend services.",
+                      "dependencies":  [
+                                           "L-18",
+                                           "L-14"
+                                       ]
+                  },
+                  {
+                      "id":  "L-21",
+                      "name":  "Core Services",
+                      "owner":  "Engineering",
+                      "description":  "Business-critical microservices containerised, deployed to Kubernetes, and wired to the API gateway. Health checks and graceful shutdown implemented.",
+                      "dependencies":  [
+                                           "L-19",
+                                           "L-20"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-22",
+                      "name":  "Database Migration",
+                      "owner":  "Data",
+                      "description":  "Production database replicated to managed cloud RDS using DMS. Cutover window planned for minimal downtime. Schema changes applied incrementally.",
+                      "dependencies":  [
+                                           "L-15",
+                                           "L-21"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   },
+                                   {
+                                       "label":  "Data Risk",
+                                       "color":  "#F4511E"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-23",
+                      "name":  "Data Pipelines",
+                      "owner":  "Data",
+                      "description":  "ETL and streaming pipelines migrated to managed cloud services. Source-to-target mappings validated and data quality checks automated.",
+                      "dependencies":  [
+                                           "L-22"
+                                       ]
+                  },
+                  {
+                      "id":  "L-24",
+                      "name":  "Reporting Layer",
+                      "owner":  "Data",
+                      "description":  "Data warehouse schema migrated. BI tool connections reconfigured to point at the cloud data warehouse. Key reports validated for accuracy.",
+                      "dependencies":  [
+                                           "L-23"
+                                       ]
+                  },
+                  {
+                      "id":  "L-25",
+                      "name":  "Frontend App",
+                      "owner":  "Engineering",
+                      "description":  "Web application containerised and deployed to cloud CDN + compute. Feature parity with on-premises version validated by QA.",
+                      "dependencies":  [
+                                           "L-21"
+                                       ]
+                  },
+                  {
+                      "id":  "L-26",
+                      "name":  "Admin Portal",
+                      "owner":  "Engineering",
+                      "description":  "Internal operations portal migrated and enhanced with cloud-native monitoring integration. Role-based access wired to the new IAM framework.",
+                      "dependencies":  [
+                                           "L-25",
+                                           "L-24"
+                                       ]
+                  },
+                  {
+                      "id":  "L-27",
+                      "name":  "Notification Service",
+                      "owner":  "Engineering",
+                      "description":  "Email and push notification service migrated to managed messaging. Templates, delivery queues, and unsubscribe mechanics validated.",
+                      "dependencies":  [
+                                           "L-21"
+                                       ]
+                  },
+                  {
+                      "id":  "L-28",
+                      "name":  "File Storage",
+                      "owner":  "Infrastructure",
+                      "description":  "Object storage buckets provisioned and populated via online data transfer. Encryption at rest enforced; lifecycle policies configured.",
+                      "dependencies":  [
+                                           "L-15",
+                                           "L-17"
+                                       ]
+                  },
+                  {
+                      "id":  "L-29",
+                      "name":  "Search Service",
+                      "owner":  "Engineering",
+                      "description":  "Managed search engine provisioned and indexed with production data. Query performance benchmarked against on-premises equivalent.",
+                      "dependencies":  [
+                                           "L-21"
+                                       ]
+                  },
+                  {
+                      "id":  "L-30",
+                      "name":  "Legacy Decommission Plan",
+                      "owner":  "Architecture",
+                      "description":  "Formal plan for retiring on-premises infrastructure: shutdown sequence, data retention obligations, hardware disposition, and licence reclamation.",
+                      "dependencies":  [
+                                           "L-22",
+                                           "L-25",
+                                           "L-27",
+                                           "L-28",
+                                           "L-29"
+                                       ]
+                  },
+                  {
+                      "id":  "L-31",
+                      "name":  "Integration Testing",
+                      "owner":  "QA",
+                      "description":  "End-to-end test suites executed against the cloud staging environment. All service-to-service integrations and user journeys covered.",
+                      "dependencies":  [
+                                           "L-21",
+                                           "L-25"
+                                       ]
+                  },
+                  {
+                      "id":  "L-32",
+                      "name":  "Performance Testing",
+                      "owner":  "QA",
+                      "description":  "Load and stress tests validating p95 latency and throughput targets under peak-day traffic profiles. Autoscaling behaviour verified.",
+                      "dependencies":  [
+                                           "L-21",
+                                           "L-22"
+                                       ]
+                  },
+                  {
+                      "id":  "L-33",
+                      "name":  "Security Pen Test",
+                      "owner":  "Security",
+                      "description":  "External penetration test of all public-facing surfaces and internal lateral-movement scenarios. Findings triaged and critical issues remediated before go-live.",
+                      "dependencies":  [
+                                           "L-19",
+                                           "L-21"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-34",
+                      "name":  "DR Failover Test",
+                      "owner":  "Infrastructure",
+                      "description":  "Full disaster recovery rehearsal: primary region failover triggered, RTO and RPO targets measured, and runbook gaps identified.",
+                      "dependencies":  [
+                                           "L-22",
+                                           "L-16"
+                                       ]
+                  },
+                  {
+                      "id":  "L-35",
+                      "name":  "User Acceptance Testing",
+                      "owner":  "QA",
+                      "description":  "Business stakeholders validate the migrated system against acceptance criteria. Showstopper defects require resolution before go-live approval.",
+                      "dependencies":  [
+                                           "L-26",
+                                           "L-31"
+                                       ]
+                  },
+                  {
+                      "id":  "L-36",
+                      "name":  "Compliance Audit",
+                      "owner":  "Security",
+                      "description":  "Third-party audit against regulatory framework (SOC 2, ISO 27001, GDPR). Evidence package assembled and gaps formally risk-accepted or remediated.",
+                      "dependencies":  [
+                                           "L-33",
+                                           "L-15"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-37",
+                      "name":  "Go-Live Approval",
+                      "owner":  "Leadership",
+                      "description":  "Final go/no-go gate. All four validation workstreams â€” functional, performance, DR, and compliance â€” must pass. Executive sponsor signs off.",
+                      "dependencies":  [
+                                           "L-35",
+                                           "L-32",
+                                           "L-34",
+                                           "L-36"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   }
+                               ],
+                      "cinemaScript":  "The convergence point of the entire programme. Functional correctness, performance under load, disaster recovery readiness, and regulatory compliance all arrive here simultaneously. Any single failure resets the clock."
+                  },
+                  {
+                      "id":  "L-38",
+                      "name":  "Production Cutover",
+                      "owner":  "DevOps",
+                      "description":  "Traffic progressively shifted from on-premises to cloud using weighted DNS. Rollback triggers pre-defined. War room staffed for 48 hours.",
+                      "dependencies":  [
+                                           "L-37"
+                                       ]
+                  },
+                  {
+                      "id":  "L-39",
+                      "name":  "Legacy Decommission",
+                      "owner":  "Infrastructure",
+                      "description":  "On-premises servers shut down per the decommission plan. Hardware returned to lessor or disposed via certified e-waste partner. Licences returned.",
+                      "dependencies":  [
+                                           "L-38",
+                                           "L-30"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Irreversible",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "L-40",
+                      "name":  "Cost Optimisation",
+                      "owner":  "Architecture",
+                      "description":  "30-day post-cutover spend analysis. Oversized instances right-sized, idle resources terminated, and Reserved Instance / Savings Plan coverage expanded.",
+                      "dependencies":  [
+                                           "L-38"
+                                       ]
+                  },
+                  {
+                      "id":  "L-41",
+                      "name":  "Post-Migration Review",
+                      "owner":  "Leadership",
+                      "description":  "Programme retrospective: lessons learned captured, KPIs measured against the original business case, and follow-on modernisation roadmap drafted.",
+                      "dependencies":  [
+                                           "L-39",
+                                           "L-40"
+                                       ]
+                  }
+              ],
+    "groups":  [
+                   {
+                       "id":  "GROUP-01",
+                       "name":  "Cloud Foundation",
+                       "description":  "Core infrastructure, security controls, and developer tooling that every application workstream depends on",
+                       "owners":  [
+                                      "Infrastructure",
+                                      "Security",
+                                      "DevOps",
+                                      "Engineering"
+                                  ],
+                       "childNodeIds":  [
+                                            "L-12",
+                                            "L-13",
+                                            "L-14",
+                                            "L-15",
+                                            "L-16",
+                                            "L-17",
+                                            "L-18",
+                                            "L-28"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-02",
+                       "name":  "Core Platform",
+                       "description":  "Authentication, API gateway, and primary microservices â€” the shared runtime every application depends on",
+                       "owners":  [
+                                      "Security",
+                                      "Engineering"
+                                  ],
+                       "childNodeIds":  [
+                                            "L-19",
+                                            "L-20",
+                                            "L-21"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-03",
+                       "name":  "Data Layer",
+                       "description":  "Database migration, pipelines, and reporting â€” the full data estate moved to managed cloud services",
+                       "owners":  [
+                                      "Data"
+                                  ],
+                       "childNodeIds":  [
+                                            "L-22",
+                                            "L-23",
+                                            "L-24"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-04",
+                       "name":  "Application Layer",
+                       "description":  "User-facing applications and background services built on top of the core platform",
+                       "owners":  [
+                                      "Engineering"
+                                  ],
+                       "childNodeIds":  [
+                                            "L-25",
+                                            "L-26",
+                                            "L-27",
+                                            "L-29"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-05",
+                       "name":  "Validation Suite",
+                       "description":  "All validation and assurance activities that must pass before the go-live gate",
+                       "owners":  [
+                                      "QA",
+                                      "Security",
+                                      "Infrastructure"
+                                  ],
+                       "childNodeIds":  [
+                                            "L-31",
+                                            "L-32",
+                                            "L-33",
+                                            "L-34",
+                                            "L-35",
+                                            "L-36"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   }
+               ],
+    "phases":  [
+                   {
+                       "id":  "PHASE-01",
+                       "name":  "Initiation",
+                       "description":  "Secure commitment, budget, and vendor agreements before any technical work begins",
+                       "color":  "#3949AB",
+                       "nodeIds":  [
+                                       "L-01",
+                                       "L-02",
+                                       "L-03",
+                                       "L-04",
+                                       "L-05"
+                                   ],
+                       "sequence":  0
+                   },
+                   {
+                       "id":  "PHASE-02",
+                       "name":  "Planning",
+                       "description":  "Discover the current-state estate and build the migration plan",
+                       "color":  "#00897B",
+                       "nodeIds":  [
+                                       "L-06",
+                                       "L-07",
+                                       "L-08",
+                                       "L-09",
+                                       "L-10",
+                                       "L-11"
+                                   ],
+                       "sequence":  1
+                   },
+                   {
+                       "id":  "PHASE-03",
+                       "name":  "Foundation",
+                       "description":  "Provision the cloud landing zone, security controls, and shared infrastructure",
+                       "color":  "#7CB342",
+                       "nodeIds":  [
+                                       "L-12",
+                                       "L-13",
+                                       "L-14",
+                                       "L-15",
+                                       "L-16",
+                                       "L-17",
+                                       "L-18",
+                                       "L-28"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-01"
+                                    ],
+                       "sequence":  2
+                   },
+                   {
+                       "id":  "PHASE-04",
+                       "name":  "Migration",
+                       "description":  "Move all application workloads, data, and supporting services to the cloud",
+                       "color":  "#FB8C00",
+                       "nodeIds":  [
+                                       "L-19",
+                                       "L-20",
+                                       "L-21",
+                                       "L-22",
+                                       "L-23",
+                                       "L-24",
+                                       "L-25",
+                                       "L-26",
+                                       "L-27",
+                                       "L-29",
+                                       "L-30"
+                                   ],
+                       "sequence":  3
+                   },
+                   {
+                       "id":  "PHASE-05",
+                       "name":  "Validation",
+                       "description":  "Verify functional correctness, performance, security, and compliance before go-live",
+                       "color":  "#E53935",
+                       "nodeIds":  [
+                                       "L-31",
+                                       "L-32",
+                                       "L-33",
+                                       "L-34",
+                                       "L-35",
+                                       "L-36",
+                                       "L-37"
+                                   ],
+                       "sequence":  4
+                   },
+                   {
+                       "id":  "PHASE-06",
+                       "name":  "Operations",
+                       "description":  "Cut over to production, decommission legacy infrastructure, and optimise",
+                       "color":  "#757575",
+                       "nodeIds":  [
+                                       "L-38",
+                                       "L-39",
+                                       "L-40",
+                                       "L-41"
+                                   ],
+                       "sequence":  5
+                   }
+               ],
+    "tagRegistry":  [
+                        {
+                            "label":  "Critical Path",
+                            "color":  "#E53935"
+                        },
+                        {
+                            "label":  "Security",
+                            "color":  "#8E24AA"
+                        },
+                        {
+                            "label":  "Data Risk",
+                            "color":  "#F4511E"
+                        },
+                        {
+                            "label":  "Compliance",
+                            "color":  "#00897B"
+                        },
+                        {
+                            "label":  "Vendor",
+                            "color":  "#FB8C00"
+                        },
+                        {
+                            "label":  "Gate",
+                            "color":  "#3949AB"
+                        },
+                        {
+                            "label":  "Irreversible",
+                            "color":  "#E53935"
+                        }
+                    ],
+    "ownerRegistry":  [
+                          "Leadership",
+                          "Finance",
+                          "Architecture",
+                          "Security",
+                          "Infrastructure",
+                          "Data",
+                          "Engineering",
+                          "DevOps",
+                          "QA"
+                      ],
+    "edgePathTypes":  {
+                          "L-01:L-02":  "critical",
+                          "L-02:L-03":  "critical",
+                          "L-02:L-04":  "standard",
+                          "L-03:L-05":  "critical",
+                          "L-04:L-05":  "priority",
+                          "L-05:L-06":  "critical",
+                          "L-06:L-07":  "priority",
+                          "L-06:L-08":  "priority",
+                          "L-07:L-09":  "priority",
+                          "L-07:L-10":  "standard",
+                          "L-08:L-09":  "standard",
+                          "L-09:L-11":  "critical",
+                          "L-10:L-11":  "priority",
+                          "L-11:L-12":  "critical",
+                          "L-12:L-13":  "critical",
+                          "L-12:L-14":  "priority",
+                          "L-12:L-16":  "standard",
+                          "L-13:L-15":  "critical",
+                          "L-13:L-18":  "critical",
+                          "L-13:L-19":  "priority",
+                          "L-14:L-17":  "standard",
+                          "L-14:L-20":  "standard",
+                          "L-15:L-22":  "priority",
+                          "L-15:L-28":  "priority",
+                          "L-15:L-36":  "priority",
+                          "L-16:L-18":  "priority",
+                          "L-16:L-34":  "optional",
+                          "L-17:L-18":  "priority",
+                          "L-17:L-28":  "standard",
+                          "L-18:L-19":  "critical",
+                          "L-18:L-20":  "priority",
+                          "L-19:L-21":  "critical",
+                          "L-19:L-33":  "priority",
+                          "L-20:L-21":  "priority",
+                          "L-21:L-22":  "critical",
+                          "L-21:L-25":  "priority",
+                          "L-21:L-27":  "standard",
+                          "L-21:L-29":  "standard",
+                          "L-21:L-31":  "priority",
+                          "L-21:L-32":  "priority",
+                          "L-21:L-33":  "priority",
+                          "L-22:L-23":  "priority",
+                          "L-22:L-32":  "standard",
+                          "L-22:L-34":  "priority",
+                          "L-23:L-24":  "standard",
+                          "L-25:L-26":  "priority",
+                          "L-25:L-31":  "standard",
+                          "L-24:L-26":  "standard",
+                          "L-26:L-35":  "priority",
+                          "L-31:L-35":  "priority",
+                          "L-33:L-36":  "priority",
+                          "L-35:L-37":  "critical",
+                          "L-32:L-37":  "standard",
+                          "L-34:L-37":  "standard",
+                          "L-36:L-37":  "priority",
+                          "L-37:L-38":  "critical",
+                          "L-38:L-39":  "priority",
+                          "L-38:L-40":  "standard",
+                          "L-39:L-41":  "standard",
+                          "L-40:L-41":  "standard"
+                      }
+}

@@ -106,37 +106,42 @@ body {
 /* ─── ANIMATION KEYFRAMES ───────────────────────────────────────────────────── */
 
 /**
- * jumpGlowPulse — the pulsing amber glow animation used on nodes that were
- * recently jumped to via search. The animation cycles the drop-shadow to draw
- * the user's eye to the newly-focused node.
- *
- * Applied via the .node-jumped class on the SVG <g> element in NodeCard.
- * Using a CSS class (instead of an inline `filter` style) allows the animation
- * to run — inline styles cannot reference CSS keyframe animations.
+ * node-pulse-ring — expanding ripple animation shared by node-jumped (search)
+ * and critical-walk-current (path walk). Two rings are layered with a 0.4s
+ * stagger to produce the same double-ripple as summon-source-pulse.
+ * Uses transform-box/transform-origin so the scale expands from the rect center.
  */
-/**
- * jumpGlowPulse — targets the node-main-rect inside the jumped node.
- * Uses stroke instead of filter: drop-shadow to avoid the black-rectangle
- * GPU compositing artifact that SVG filters produce on large graphs.
- */
-@keyframes jumpGlowPulse {
-  0% {
-    stroke: rgba(245, 158, 11, 0.4);
-    stroke-width: 1.5;
-  }
-  50% {
-    stroke: rgba(245, 158, 11, 0.9);
-    stroke-width: 2.5;
-  }
-  100% {
-    stroke: rgba(245, 158, 11, 0.4);
-    stroke-width: 1.5;
-  }
+@keyframes node-pulse-ring {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  60%  { transform: scale(1.22); opacity: 0.15; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 
-/** Applied to the node <g> element while lastJumpedNodeId matches this node. */
+/* Search jump — solid owner-color border on the main rect */
 .node-jumped .node-main-rect {
-  animation: jumpGlowPulse 1.2s ease-in-out infinite;
+  stroke: var(--pulse-color, #f59e0b) !important;
+  stroke-opacity: 0.85 !important;
+  stroke-width: 2.5 !important;
+}
+
+/* Search jump — outer ripple ring (owner color) */
+.node-jumped .node-pulse-outer {
+  stroke: var(--pulse-color, #f59e0b);
+  stroke-opacity: 0.75;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-pulse-ring 1.6s ease-out infinite;
+}
+
+/* Search jump — inner ripple ring (owner color, 0.4s delay) */
+.node-jumped .node-pulse-inner {
+  stroke: var(--pulse-color, #f59e0b);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-pulse-ring 1.6s ease-out infinite 0.4s;
 }
 
 /**
@@ -162,30 +167,6 @@ body {
   animation: selectedGlowPulse 1.4s ease-in-out infinite;
 }
 
-/**
- * Hover highlight — POSITIVE ONLY, no dimming of non-hovered nodes.
- *
- * Any approach that changes CSS properties on non-hovered nodes during hover
- * (opacity, fill, stroke on the ~140 leaf elements across 20+ nodes) invalidates
- * paint tiles across the entire canvas. At high zoom levels those tiles are large
- * and Chrome can't repaint all of them in one frame — you see the old tile content
- * as flickering grey/white boxes everywhere.
- *
- * Solution: only ADD visual weight to the hovered node and its neighbors.
- * Non-hovered nodes are untouched — zero tile invalidation, zero flicker.
- */
-
-/* Hovered node: bright accent outline on its main shape */
-.node-group.hovered .node-main-rect {
-  stroke: var(--accent) !important;
-  stroke-width: 3 !important;
-}
-
-/* Neighbor nodes: teal stroke hint */
-.node-group.neighbor .node-main-rect {
-  stroke: var(--accent3) !important;
-  stroke-width: 2 !important;
-}
 
 /**
  * Group collapse/expand animations.
@@ -331,15 +312,10 @@ body {
 }
 
 /**
- * Entrance animations — staggered left-to-right by DAG column, top-to-bottom within each column.
+ * Entrance animations — nodes/groups fade in together, then edges fade in after.
  * Applied via .node-entrance inner <g> inside NodeCard / collapsed GroupCard.
  * Applied via .group-entrance-expand inner <g> inside expanded GroupCard.
- * --entrance-delay is set inline: (columnIndex × 120ms) + (yRank × 30ms).
- * Edges draw out from source via stroke-dashoffset in EdgeLayer.useLayoutEffect.
- *
- * All entrance keyframes and classes live inside prefers-reduced-motion: no-preference
- * so users who prefer reduced motion get instant appearance. The fallback rules below
- * ensure instant visibility by default (opacity:1, no transform offset).
+ * Edge fade is handled via WAAPI in EdgeLayer.useLayoutEffect.
  */
 
 /* Reduced motion fallback — nodes/groups appear instantly with no animation */
@@ -350,43 +326,21 @@ body {
 
 @media (prefers-reduced-motion: no-preference) {
   @keyframes nodeEnterFromLeft {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
-  /* Expanded group bounding boxes: opacity only — no translate (boxes can span many columns) */
   @keyframes groupEntranceExpand {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  /* Edge draw-on: stroke-dashoffset from full path length to 0.
-     --path-length is set per element by EdgeLayer.useLayoutEffect. */
-  @keyframes edgeDrawOn {
-    from {
-      stroke-dashoffset: var(--path-length);
-    }
-    to {
-      stroke-dashoffset: 0;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .node-entrance {
-    animation: nodeEnterFromLeft 400ms ease-out both;
-    animation-delay: var(--entrance-delay, 0ms);
+    animation: nodeEnterFromLeft 350ms ease-out both;
   }
 
   .group-entrance-expand {
-    animation: groupEntranceExpand 400ms ease-out both;
-    animation-delay: var(--entrance-delay, 0ms);
+    animation: groupEntranceExpand 350ms ease-out both;
   }
 }
 
@@ -819,6 +773,110 @@ body {
 /* Unrelated nodes — strongly dimmed */
 .path-ghost {
   opacity: 0.08;
+}
+
+/* ─── CRITICAL PATH EXPLORER ──────────────────────────────────────────────── */
+
+/* Parent-class dimming — single DOM write on #graph-content, CSS handles all descendants.
+   Avoids per-element JS mutations for non-chain nodes and edges.
+   data-selected="true" exempts the currently selected node so it stays fully visible. */
+#graph-root.critical-path-dim-mode .node-group:not([data-critical-role="member"]):not([data-selected="true"]),
+#graph-root.critical-path-dim-mode .group-overlay:not([data-critical-role="member"]):not([data-selected="true"]) {
+  opacity: 0.07;
+  transition: opacity 0.2s ease;
+}
+
+
+.critical-member,
+.critical-walk-visited,
+.critical-walk-current,
+.critical-bottleneck {
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+/* Chain member — positive-only highlight; color comes from --chain-color CSS var set on the element */
+.critical-member .node-main-rect,
+.critical-member .group-polygon {
+  stroke: var(--chain-color, #f59e0b) !important;
+  stroke-width: 2.5 !important;
+}
+
+/* Nodes visited in walk mode */
+.critical-walk-visited {
+  opacity: 0.45;
+}
+
+/* Current walk step — solid glow using the chain color */
+.critical-walk-current .node-main-rect,
+.critical-walk-current .group-polygon {
+  stroke: var(--chain-color, #f59e0b) !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--chain-color, #f59e0b) 53%, transparent));
+}
+
+/* Current walk step — outer ripple ring (owner color) */
+.critical-walk-current .node-pulse-outer {
+  stroke: var(--pulse-color, #f59e0b);
+  stroke-opacity: 0.8;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-pulse-ring 1.6s ease-out infinite;
+}
+
+/* Current walk step — inner ripple ring (owner color, 0.4s delay) */
+.critical-walk-current .node-pulse-inner {
+  stroke: var(--pulse-color, #f59e0b);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-pulse-ring 1.6s ease-out infinite 0.4s;
+}
+
+/* Bottleneck nodes in compare mode — extra glow */
+.critical-bottleneck .node-main-rect,
+.critical-bottleneck .group-polygon {
+  filter: drop-shadow(0 0 6px #f59e0baa);
+}
+
+/**
+ * Hover highlight — POSITIVE ONLY, no dimming of non-hovered nodes.
+ *
+ * Placed here (after path-focus and critical path sections) so that hover always
+ * wins over both path highlight and critical path highlight when all use !important.
+ * With !important, cascade order decides — later rules win.
+ *
+ * Any approach that changes CSS properties on non-hovered nodes during hover
+ * (opacity, fill, stroke on the ~140 leaf elements across 20+ nodes) invalidates
+ * paint tiles across the entire canvas. At high zoom levels those tiles are large
+ * and Chrome can't repaint all of them in one frame — you see the old tile content
+ * as flickering grey/white boxes everywhere.
+ *
+ * Solution: only ADD visual weight to the hovered node and its neighbors.
+ * Non-hovered nodes are untouched — zero tile invalidation, zero flicker.
+ */
+
+/* Hovered node: bright accent outline on its main shape.
+   Also restore full opacity and clear any path/critical-path drop-shadow so
+   the hover effect is the only visible highlight (not layered under a path glow). */
+.node-group.hovered {
+  opacity: 1 !important;
+}
+.node-group.hovered .node-main-rect {
+  stroke: var(--accent) !important;
+  stroke-width: 3 !important;
+  filter: none !important;
+}
+
+/* Neighbor nodes: teal stroke hint, also fully opaque */
+.node-group.neighbor {
+  opacity: 1 !important;
+}
+.node-group.neighbor .node-main-rect {
+  stroke: var(--accent3) !important;
+  stroke-width: 2 !important;
+  filter: none !important;
 }
 
 /* ─── RECONSTRUCTION PHASE ────────────────────────────────────────────────── */

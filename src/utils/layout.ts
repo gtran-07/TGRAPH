@@ -123,18 +123,71 @@ export function computeLayout(
   // ── Step 1.5: Detect and separate disconnected components ───────────────
   // Without this, nodes from separate sub-graphs (no edges between them) all receive
   // layers starting from 0 and stack at y≈0, causing them to pile up and overlap.
-  // Each component is laid out independently then stacked vertically, largest first
-  // so the primary flow appears at the top of the canvas.
+  // Each component is laid out independently then stacked vertically.
+  //
+  // Sort order: earliest phase sequence first (so a component whose nodes belong to
+  // phase 1 is laid out / stacked before a component whose nodes belong to phase 2),
+  // then by size (largest first) as a tiebreaker within the same earliest phase.
+  // This ensures that after combining, earlier-phase components have lower X values
+  // than later-phase components — a prerequisite for the cross-component X alignment
+  // pass that follows.
   const components = detectComponents(nodeIds, outAdjacency, inAdjacency);
   if (components.length > 1) {
-    components.sort((a, b) => b.length - a.length); // largest component first
+    const minPhaseSeqOf = (ids: string[]): number => {
+      if (!phases || phases.length === 0) return Infinity;
+      const s = new Set(ids);
+      let min = Infinity;
+      phases.forEach((ph) => { if (ph.nodeIds.some((id) => s.has(id))) min = Math.min(min, ph.sequence); });
+      return min;
+    };
+    components.sort((a, b) => {
+      const sd = minPhaseSeqOf(a) - minPhaseSeqOf(b);
+      return sd !== 0 ? sd : b.length - a.length;
+    });
+
+    const compNodeSets: Set<string>[] = [];
     const compPositions = components.map((compIds) => {
       const compSet = new Set(compIds);
+      compNodeSets.push(compSet);
       const compNodes = nodes.filter((n) => compSet.has(n.id));
       const compEdges = edges.filter((e) => compSet.has(e.from) && compSet.has(e.to));
       return computeLayout(compNodes, compEdges, phases, groups);
     });
-    return stackComponentsVertically(compPositions, COMPONENT_GAP);
+
+    const combined = stackComponentsVertically(compPositions, COMPONENT_GAP);
+
+    // ── Cross-component phase X alignment ──────────────────────────────────
+    // stackComponentsVertically only shifts Y. Different components share the same
+    // X origin, so a component containing only phase-3 nodes would place them at
+    // x=0 — the same column as phase-1 nodes from another component. Fix: walk
+    // phases in sequence order and, for each component whose phase-N nodes start
+    // below the global xFloor, shift the ENTIRE component right so they meet it.
+    // Shifting whole components preserves internal topology-based X relationships.
+    if (phases && phases.length > 0) {
+      const sortedPhases = [...phases].sort((a, b) => a.sequence - b.sequence);
+      let xFloor = 0;
+      sortedPhases.forEach((phase) => {
+        const phaseNodeIds = phase.nodeIds.filter((id) => nodeIdSet.has(id) && combined[id]);
+        if (phaseNodeIds.length === 0) return;
+
+        compNodeSets.forEach((compSet) => {
+          const compPhaseIds = phaseNodeIds.filter((id) => compSet.has(id));
+          if (compPhaseIds.length === 0) return;
+          const compPhaseMinX = Math.min(...compPhaseIds.map((id) => combined[id].x));
+          if (compPhaseMinX < xFloor) {
+            const shift = xFloor - compPhaseMinX;
+            compSet.forEach((id) => {
+              if (combined[id]) combined[id] = { ...combined[id], x: combined[id].x + shift };
+            });
+          }
+        });
+
+        const phaseMaxX = Math.max(...phaseNodeIds.map((id) => combined[id].x + NODE_W));
+        xFloor = phaseMaxX + PHASE_INTER_GAP;
+      });
+    }
+
+    return combined;
   }
 
   // ── Step 2: Assign layers using longest-path layering (Kahn's BFS) ────
@@ -217,8 +270,20 @@ export function computeLayout(
   // to at least `layerFloor`, then propagate the lift forward via BFS so all downstream
   // nodes maintain the topological invariant (child layer > parent layer). Only increases
   // layers — never decreases — so no existing dependency constraint is ever broken.
+  //
+  // BFS boundary rule: propagation stops at nodes that belong to an EARLIER phase.
+  // Without this guard, lifting a phase-N node and propagating to a phase-M (M < N)
+  // successor would push that earlier-phase node to a higher layer than the phase-N
+  // node, visually placing phase M to the right of phase N — a sequence violation.
   if (phases && phases.length > 0) {
     const sortedPhases = [...phases].sort((a, b) => a.sequence - b.sequence);
+
+    // Pre-build node → phase-sequence map for O(1) boundary checks in BFS.
+    const nodePhaseSeq = new Map<string, number>();
+    sortedPhases.forEach((ph) => {
+      ph.nodeIds.forEach((id) => { if (nodeIdSet.has(id)) nodePhaseSeq.set(id, ph.sequence); });
+    });
+
     let layerFloor = 0;
 
     sortedPhases.forEach((phase) => {
@@ -228,11 +293,15 @@ export function computeLayout(
       phaseNodeIds.forEach((id) => {
         if ((layer[id] ?? 0) < layerFloor) {
           layer[id] = layerFloor;
-          // BFS: push all downstream nodes forward to preserve topological order
+          // BFS: push downstream nodes forward, but never into earlier-phase nodes.
           const propagateQueue = [id];
           while (propagateQueue.length > 0) {
             const curr = propagateQueue.shift()!;
             (outAdjacency[curr] ?? []).forEach((child) => {
+              // Stop at any node whose phase sequence is earlier than the current phase —
+              // propagating into it would lift it past this phase, breaking sequence order.
+              const childSeq = nodePhaseSeq.get(child);
+              if (childSeq !== undefined && childSeq < phase.sequence) return;
               const required = (layer[curr] ?? 0) + 1;
               if ((layer[child] ?? 0) < required) {
                 layer[child] = required;
@@ -1034,12 +1103,14 @@ export function computeLaneLayout(
   nodes: GraphNode[],
   edges: GraphEdge[],
   activeOwners: Set<string>,
-  allNodes: GraphNode[]
+  allNodes: GraphNode[],
+  phases?: GraphPhase[]
 ): { positions: Record<string, Position>; laneMetrics: Record<string, LaneMetrics> } {
   if (nodes.length === 0) return { positions: {}, laneMetrics: {} };
 
   // ── Step 1: Column assignments from DAG layout ──────────────────────────
-  const dagPositions = computeLayout(nodes, edges);
+  // Pass phases so phase-stratified layering assigns correct left-to-right columns.
+  const dagPositions = computeLayout(nodes, edges, phases);
   const nodeIdSet = new Set(nodes.map((n) => n.id));
 
   const nodeToOwner = new Map<string, string>();

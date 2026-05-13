@@ -217,7 +217,7 @@ function PhasesPanel() {
   const {
     phases, allNodes, designMode,
     createPhase: _createPhase,
-    updatePhase, deletePhase,
+    updatePhase, deletePhase, movePhase,
     selectedPhaseId, setSelectedPhaseId,
     focusedPhaseId, setFocusedPhaseId,
     collapsePhase, expandPhase, collapsedPhaseIds,
@@ -274,11 +274,13 @@ function PhasesPanel() {
         </div>
       )}
 
-      {sorted.map((phase) => {
+      {sorted.map((phase, idx) => {
         const nodeCount = phase.nodeIds.length + (phase.groupIds?.length ?? 0);
         const isSelected = selectedPhaseId === phase.id;
         const isFocused = focusedPhaseId === phase.id;
         const isCollapsed = collapsedPhaseIds.includes(phase.id);
+        const isFirst = idx === 0;
+        const isLast = idx === sorted.length - 1;
 
         if (designMode && editingPhaseId === phase.id) {
           return (
@@ -324,6 +326,18 @@ function PhasesPanel() {
             <span className={styles.filterCount}>{nodeCount}</span>
             {designMode && (
               <>
+                <button
+                  className={styles.tagActionBtn}
+                  onClick={(e) => { e.stopPropagation(); movePhase(phase.id, 'left'); }}
+                  title="Move phase earlier"
+                  disabled={isFirst}
+                >◀</button>
+                <button
+                  className={styles.tagActionBtn}
+                  onClick={(e) => { e.stopPropagation(); movePhase(phase.id, 'right'); }}
+                  title="Move phase later"
+                  disabled={isLast}
+                >▶</button>
                 <button
                   className={styles.tagActionBtn}
                   onClick={(e) => { e.stopPropagation(); startEdit(phase); }}
@@ -682,14 +696,17 @@ export function Sidebar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discoveryActive]);
 
-  // ── Auto-expand on first data load ───────────────────────────────────────
+  // ── Auto-expand on first data load; collapse when data is cleared ────────
   useEffect(() => {
     if (allNodes.length > 0 && !hasAutoOpened.current) {
       hasAutoOpened.current = true;
       setCollapsed(false);
       setActiveTab('owners');
     }
-    if (allNodes.length === 0) hasAutoOpened.current = false;
+    if (allNodes.length === 0 && !designMode) {
+      hasAutoOpened.current = false;
+      setCollapsed(true);
+    }
   }, [allNodes.length]);
 
   // ── Auto-switch to Inspector tab when a selection is made ────────────────
@@ -894,8 +911,8 @@ export function Sidebar() {
         />
       </div>
 
-      {/* ── Collapsed peek button ─────────────────────────────────────────── */}
-      {collapsed && (
+      {/* ── Collapsed peek button — hidden when no data is loaded ──────────── */}
+      {collapsed && (allNodes.length > 0 || designMode) && (
         <button
           className={styles.peekBtn}
           onClick={() => setCollapsed(false)}
@@ -905,50 +922,49 @@ export function Sidebar() {
         </button>
       )}
 
-      {/* ── Cinema hint when collapsed + discovery active ─────────────────── */}
-      {collapsed && discoveryActive && (
-        <div
-          className={`${styles.collapsedHint} ${styles.collapsedHintCinema}`}
-          style={{ top: 56 }}
-          onClick={() => { setCollapsed(false); setActiveTab('cinema'); }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setCollapsed(false); setActiveTab('cinema'); } }}
-        >
-          <span className={styles.hintIcon}>▶</span>
-          <div className={styles.hintBody}>
-            <span className={styles.hintName}>Cinema Tour Active</span>
-            <span className={styles.hintCta}>↗ Click to open Cinema tab</span>
-          </div>
-        </div>
-      )}
-
-      {/* ── Floating hint when collapsed + item selected ──────────────────── */}
+      {/* ── Hint stack — cinema + selection hints, stacked above peek button ── */}
       {collapsed && (
-        <div
-          className={`${styles.collapsedHint} ${!showHint ? styles.collapsedHintHidden : ''}`}
-          style={discoveryActive ? { top: 116 } : undefined}
-          onClick={handleHintClick}
-          role="button"
-          tabIndex={showHint ? 0 : -1}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleHintClick(); }}
-        >
-          <span
-            className={styles.hintIcon}
-            style={hintContent?.color ? { color: hintContent.color } : undefined}
-          >▣</span>
-          {hintContent ? (
-            <div key={selectedNodeId ?? selectedGroupId ?? selectedPhaseId} className={styles.hintBody}>
-              <span className={styles.hintName}>{hintContent.name}</span>
-              <span className={styles.hintSub}>{hintContent.sub}</span>
-              <span className={styles.hintCta}>↗ Click to open inspector</span>
-            </div>
-          ) : (
-            <div key="empty" className={styles.hintBody}>
-              <span className={styles.hintName}>Item selected</span>
-              <span className={styles.hintCta}>↗ Click to view details</span>
+        <div className={styles.hintStack}>
+          {discoveryActive && (
+            <div
+              className={`${styles.collapsedHint} ${styles.collapsedHintCinema}`}
+              onClick={() => { setCollapsed(false); setActiveTab('cinema'); }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setCollapsed(false); setActiveTab('cinema'); } }}
+            >
+              <span className={styles.hintIcon}>▶</span>
+              <div className={styles.hintBody}>
+                <span className={styles.hintName}>Cinema Tour Active</span>
+                <span className={styles.hintCta}>↗ Click to open Cinema tab</span>
+              </div>
             </div>
           )}
+          <div
+            className={`${styles.collapsedHint} ${!showHint ? styles.collapsedHintHidden : ''}`}
+            onClick={handleHintClick}
+            role="button"
+            tabIndex={showHint ? 0 : -1}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleHintClick(); }}
+            style={hintContent?.color ? { '--hint-color': hintContent.color } as React.CSSProperties : undefined}
+          >
+            <span
+              className={styles.hintIcon}
+              style={hintContent?.color ? { color: hintContent.color } : undefined}
+            >▣</span>
+            {hintContent ? (
+              <div key={selectedNodeId ?? selectedGroupId ?? selectedPhaseId} className={styles.hintBody}>
+                <span className={styles.hintName}>{hintContent.name}</span>
+                <span className={styles.hintSub}>{hintContent.sub}</span>
+                <span className={styles.hintCta}>↗ Click to open inspector</span>
+              </div>
+            ) : (
+              <div key="empty" className={styles.hintBody}>
+                <span className={styles.hintName}>Item selected</span>
+                <span className={styles.hintCta}>↗ Click to view details</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>

@@ -91,13 +91,25 @@ export function DesignToolbar() {
   const hasGroupSelected = !!selectedGroupId;
 
   const groupIdSet = new Set(groups.map((g) => g.id));
+  const selectedNodeIds = multiSelectIds.filter((id) => !groupIdSet.has(id));
+
   const selectedNodeOwners = new Set(
-    multiSelectIds
-      .filter((id) => !groupIdSet.has(id))
+    selectedNodeIds
       .map((id) => allNodes.find((n) => n.id === id)?.owner)
       .filter((o): o is string => o !== undefined)
   );
   const mixedOwners = canCreateGroup && selectedNodeOwners.size > 1;
+
+  // Map each directly-selected node to its phase ID (null = no phase).
+  const selectedNodePhases = new Set(
+    selectedNodeIds.map((id) => {
+      const phase = phases.find((p) => p.nodeIds.includes(id));
+      return phase ? phase.id : null;
+    })
+  );
+  const mixedPhases = canCreateGroup && selectedNodePhases.size > 1;
+
+  const groupingBlocked = mixedOwners || mixedPhases;
 
   const hasSelection = designTool === 'select' && (multiSelectIds.length >= 1 || !!selectedNodeId || !!selectedGroupId);
   const hasContextItems = hasGroupSelected || canCreateGroup || hasSelection;
@@ -105,7 +117,11 @@ export function DesignToolbar() {
   return (
     <div className={styles.banner}>
       {/* Mode indicator */}
-      <span className={styles.label} title="Design Mode">✏</span>
+      <span className={styles.label} title="Design Mode">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </span>
       <div className={styles.sep} />
 
       {/* Core tools */}
@@ -242,14 +258,16 @@ export function DesignToolbar() {
           <button
             className={styles.toolBtn}
             onClick={handleCreateGroup}
-            disabled={mixedOwners}
+            disabled={groupingBlocked}
             title={
               mixedOwners
-                ? `Cannot group: selected nodes belong to multiple owners (${[...selectedNodeOwners].join(', ')})`
-                : `Create group from ${multiSelectIds.length} selected items`
+                ? `Cannot group: nodes have multiple owners (${[...selectedNodeOwners].join(', ')})`
+                : mixedPhases
+                  ? `Cannot group: nodes span multiple phases (${[...selectedNodePhases].map((id) => phases.find((p) => p.id === id)?.name ?? '(no phase)').join(', ')})`
+                  : `Create group from ${multiSelectIds.length} selected items`
             }
             style={
-              mixedOwners
+              groupingBlocked
                 ? { opacity: 0.4, cursor: 'not-allowed' }
                 : { borderColor: '#a78bfa', color: '#a78bfa' }
             }

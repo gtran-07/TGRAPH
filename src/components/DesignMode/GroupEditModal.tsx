@@ -12,14 +12,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useGraphStore } from '../../store/graphStore';
-import { deriveGroupOwners, validateGroupConnectivity, getAllDescendantNodeIds } from '../../utils/grouping';
+import { deriveGroupOwners, validateGroupConnectivity, validateGroupPhase, getAllDescendantNodeIds } from '../../utils/grouping';
 import styles from './NodeEditModal.module.css';
 
 type ModalMode = 'create' | 'edit';
 
 export function GroupEditModal() {
   const {
-    allNodes, allEdges, groups,
+    allNodes, allEdges, groups, phases,
     createGroup, updateGroup, deleteGroup,
     ownerColors, clearMultiSelect,
   } = useGraphStore();
@@ -85,6 +85,15 @@ export function GroupEditModal() {
         return;
       }
 
+      // Validate same phase — all expanded nodes must belong to the same phase (or none).
+      const { valid: phaseValid, conflictingPhaseNames } = validateGroupPhase(expandedIds, phases);
+      if (!phaseValid) {
+        alert(
+          `Cannot create group: selected nodes span multiple phases (${conflictingPhaseNames.join(', ')}).\n\nAll nodes in a group must belong to the same phase.`
+        );
+        return;
+      }
+
       setMode('create');
       setEditingGroupId(null);
       setChildNodeIds(nodeIds);
@@ -115,7 +124,7 @@ export function GroupEditModal() {
       document.removeEventListener('flowgraph:create-group', handleCreate);
       document.removeEventListener('flowgraph:edit-group', handleEdit);
     };
-  }, [allNodes, allEdges, groups]);
+  }, [allNodes, allEdges, groups, phases]);
 
   // Auto-focus name input
   useEffect(() => {

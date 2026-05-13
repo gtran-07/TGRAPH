@@ -52,11 +52,10 @@ interface NodeCardProps {
   isFocusNode?: boolean;
   fadingOut?: boolean;
   fadingIn?: boolean;
-  entranceDelay?: number;
   animate?: boolean;
 }
 
-export const NodeCard = memo(function NodeCard({ node, position, color, screenToSvg, onFocusRequest, laneFocusRole, isFocusNode, fadingOut, fadingIn, entranceDelay, animate = true }: NodeCardProps) {
+export const NodeCard = memo(function NodeCard({ node, position, color, screenToSvg, onFocusRequest, laneFocusRole, isFocusNode, fadingOut, fadingIn, animate = true }: NodeCardProps) {
   const {
     selectedNodeId, lastJumpedNodeId,
     designMode, designTool, connectSourceId,
@@ -395,7 +394,8 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
   const laneFocusOpacity =
     laneFocusRole === 'upstream' || laneFocusRole === 'downstream' ? 0.8
     : laneFocusRole === 'partial' ? 0.08
-    : 1;
+    : laneFocusRole === 'owned' ? 1
+    : undefined; // null/no role — no inline opacity so CSS rules (critical path dim, cinema) can control it
 
   // During cinema/reconstruction, inline opacity is suppressed so CSS classes control opacity
   const inlineOpacity = discoveryActive ? undefined : laneFocusOpacity;
@@ -416,15 +416,16 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
       ref={groupRef}
       className={`node-group${isJumped ? ' node-jumped' : ''}${(isSelected || isMultiSelected) && designMode ? ' node-selected' : ''}${discoveryRole ? ` discovery-${discoveryRole}` : ''}${heatClass ? ` ${heatClass}` : ''}${fadingOut ? ' node-fading-out' : ''}${fadingIn ? ' node-fading-in' : ''}`}
       data-id={node.id}
+      data-selected={isSelected || isMultiSelected ? "true" : undefined}
       // CSS transform (not SVG attribute) enables CSS transitions for view/focus switches
-      style={{ cursor: designMode ? 'grab' : 'pointer', transform: `translate(${position.x}px,${position.y}px)`, opacity: inlineOpacity }}
+      style={{ cursor: designMode ? 'grab' : 'pointer', transform: `translate(${position.x}px,${position.y}px)`, opacity: inlineOpacity, '--pulse-color': color } as React.CSSProperties}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={() => { setIsLocalHovered(true); setHoveredNode(node.id); }}
       onMouseLeave={() => { setIsLocalHovered(false); setHoveredNode(null); }}
     >
-      <g className={animateOnMount.current ? 'node-entrance' : undefined} style={{ '--entrance-delay': `${entranceDelay ?? 0}ms` } as React.CSSProperties}>
+      <g className={animateOnMount.current ? 'node-entrance' : undefined}>
       {/* Drop shadow — plain rect, no blur filter (blur triggers GPU recomposition on opacity transitions, causing flicker) */}
       <rect x={3} y={5} width={NODE_W} height={NODE_H} rx={6}
         fill="rgba(0,0,0,0.22)" />
@@ -446,6 +447,10 @@ export const NodeCard = memo(function NodeCard({ node, position, color, screenTo
         stroke={strokeColor} strokeWidth={strokeWidth}
         style={{ transition: 'fill .15s, stroke .15s' }}
       />
+
+      {/* Pulse rings — animated in node-jumped (search) and critical-walk-current states */}
+      <rect className="node-pulse-outer" x={-6} y={-6} width={NODE_W + 12} height={NODE_H + 12} rx={10} fill="none" style={{ pointerEvents: 'none' }} />
+      <rect className="node-pulse-inner" x={-3} y={-3} width={NODE_W + 6} height={NODE_H + 6} rx={8} fill="none" style={{ pointerEvents: 'none' }} />
 
       {/* Owner focus glow — colored outline ring on owned nodes */}
       {laneFocusRole === 'owned' && (

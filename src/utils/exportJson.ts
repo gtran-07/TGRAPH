@@ -15,9 +15,6 @@ import type {
   GraphPhase,
   GraphMeta,
   NodeTag,
-  Position,
-  Transform,
-  CinemaEngagementMap,
   PathType,
 } from "../types/graph";
 
@@ -29,50 +26,20 @@ const DEFAULT_META: GraphMeta = {
     "In the app: click the folder icon (or drag-and-drop this file) to load it. Use Design Mode to edit nodes, groups, and phases.",
 };
 
-/** One view's saved layout — positions for every node + the viewport transform. */
-export interface ViewLayout {
-  positions: Record<string, Position>;
-  transform: Transform;
-}
-
-/**
- * exportGraphToJson — serializes the node list to JSON and downloads it as a file.
- *
- * When layout data is provided the file is saved in a richer format:
- *   {
- *     nodes: [...],
- *     _layout: {
- *       currentView: 'dag' | 'lanes',
- *       dag:   { positions, transform } | null,
- *       lanes: { positions, transform } | null,
- *     }
- *   }
- * Both DAG and LANES layouts are captured so reloading the file restores whichever
- * view the user was in AND retains the other view's arrangement when they switch.
- *
- * @param nodes        - The complete list of nodes to export
- * @param currentView  - Which view is active right now
- * @param dagLayout    - DAG positions + transform (null if never used)
- * @param lanesLayout  - LANES positions + transform (null if never used)
- * @param filename     - Suggested filename (default: 'flowgraph.json')
- */
 /**
  * buildExportPayload — builds the serializable graph data object.
  *
  * Shared by exportGraphToJson (download) and the in-place file-write path
- * so both always produce identical JSON.
+ * so both always produce identical JSON. Layout (positions/transform) is
+ * intentionally excluded — the app recomputes layout automatically on load.
  */
 export function buildExportPayload(
   nodes: GraphNode[],
-  currentView?: string,
-  dagLayout?: ViewLayout | null,
-  lanesLayout?: ViewLayout | null,
   groups?: GraphGroup[],
   phases?: GraphPhase[],
   tagRegistry?: NodeTag[],
   ownerRegistry?: string[],
   meta?: GraphMeta | null,
-  discoveryEngagement?: CinemaEngagementMap,
   edgePathTypes?: Record<string, PathType>,
 ): object {
   const nodeData = nodes.map((node) => ({
@@ -82,25 +49,17 @@ export function buildExportPayload(
     description: node.description,
     dependencies: node.dependencies,
     ...(node.tags && node.tags.length > 0 ? { tags: node.tags } : {}),
-    // Cinema author fields — omit when falsy to keep JSON clean
     ...(node.cinemaScript ? { cinemaScript: node.cinemaScript } : {}),
     ...(node.cinemaBottleneck ? { cinemaBottleneck: true } : {}),
     ...(node.cinemaSkip ? { cinemaSkip: true } : {}),
   }));
 
-  // Groups include cinema fields as-is (object spread preserves them)
-
-  const hasLayout = dagLayout || lanesLayout;
   const hasGroups = groups && groups.length > 0;
   const hasPhases = phases && phases.length > 0;
   const hasTagRegistry = tagRegistry && tagRegistry.length > 0;
   const hasOwnerRegistry = ownerRegistry && ownerRegistry.length > 0;
-  const hasEngagement =
-    discoveryEngagement && Object.keys(discoveryEngagement).length > 0;
-  const hasEdgePathTypes =
-    edgePathTypes && Object.keys(edgePathTypes).length > 0;
+  const hasEdgePathTypes = edgePathTypes && Object.keys(edgePathTypes).length > 0;
 
-  // Serialize phases: omit groupIds when empty to keep JSON clean for graphs without group membership
   const phasesData = phases?.map((p) => ({
     ...p,
     ...(p.groupIds && p.groupIds.length > 0
@@ -109,24 +68,6 @@ export function buildExportPayload(
   }));
 
   const _meta: GraphMeta = { ...DEFAULT_META, ...meta };
-
-  if (hasLayout) {
-    return {
-      _meta,
-      nodes: nodeData,
-      ...(hasGroups ? { groups } : {}),
-      ...(hasPhases ? { phases: phasesData } : {}),
-      ...(hasTagRegistry ? { tagRegistry } : {}),
-      ...(hasOwnerRegistry ? { ownerRegistry } : {}),
-      ...(hasEdgePathTypes ? { edgePathTypes } : {}),
-      _layout: {
-        currentView: currentView ?? "dag",
-        dag: dagLayout ?? null,
-        lanes: lanesLayout ?? null,
-        ...(hasEngagement ? { discoveryEngagement } : {}),
-      },
-    };
-  }
 
   return {
     _meta,
@@ -141,29 +82,21 @@ export function buildExportPayload(
 
 export function exportGraphToJson(
   nodes: GraphNode[],
-  currentView?: string,
-  dagLayout?: ViewLayout | null,
-  lanesLayout?: ViewLayout | null,
   filename = "flowgraph.json",
   groups?: GraphGroup[],
   phases?: GraphPhase[],
   tagRegistry?: NodeTag[],
   ownerRegistry?: string[],
   meta?: GraphMeta | null,
-  discoveryEngagement?: CinemaEngagementMap,
   edgePathTypes?: Record<string, PathType>,
 ): void {
   const exportData = buildExportPayload(
     nodes,
-    currentView,
-    dagLayout,
-    lanesLayout,
     groups,
     phases,
     tagRegistry,
     ownerRegistry,
     meta,
-    discoveryEngagement,
     edgePathTypes,
   );
   const jsonString = JSON.stringify(exportData, null, 2);

@@ -420,3 +420,33 @@ export type DiscoveryPhase = 'cinema' | 'transition' | 'reconstruction' | 'heatm
  * ice  = 0 or absent     (never appeared in cinema, or scored zero)
  */
 export type HeatTier = 'hot' | 'warm' | 'cold' | 'ice';
+
+// ─── CRITICAL PATH TYPES ────────────────────────────────────────────────────
+
+export const CHAIN_PALETTE = [
+  '#f59e0b',  // amber
+  '#60a5fa',  // blue
+  '#a78bfa',  // purple
+  '#34d399',  // teal
+  '#f87171',  // coral
+] as const;
+
+export interface CriticalChain {
+  id: string;                // "chain-0", "chain-1", ...
+  color: string;             // from CHAIN_PALETTE
+  nodeIds: string[];         // topologically ordered node IDs
+  groupIds: string[];        // groups whose ALL descendants are in this chain
+  edgeKeys: Set<string>;     // "from:to" keys for critical edges in this chain
+  ownerSet: Set<string>;     // owner names touched by this chain
+  phaseSet: Set<string>;     // phase names touched by this chain
+}
+
+export interface BottleneckNode {
+  nodeId: string;
+  chainIds: string[];        // chain IDs that all share this node
+}
+
+export interface CriticalChainResult {
+  chains: CriticalChain[];
+  bottlenecks: BottleneckNode[];
+}

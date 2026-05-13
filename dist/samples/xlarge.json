@@ -1,0 +1,3632 @@
+﻿{
+    "_meta":  {
+                  "note":  "This is a FlowGraph chart file. Open it with the FlowGraph app to view and edit the interactive dependency flowchart.",
+                  "app":  "https://gtran-07.github.io/ProcessFlowChart/",
+                  "author":  "Giang Tran",
+                  "usage":  "In the app: click the folder icon (or drag-and-drop this file) to load it. Use Design Mode to edit nodes, groups, and phases."
+              },
+    "nodes":  [
+                  {
+                      "id":  "X-01",
+                      "name":  "Digital Transformation Vision",
+                      "owner":  "CXO",
+                      "description":  "Executive articulation of the target operating model, customer promise, and technology future-state. Sets the North Star for every team, sprint, and architecture decision.",
+                      "dependencies":  [
+
+                                       ],
+                      "cinemaScript":  "Every transformation begins with a question: what does the organisation need to become? The Digital Transformation Vision answers it â€” setting the North Star that every team, every sprint, and every architecture decision will navigate toward. Without a clear vision, modernisation becomes a collection of unconnected projects.",
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-02",
+                      "name":  "Board Mandate",
+                      "owner":  "CXO",
+                      "description":  "Formal board resolution authorising the programme. Establishes executive sponsor accountability, strategic priority, and multi-year commitment.",
+                      "dependencies":  [
+                                           "X-01"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-03",
+                      "name":  "Transformation Roadmap",
+                      "owner":  "Strategy",
+                      "description":  "18-month rolling plan decomposing the vision into phases, workstreams, milestones, and dependencies. Living document reviewed at each governance cadence.",
+                      "dependencies":  [
+                                           "X-02"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-04",
+                      "name":  "Budget Allocation",
+                      "owner":  "Finance",
+                      "description":  "Capital and operational expenditure approved by the Finance Committee. Covers platform, licensing, headcount, change management, and contingency reserve.",
+                      "dependencies":  [
+                                           "X-03"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-05",
+                      "name":  "Governance Framework",
+                      "owner":  "Strategy",
+                      "description":  "Programme governance model: steering committee cadence, RACI matrix, escalation paths, and decision rights across all workstreams.",
+                      "dependencies":  [
+                                           "X-02"
+                                       ]
+                  },
+                  {
+                      "id":  "X-06",
+                      "name":  "Programme Office Setup",
+                      "owner":  "Strategy",
+                      "description":  "PMO stood up with tooling, reporting templates, RAID log, and weekly status rhythm established across all workstream leads.",
+                      "dependencies":  [
+                                           "X-05"
+                                       ],
+                      "cinemaSkip":  true
+                  },
+                  {
+                      "id":  "X-07",
+                      "name":  "Change Management Plan",
+                      "owner":  "Strategy",
+                      "description":  "Structured organisational change programme: communication plan, training pathways, champion network, and resistance management playbook.",
+                      "dependencies":  [
+                                           "X-05"
+                                       ],
+                      "cinemaSkip":  true
+                  },
+                  {
+                      "id":  "X-08",
+                      "name":  "Stakeholder Alignment",
+                      "owner":  "CXO",
+                      "description":  "All business unit leaders and key stakeholders aligned on scope, sequencing, and trade-offs. Concerns formally logged and addressed before execution begins.",
+                      "dependencies":  [
+                                           "X-02"
+                                       ]
+                  },
+                  {
+                      "id":  "X-09",
+                      "name":  "Risk Framework",
+                      "owner":  "Strategy",
+                      "description":  "Enterprise risk register for the programme. Top risks identified, scored, and assigned owners with mitigation plans and residual risk acceptance.",
+                      "dependencies":  [
+                                           "X-05"
+                                       ]
+                  },
+                  {
+                      "id":  "X-10",
+                      "name":  "Vendor Strategy",
+                      "owner":  "Architecture",
+                      "description":  "Cloud hyperscaler selection, SaaS versus build decisions, and strategic partner agreements. Procurement and negotiation approach defined.",
+                      "dependencies":  [
+                                           "X-03"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Vendor",
+                                       "color":  "#FB8C00"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-11",
+                      "name":  "Technology Radar",
+                      "owner":  "Architecture",
+                      "description":  "Opinionated inventory of technology choices: adopt, trial, assess, hold. Ensures teams converge on a coherent stack rather than accumulating unconstrained diversity.",
+                      "dependencies":  [
+                                           "X-03"
+                                       ]
+                  },
+                  {
+                      "id":  "X-12",
+                      "name":  "Target Architecture Vision",
+                      "owner":  "Architecture",
+                      "description":  "High-level future-state architecture: domain boundaries, platform layers, integration patterns, and key non-functional requirements for the target system.",
+                      "dependencies":  [
+                                           "X-11"
+                                       ]
+                  },
+                  {
+                      "id":  "X-13",
+                      "name":  "Data Strategy",
+                      "owner":  "Data",
+                      "description":  "Organisation-wide approach to data: ownership model, quality standards, access policy, monetisation potential, and the roadmap from current fragmented state to unified data platform.",
+                      "dependencies":  [
+                                           "X-03"
+                                       ]
+                  },
+                  {
+                      "id":  "X-14",
+                      "name":  "Security Strategy",
+                      "owner":  "Security",
+                      "description":  "Zero-trust security posture, threat model, compliance obligations, and the migration path from perimeter-based to identity-centric controls.",
+                      "dependencies":  [
+                                           "X-03"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-15",
+                      "name":  "Programme Kickoff",
+                      "owner":  "CXO",
+                      "description":  "Full-programme launch event with all workstream leads. OKRs established, accountability assigned, and the first sprint begins.",
+                      "dependencies":  [
+                                           "X-04",
+                                           "X-06",
+                                           "X-07",
+                                           "X-08",
+                                           "X-09"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "The Programme Kickoff marks the shift from strategy to execution. Budgets are committed, workstreams are resourced, and every team in the organisation is now pointed at the same goal. What happens in the first 90 days from this moment determines whether the transformation gains momentum or stalls under coordination debt.",
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-16",
+                      "name":  "Enterprise Architecture Blueprint",
+                      "owner":  "Architecture",
+                      "description":  "Comprehensive architecture specification: service topology, integration contracts, data flows, security zones, and deployment patterns. The binding technical contract for all workstreams.",
+                      "dependencies":  [
+                                           "X-12",
+                                           "X-15"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-17",
+                      "name":  "Domain Decomposition",
+                      "owner":  "Architecture",
+                      "description":  "Bounded contexts defined using event storming. Ownership assigned per domain. Explicit upstream/downstream contracts established to minimise cross-team coordination.",
+                      "dependencies":  [
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-18",
+                      "name":  "API Strategy",
+                      "owner":  "Integration",
+                      "description":  "API-first design standard: REST, GraphQL, and event-driven contracts. Versioning policy, deprecation process, and developer experience principles.",
+                      "dependencies":  [
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-19",
+                      "name":  "Event Architecture",
+                      "owner":  "Architecture",
+                      "description":  "Event-driven architecture blueprint: topic taxonomy, schema registry, ordering guarantees, and consumer group patterns across all domains.",
+                      "dependencies":  [
+                                           "X-16",
+                                           "X-17"
+                                       ]
+                  },
+                  {
+                      "id":  "X-20",
+                      "name":  "Identity \u0026 Access Design",
+                      "owner":  "Security",
+                      "description":  "Zero-trust IAM blueprint: identity federation, role hierarchy, attribute-based access, service-to-service authentication, and break-glass procedures.",
+                      "dependencies":  [
+                                           "X-14",
+                                           "X-16"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-21",
+                      "name":  "Network Design",
+                      "owner":  "Platform",
+                      "description":  "VPC topology, transit connectivity, DNS strategy, firewall segmentation model, and hybrid connectivity between on-premises and cloud landing zone.",
+                      "dependencies":  [
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-22",
+                      "name":  "Observability Strategy",
+                      "owner":  "Operations",
+                      "description":  "Three-pillar observability: metrics, logs, and traces. SLI/SLO definitions, alerting philosophy, on-call structure, and tooling selection.",
+                      "dependencies":  [
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-23",
+                      "name":  "DR \u0026 Resilience Design",
+                      "owner":  "Architecture",
+                      "description":  "Disaster recovery objectives (RTO/RPO), multi-region failover strategy, chaos engineering mandate, and resilience testing cadence.",
+                      "dependencies":  [
+                                           "X-16",
+                                           "X-21"
+                                       ]
+                  },
+                  {
+                      "id":  "X-24",
+                      "name":  "Data Architecture",
+                      "owner":  "Data",
+                      "description":  "Layered data architecture: landing, raw, curated, and consumption zones. Storage technology selections, partitioning strategies, and SLA tiers.",
+                      "dependencies":  [
+                                           "X-13",
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-25",
+                      "name":  "Microservices Standards",
+                      "owner":  "Engineering",
+                      "description":  "Opinionated service template: API contract shape, health-check endpoints, structured logging, distributed tracing hooks, and CI/CD integration points.",
+                      "dependencies":  [
+                                           "X-17",
+                                           "X-18"
+                                       ]
+                  },
+                  {
+                      "id":  "X-26",
+                      "name":  "UI/UX Design System",
+                      "owner":  "CX",
+                      "description":  "Unified component library, typography, colour tokens, accessibility baseline, and interaction patterns. Shared across all customer-facing and internal surfaces.",
+                      "dependencies":  [
+                                           "X-15"
+                                       ]
+                  },
+                  {
+                      "id":  "X-27",
+                      "name":  "Mobile Strategy",
+                      "owner":  "Product",
+                      "description":  "Native versus cross-platform decision, feature parity matrix, offline-first requirements, push notification architecture, and mobile CI/CD pipeline design.",
+                      "dependencies":  [
+                                           "X-26"
+                                       ]
+                  },
+                  {
+                      "id":  "X-28",
+                      "name":  "Third-Party Integrations Map",
+                      "owner":  "Integration",
+                      "description":  "Comprehensive inventory of external system integrations: ERPs, payment processors, logistics providers, marketing platforms, and regulatory reporting systems.",
+                      "dependencies":  [
+                                           "X-18"
+                                       ]
+                  },
+                  {
+                      "id":  "X-29",
+                      "name":  "Regulatory Compliance Design",
+                      "owner":  "Legal",
+                      "description":  "Mapping of regulatory obligations (GDPR, PCI-DSS, SOC 2, ISO 27001) to technical controls. Gap analysis against target architecture.",
+                      "dependencies":  [
+                                           "X-14",
+                                           "X-15"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-30",
+                      "name":  "Performance Benchmarks",
+                      "owner":  "Architecture",
+                      "description":  "Quantified performance targets: p95/p99 latency, throughput per service, autoscaling triggers, and degradation thresholds under peak load.",
+                      "dependencies":  [
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-31",
+                      "name":  "Cost Architecture",
+                      "owner":  "Finance",
+                      "description":  "FinOps model: tagging taxonomy, team-level cost allocation, reserved capacity strategy, and cloud spend guardrails aligned to approved budget.",
+                      "dependencies":  [
+                                           "X-04",
+                                           "X-16"
+                                       ]
+                  },
+                  {
+                      "id":  "X-32",
+                      "name":  "Developer Experience Blueprint",
+                      "owner":  "Engineering",
+                      "description":  "Inner-loop developer workflow: local development environment, test-in-isolation patterns, fast feedback loops, and onboarding time targets.",
+                      "dependencies":  [
+                                           "X-25"
+                                       ]
+                  },
+                  {
+                      "id":  "X-33",
+                      "name":  "AI/ML Architecture",
+                      "owner":  "Analytics",
+                      "description":  "ML platform blueprint: training infrastructure, feature engineering pipeline, model registry, serving layer, and experiment tracking tooling.",
+                      "dependencies":  [
+                                           "X-13",
+                                           "X-24"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "AI/ML",
+                                       "color":  "#FFB300"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-34",
+                      "name":  "Feature Flags Framework",
+                      "owner":  "Engineering",
+                      "description":  "Feature flag architecture: flag taxonomy, targeting rules, percentage rollout, kill-switch protocol, and flag lifecycle governance.",
+                      "dependencies":  [
+                                           "X-25"
+                                       ]
+                  },
+                  {
+                      "id":  "X-35",
+                      "name":  "Architecture Sign-Off",
+                      "owner":  "Architecture",
+                      "description":  "Formal gate: all architecture workstreams reviewed and approved by CTO, security lead, and domain architects. Inconsistencies between data, network, and security blueprints resolved.",
+                      "dependencies":  [
+                                           "X-10",
+                                           "X-16",
+                                           "X-24",
+                                           "X-25",
+                                           "X-29",
+                                           "X-30"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "Eight workstreams arrive at a single gate. The Architecture Sign-Off is not just a quality check â€” it is the binding contract between strategy and delivery. Inconsistencies between network design, data architecture, and security posture caught here cost a sprint to fix; caught in production, they cost months.",
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-36",
+                      "name":  "Data Discovery \u0026 Inventory",
+                      "owner":  "Data",
+                      "description":  "Full audit of the existing data estate: sources, ownership, formats, refresh cadences, quality scores, and data classification labels.",
+                      "dependencies":  [
+                                           "X-35"
+                                       ]
+                  },
+                  {
+                      "id":  "X-37",
+                      "name":  "Data Quality Assessment",
+                      "owner":  "Data",
+                      "description":  "Automated profiling of all source datasets: completeness, uniqueness, timeliness, and referential integrity. Quality baseline established per domain.",
+                      "dependencies":  [
+                                           "X-36"
+                                       ]
+                  },
+                  {
+                      "id":  "X-38",
+                      "name":  "Data Governance Policy",
+                      "owner":  "Data",
+                      "description":  "Formal data governance: ownership definitions, stewardship model, quality thresholds, lifecycle rules, and cross-border data transfer restrictions.",
+                      "dependencies":  [
+                                           "X-24",
+                                           "X-37"
+                                       ]
+                  },
+                  {
+                      "id":  "X-39",
+                      "name":  "Master Data Management Design",
+                      "owner":  "Data",
+                      "description":  "Golden record strategy for customer, product, and organisational entities. Deduplication rules, survivorship logic, and cross-system synchronisation design.",
+                      "dependencies":  [
+                                           "X-24",
+                                           "X-38"
+                                       ]
+                  },
+                  {
+                      "id":  "X-40",
+                      "name":  "Data Lineage Framework",
+                      "owner":  "Data",
+                      "description":  "End-to-end lineage tracking from source systems through transformations to consumption. Column-level lineage for regulatory reporting and impact analysis.",
+                      "dependencies":  [
+                                           "X-38"
+                                       ]
+                  },
+                  {
+                      "id":  "X-41",
+                      "name":  "Data Lake Setup",
+                      "owner":  "Platform",
+                      "description":  "Cloud object storage provisioned with landing, raw, and curated zones. Lifecycle policies, access controls, and encryption enforced at each tier.",
+                      "dependencies":  [
+                                           "X-21",
+                                           "X-35"
+                                       ]
+                  },
+                  {
+                      "id":  "X-42",
+                      "name":  "Data Warehouse Migration",
+                      "owner":  "Data",
+                      "description":  "On-premises data warehouse migrated to managed cloud DW. Schema translated, historical data loaded, and query performance validated against baseline.",
+                      "dependencies":  [
+                                           "X-39",
+                                           "X-41"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Data Risk",
+                                       "color":  "#F4511E"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-43",
+                      "name":  "Real-Time Streaming Platform",
+                      "owner":  "Data",
+                      "description":  "Managed event streaming platform deployed. Topics, consumer groups, and schema registry configured. End-to-end latency benchmarked under production load.",
+                      "dependencies":  [
+                                           "X-19",
+                                           "X-41"
+                                       ]
+                  },
+                  {
+                      "id":  "X-44",
+                      "name":  "Customer Data Platform",
+                      "owner":  "Analytics",
+                      "description":  "Unified customer profile assembled from behavioural, transactional, and demographic sources. Identity resolution and consent-gated segmentation enabled.",
+                      "dependencies":  [
+                                           "X-39",
+                                           "X-43"
+                                       ]
+                  },
+                  {
+                      "id":  "X-45",
+                      "name":  "Data Catalog",
+                      "owner":  "Data",
+                      "description":  "Searchable metadata catalogue across the full data estate. Business glossary linked to technical assets, ownership visible, and data quality scores surfaced.",
+                      "dependencies":  [
+                                           "X-40",
+                                           "X-41"
+                                       ]
+                  },
+                  {
+                      "id":  "X-46",
+                      "name":  "Data Classification",
+                      "owner":  "Security",
+                      "description":  "Automated classification of all datasets by sensitivity tier: public, internal, confidential, and restricted. Classification drives access control and encryption policy.",
+                      "dependencies":  [
+                                           "X-29",
+                                           "X-38"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-47",
+                      "name":  "PII Identification \u0026 Masking",
+                      "owner":  "Security",
+                      "description":  "Automated PII scanner run against all data stores. Masking, tokenisation, and pseudonymisation rules applied per classification tier and regulatory jurisdiction.",
+                      "dependencies":  [
+                                           "X-46"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-48",
+                      "name":  "Consent Management",
+                      "owner":  "Legal",
+                      "description":  "Consent capture, storage, and enforcement infrastructure. Data processing agreements mapped to technical controls; preference propagation across all systems.",
+                      "dependencies":  [
+                                           "X-29",
+                                           "X-38"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-49",
+                      "name":  "Analytics Platform",
+                      "owner":  "Analytics",
+                      "description":  "Managed analytics compute provisioned. Notebook environment, SQL query engine, and scheduled job orchestration available to all analytics consumers.",
+                      "dependencies":  [
+                                           "X-33",
+                                           "X-42"
+                                       ]
+                  },
+                  {
+                      "id":  "X-50",
+                      "name":  "BI Migration",
+                      "owner":  "Analytics",
+                      "description":  "Existing BI reports migrated to the new analytics platform. Data source connections reconfigured; key reports validated for accuracy and performance.",
+                      "dependencies":  [
+                                           "X-42"
+                                       ]
+                  },
+                  {
+                      "id":  "X-51",
+                      "name":  "ML Feature Store",
+                      "owner":  "Analytics",
+                      "description":  "Centralised feature store with online and offline serving. Feature definitions versioned, backfilled to training horizon, and shared across model teams.",
+                      "dependencies":  [
+                                           "X-44",
+                                           "X-49"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "AI/ML",
+                                       "color":  "#FFB300"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-52",
+                      "name":  "Data Mesh Implementation",
+                      "owner":  "Data",
+                      "description":  "Domain data products published through standardised interfaces. Federated governance applied; each domain responsible for quality, freshness, and SLA compliance.",
+                      "dependencies":  [
+                                           "X-38",
+                                           "X-39",
+                                           "X-45"
+                                       ]
+                  },
+                  {
+                      "id":  "X-53",
+                      "name":  "Data SLAs \u0026 Contracts",
+                      "owner":  "Data",
+                      "description":  "Formal data SLAs between producing and consuming domains: freshness windows, quality guarantees, schema versioning commitments, and incident response SLOs.",
+                      "dependencies":  [
+                                           "X-38",
+                                           "X-52"
+                                       ]
+                  },
+                  {
+                      "id":  "X-54",
+                      "name":  "Self-Service Analytics Portal",
+                      "owner":  "Analytics",
+                      "description":  "Business-user-facing portal for ad-hoc queries, dashboard creation, and scheduled report delivery. Row-level security enforced via the data classification policy.",
+                      "dependencies":  [
+                                           "X-49",
+                                           "X-50"
+                                       ]
+                  },
+                  {
+                      "id":  "X-55",
+                      "name":  "Data Monetisation Strategy",
+                      "owner":  "Strategy",
+                      "description":  "Commercial model for deriving revenue from data assets: insight products, data partnerships, and enrichment licensing. Legal and compliance framework established.",
+                      "dependencies":  [
+                                           "X-13",
+                                           "X-44"
+                                       ]
+                  },
+                  {
+                      "id":  "X-56",
+                      "name":  "Real-Time Dashboard Platform",
+                      "owner":  "Analytics",
+                      "description":  "Sub-second operational dashboards consuming the streaming platform. Used for live trading, fulfilment monitoring, and customer service escalation.",
+                      "dependencies":  [
+                                           "X-43",
+                                           "X-49"
+                                       ]
+                  },
+                  {
+                      "id":  "X-57",
+                      "name":  "Data Compliance Certification",
+                      "owner":  "Legal",
+                      "description":  "Third-party audit confirming GDPR, CCPA, and sector-specific data regulations are met. Evidence package assembled and findings remediated.",
+                      "dependencies":  [
+                                           "X-46",
+                                           "X-47",
+                                           "X-48"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-58",
+                      "name":  "Data Access Controls",
+                      "owner":  "Security",
+                      "description":  "Attribute-based access control enforced across all data stores. Role-to-data-product mappings certified; privileged access workflows automated.",
+                      "dependencies":  [
+                                           "X-20",
+                                           "X-46"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-59",
+                      "name":  "Historical Data Archive",
+                      "owner":  "Data",
+                      "description":  "Long-retention cold storage provisioned. Regulatory retention schedules enforced; retrieval SLAs defined. Data deletion workflows automated for right-to-erasure compliance.",
+                      "dependencies":  [
+                                           "X-41",
+                                           "X-42"
+                                       ]
+                  },
+                  {
+                      "id":  "X-60",
+                      "name":  "Data Foundation Sign-Off",
+                      "owner":  "Data",
+                      "description":  "Formal gate: data mesh, compliance certification, access controls, and SLA contracts all passed. Data foundation ready to serve all downstream application workstreams.",
+                      "dependencies":  [
+                                           "X-52",
+                                           "X-53",
+                                           "X-57",
+                                           "X-58"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-61",
+                      "name":  "Cloud Landing Zone",
+                      "owner":  "Platform",
+                      "description":  "Multi-account cloud foundation provisioned via Infrastructure-as-Code. Management hierarchy, guardrails, and baseline security controls active before any workload lands.",
+                      "dependencies":  [
+                                           "X-21",
+                                           "X-35"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-62",
+                      "name":  "IAM Platform",
+                      "owner":  "Security",
+                      "description":  "Identity federation between on-premises directory and cloud IdP. Role hierarchies, SCPs, and service-to-service trust policies enforced. Break-glass procedures validated.",
+                      "dependencies":  [
+                                           "X-20",
+                                           "X-61"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-63",
+                      "name":  "Service Mesh",
+                      "owner":  "Platform",
+                      "description":  "Sidecar proxy mesh deployed across the container platform. mTLS enforced between all services, traffic policies applied, and distributed tracing wired in.",
+                      "dependencies":  [
+                                           "X-25",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-64",
+                      "name":  "Container Orchestration",
+                      "owner":  "Platform",
+                      "description":  "Managed Kubernetes clusters provisioned across regions. Node pools, autoscaling policies, network policies, and admission controllers configured.",
+                      "dependencies":  [
+                                           "X-25",
+                                           "X-61"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-65",
+                      "name":  "Secrets Management",
+                      "owner":  "Security",
+                      "description":  "Centralised secrets vault deployed. Dynamic secret generation, lease-based expiry, and audit logging active. All hardcoded credentials eliminated.",
+                      "dependencies":  [
+                                           "X-62"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-66",
+                      "name":  "DNS \u0026 Certificate Management",
+                      "owner":  "Platform",
+                      "description":  "Managed DNS with split-horizon configuration. Automated TLS certificate issuance, rotation, and revocation across all environments.",
+                      "dependencies":  [
+                                           "X-21",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-67",
+                      "name":  "Artifact Registry",
+                      "owner":  "DevOps",
+                      "description":  "Private container and package registry with vulnerability scanning, retention policies, and promotion gates between environments.",
+                      "dependencies":  [
+                                           "X-32",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-68",
+                      "name":  "Build Pipeline Standards",
+                      "owner":  "DevOps",
+                      "description":  "Golden pipeline templates: lint, unit test, SAST, container build, publish to registry, and environment promotion. Applied consistently across all service repositories.",
+                      "dependencies":  [
+                                           "X-32",
+                                           "X-67"
+                                       ]
+                  },
+                  {
+                      "id":  "X-69",
+                      "name":  "GitOps Framework",
+                      "owner":  "DevOps",
+                      "description":  "Declarative GitOps deployment model: environment state stored in Git, reconciliation controllers active, and drift detection alerting configured.",
+                      "dependencies":  [
+                                           "X-64",
+                                           "X-68"
+                                       ]
+                  },
+                  {
+                      "id":  "X-70",
+                      "name":  "Infrastructure as Code Library",
+                      "owner":  "Platform",
+                      "description":  "Shared IaC module library for networking, compute, storage, and security patterns. Versioned, tested, and published to the internal registry.",
+                      "dependencies":  [
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-71",
+                      "name":  "Policy as Code",
+                      "owner":  "Security",
+                      "description":  "Compliance policies codified as admission-controller rules. Drift from approved configurations blocked at deploy time, not discovered in audits.",
+                      "dependencies":  [
+                                           "X-29",
+                                           "X-70"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-72",
+                      "name":  "Cost Management Platform",
+                      "owner":  "Finance",
+                      "description":  "FinOps tooling integrated with all cloud accounts. Team-level cost dashboards live; budget alerts and anomaly detection active.",
+                      "dependencies":  [
+                                           "X-31",
+                                           "X-61"
+                                       ],
+                      "cinemaSkip":  true
+                  },
+                  {
+                      "id":  "X-73",
+                      "name":  "Developer Portal",
+                      "owner":  "Engineering",
+                      "description":  "Internal developer portal aggregating service catalogue, documentation, API playground, and onboarding guides. Reduces time-to-first-deploy for new engineers.",
+                      "dependencies":  [
+                                           "X-32",
+                                           "X-68"
+                                       ]
+                  },
+                  {
+                      "id":  "X-74",
+                      "name":  "Internal Documentation Platform",
+                      "owner":  "Engineering",
+                      "description":  "Docs-as-code platform for runbooks, architecture decision records, and API references. Linked from the developer portal and auto-updated by CI pipelines.",
+                      "dependencies":  [
+                                           "X-73"
+                                       ],
+                      "cinemaSkip":  true
+                  },
+                  {
+                      "id":  "X-75",
+                      "name":  "Shared Component Library",
+                      "owner":  "CX",
+                      "description":  "Published React component library implementing the design system. Consumed by all customer-facing and internal web surfaces. Versioned with a changelog.",
+                      "dependencies":  [
+                                           "X-26"
+                                       ]
+                  },
+                  {
+                      "id":  "X-76",
+                      "name":  "API Gateway Platform",
+                      "owner":  "Integration",
+                      "description":  "Managed API gateway deployed. Routing, rate limiting, request validation, mTLS, and JWT validation active. All external traffic enters through this plane.",
+                      "dependencies":  [
+                                           "X-18",
+                                           "X-61",
+                                           "X-63"
+                                       ]
+                  },
+                  {
+                      "id":  "X-77",
+                      "name":  "Message Bus Platform",
+                      "owner":  "Integration",
+                      "description":  "Production message bus deployed with DLQ, redelivery policies, and consumer-group isolation. Schema compatibility enforced before publication.",
+                      "dependencies":  [
+                                           "X-19",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-78",
+                      "name":  "Monitoring \u0026 Alerting Platform",
+                      "owner":  "Operations",
+                      "description":  "Metrics collection, alerting rules, and on-call paging integrated. SLO burn-rate alerts active for all critical services. Runbooks linked from alert definitions.",
+                      "dependencies":  [
+                                           "X-22",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-79",
+                      "name":  "Log Aggregation Platform",
+                      "owner":  "Operations",
+                      "description":  "Centralised log pipeline ingesting structured logs from all services. Retention tiers, search indexing, and anomaly detection active.",
+                      "dependencies":  [
+                                           "X-22",
+                                           "X-78"
+                                       ]
+                  },
+                  {
+                      "id":  "X-80",
+                      "name":  "Distributed Tracing",
+                      "owner":  "Operations",
+                      "description":  "Trace collection integrated with the service mesh. Cross-service waterfall views, slow-span detection, and dependency topology visible.",
+                      "dependencies":  [
+                                           "X-63",
+                                           "X-78"
+                                       ]
+                  },
+                  {
+                      "id":  "X-81",
+                      "name":  "Chaos Engineering Platform",
+                      "owner":  "QA",
+                      "description":  "Controlled fault injection tooling deployed in staging. Experiment library covering node failure, network partition, latency injection, and resource exhaustion.",
+                      "dependencies":  [
+                                           "X-64",
+                                           "X-78"
+                                       ]
+                  },
+                  {
+                      "id":  "X-82",
+                      "name":  "Feature Flag Platform",
+                      "owner":  "Engineering",
+                      "description":  "Production-grade feature flag service with percentage rollout, user targeting, kill switches, and audit log. Integrated with the build pipeline via SDK.",
+                      "dependencies":  [
+                                           "X-34",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-83",
+                      "name":  "A/B Testing Platform",
+                      "owner":  "Analytics",
+                      "description":  "Experimentation infrastructure: experiment assignment service, metric collection pipeline, statistical significance engine, and results dashboard.",
+                      "dependencies":  [
+                                           "X-82"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "AI/ML",
+                                       "color":  "#FFB300"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-84",
+                      "name":  "CDN \u0026 Edge Platform",
+                      "owner":  "Platform",
+                      "description":  "Global CDN provisioned. Edge caching rules, origin shield, WAF, and DDoS mitigation active. Cache invalidation integrated with the CI/CD pipeline.",
+                      "dependencies":  [
+                                           "X-61",
+                                           "X-66"
+                                       ]
+                  },
+                  {
+                      "id":  "X-85",
+                      "name":  "Backup \u0026 Recovery Platform",
+                      "owner":  "Operations",
+                      "description":  "Automated backup policies enforced across all stateful services. Recovery tested on a weekly schedule against RTO/RPO targets.",
+                      "dependencies":  [
+                                           "X-23",
+                                           "X-61"
+                                       ]
+                  },
+                  {
+                      "id":  "X-86",
+                      "name":  "Secrets Rotation Automation",
+                      "owner":  "Security",
+                      "description":  "Automated rotation for all long-lived credentials integrated with the secrets vault. Zero-downtime rotation validated for all critical services.",
+                      "dependencies":  [
+                                           "X-65",
+                                           "X-69"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-87",
+                      "name":  "Vulnerability Scanner",
+                      "owner":  "Security",
+                      "description":  "Continuous container image scanning, dependency vulnerability detection, and DAST integrated into the build pipeline. Blocker-severity findings break the build.",
+                      "dependencies":  [
+                                           "X-62",
+                                           "X-71"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-88",
+                      "name":  "SIEM Integration",
+                      "owner":  "Security",
+                      "description":  "Security events from all platforms forwarded to centralised SIEM. Correlation rules tuned, threat detection alerts active, and SOC integration verified.",
+                      "dependencies":  [
+                                           "X-14",
+                                           "X-79"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-89",
+                      "name":  "Compliance Automation",
+                      "owner":  "Legal",
+                      "description":  "Continuous compliance monitoring via policy-as-code. Control evidence collected automatically; gap reports generated without manual audit preparation.",
+                      "dependencies":  [
+                                           "X-29",
+                                           "X-71"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-90",
+                      "name":  "Platform Sign-Off",
+                      "owner":  "Platform",
+                      "description":  "Formal gate: container orchestration, API gateway, message bus, monitoring, and backup platforms all certified ready. Application workstreams cleared to deploy.",
+                      "dependencies":  [
+                                           "X-64",
+                                           "X-76",
+                                           "X-77",
+                                           "X-78",
+                                           "X-85"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-91",
+                      "name":  "Application Portfolio Assessment",
+                      "owner":  "Architecture",
+                      "description":  "Every application in the portfolio evaluated on the 6R spectrum: retire, retain, rehost, re-platform, refactor, or rebuild. Wave sequencing finalised.",
+                      "dependencies":  [
+                                           "X-60",
+                                           "X-90"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-92",
+                      "name":  "Strangler Fig Framework",
+                      "owner":  "Engineering",
+                      "description":  "Shared migration harness for incrementally replacing monolith modules with microservices. Traffic routing, feature-flag integration, and rollback wiring standardised.",
+                      "dependencies":  [
+                                           "X-25",
+                                           "X-91"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-93",
+                      "name":  "Customer Identity Service",
+                      "owner":  "Security",
+                      "description":  "Centralised CIAM: registration, login, MFA, session management, and delegated access. Federated with the IAM platform and wired to the consent system.",
+                      "dependencies":  [
+                                           "X-62",
+                                           "X-92"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   },
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-94",
+                      "name":  "Product Catalog Service",
+                      "owner":  "Engineering",
+                      "description":  "Domain service managing the full product information model: attributes, pricing hooks, media assets, and category hierarchy. Event-sourced with CDC publishing.",
+                      "dependencies":  [
+                                           "X-63",
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-95",
+                      "name":  "Inventory Management Service",
+                      "owner":  "Engineering",
+                      "description":  "Real-time inventory tracking across warehouses and channels. Reservation, commitment, and availability check APIs integrated with order and fulfilment domains.",
+                      "dependencies":  [
+                                           "X-63",
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-96",
+                      "name":  "Order Management Service",
+                      "owner":  "Engineering",
+                      "description":  "Order lifecycle service: create, allocate, fulfil, return. Saga-pattern orchestration across payment, inventory, and fulfilment domains with compensating transactions.",
+                      "dependencies":  [
+                                           "X-94",
+                                           "X-95"
+                                       ]
+                  },
+                  {
+                      "id":  "X-97",
+                      "name":  "Payment Processing Service",
+                      "owner":  "Engineering",
+                      "description":  "PCI-DSS compliant payment service: authorisation, capture, refund, and dispute workflows. Idempotency enforced; fraud checks integrated before authorisation.",
+                      "dependencies":  [
+                                           "X-93",
+                                           "X-96"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "Payments is the most scrutinised service in the entire platform â€” it carries regulatory liability, fraud risk, and the direct trust of every customer. Its dependencies on Identity, the Order chain, and the fraud detection layer make it the convergence point of three separate risk dimensions simultaneously.",
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   },
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-98",
+                      "name":  "Pricing Engine",
+                      "owner":  "Engineering",
+                      "description":  "Dynamic pricing service: rule-based and ML-assisted price computation across channels, customer segments, and promotional overlays.",
+                      "dependencies":  [
+                                           "X-94"
+                                       ]
+                  },
+                  {
+                      "id":  "X-99",
+                      "name":  "Promotion \u0026 Discount Service",
+                      "owner":  "Product",
+                      "description":  "Promotion lifecycle management: creation, validation, stacking rules, and expiry. Coupon redemption, basket-level discounts, and promotional budget guardrails.",
+                      "dependencies":  [
+                                           "X-98",
+                                           "X-100"
+                                       ]
+                  },
+                  {
+                      "id":  "X-100",
+                      "name":  "Loyalty Programme Service",
+                      "owner":  "CX",
+                      "description":  "Points accrual, tier management, redemption workflows, and partner reward integrations. Customer-facing programme rules synchronised with the pricing engine.",
+                      "dependencies":  [
+                                           "X-44",
+                                           "X-93"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-101",
+                      "name":  "Customer Profile Service",
+                      "owner":  "CX",
+                      "description":  "Unified customer record aggregating identity, preferences, order history, loyalty status, and consent flags. Read-optimised with event-driven updates.",
+                      "dependencies":  [
+                                           "X-44",
+                                           "X-93"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-102",
+                      "name":  "Notification Service",
+                      "owner":  "Engineering",
+                      "description":  "Multi-channel notification dispatch: email, SMS, push, and in-app. Template management, delivery tracking, and unsubscribe mechanics enforced per channel.",
+                      "dependencies":  [
+                                           "X-63",
+                                           "X-77"
+                                       ]
+                  },
+                  {
+                      "id":  "X-103",
+                      "name":  "Communication Preferences",
+                      "owner":  "CX",
+                      "description":  "Customer-managed channel, frequency, and content preferences. Propagated to the notification service and respected by all outbound communications.",
+                      "dependencies":  [
+                                           "X-101",
+                                           "X-102"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-104",
+                      "name":  "Search Service",
+                      "owner":  "Engineering",
+                      "description":  "Managed search engine indexed with products, content, and customer-facing catalogue. Query relevance tuned, filters faceted, and personalisation signals integrated.",
+                      "dependencies":  [
+                                           "X-84",
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-105",
+                      "name":  "Recommendation Engine",
+                      "owner":  "Analytics",
+                      "description":  "Collaborative filtering and content-based recommendation models served via the feature store. A/B test framework wired in for algorithm comparison.",
+                      "dependencies":  [
+                                           "X-51",
+                                           "X-104"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "AI/ML",
+                                       "color":  "#FFB300"
+                                   },
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-106",
+                      "name":  "Content Management System",
+                      "owner":  "CX",
+                      "description":  "Headless CMS for marketing content, landing pages, and editorial. Preview environments, localisation hooks, and CDN cache invalidation integrated.",
+                      "dependencies":  [
+                                           "X-75",
+                                           "X-84"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-107",
+                      "name":  "Customer Web Portal",
+                      "owner":  "CX",
+                      "description":  "Primary customer-facing web application assembled from CMS content, search, product catalogue, and user profile. Deployed to edge with SSR/SSG hybrid strategy.",
+                      "dependencies":  [
+                                           "X-101",
+                                           "X-104",
+                                           "X-106"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-108",
+                      "name":  "Mobile App (iOS)",
+                      "owner":  "Engineering",
+                      "description":  "Native iOS application delivered on the mobile strategy blueprint. Feature-flag gated rollout, biometric auth, and offline-first data sync.",
+                      "dependencies":  [
+                                           "X-27",
+                                           "X-75",
+                                           "X-107"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-109",
+                      "name":  "Mobile App (Android)",
+                      "owner":  "Engineering",
+                      "description":  "Native Android application at feature parity with iOS. Dual delivery pipeline, Play Store release management, and crash analytics integrated.",
+                      "dependencies":  [
+                                           "X-27",
+                                           "X-75",
+                                           "X-107"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-110",
+                      "name":  "Admin Operations Portal",
+                      "owner":  "Operations",
+                      "description":  "Internal operations dashboard: order management, inventory overrides, customer service actions, and real-time monitoring widgets. Role-based access enforced.",
+                      "dependencies":  [
+                                           "X-79",
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-111",
+                      "name":  "Seller Portal",
+                      "owner":  "CX",
+                      "description":  "Marketplace seller onboarding, product listing, pricing, inventory, and settlement portal. Wired to the product catalogue and order management domains.",
+                      "dependencies":  [
+                                           "X-94",
+                                           "X-107"
+                                       ]
+                  },
+                  {
+                      "id":  "X-112",
+                      "name":  "Customer Service Tooling",
+                      "owner":  "Operations",
+                      "description":  "Agent desktop integrating customer profile, order history, communication log, and case management. Escalation workflows and SLA tracking built in.",
+                      "dependencies":  [
+                                           "X-101",
+                                           "X-110"
+                                       ]
+                  },
+                  {
+                      "id":  "X-113",
+                      "name":  "Fraud Detection Service",
+                      "owner":  "Security",
+                      "description":  "Real-time transaction scoring using rule-based and ML models. SIEM-integrated for pattern correlation; results injected into the payment authorisation flow.",
+                      "dependencies":  [
+                                           "X-88",
+                                           "X-97"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   },
+                                   {
+                                       "label":  "AI/ML",
+                                       "color":  "#FFB300"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-114",
+                      "name":  "KYC / Compliance Service",
+                      "owner":  "Legal",
+                      "description":  "Know-Your-Customer identity verification workflows. Third-party verification provider integrated, decisioning rules configurable, and audit trail immutable.",
+                      "dependencies":  [
+                                           "X-29",
+                                           "X-93"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-115",
+                      "name":  "Reporting Suite",
+                      "owner":  "Analytics",
+                      "description":  "Finance, operations, and executive reporting built on the data platform. Scheduled delivery, drill-down capability, and data lineage exposed to report consumers.",
+                      "dependencies":  [
+                                           "X-49",
+                                           "X-52",
+                                           "X-55"
+                                       ]
+                  },
+                  {
+                      "id":  "X-116",
+                      "name":  "Legacy Decommission Plan",
+                      "owner":  "Architecture",
+                      "description":  "Formal shutdown sequence for legacy systems: dependency freeze dates, data migration completion criteria, hardware disposition, and licence reclamation schedule.",
+                      "dependencies":  [
+                                           "X-91"
+                                       ]
+                  },
+                  {
+                      "id":  "X-117",
+                      "name":  "CRM Migration",
+                      "owner":  "Engineering",
+                      "description":  "CRM data migrated to the new customer profile and order management domains. Bi-directional sync maintained during cutover window. Legacy CRM sunset on completion.",
+                      "dependencies":  [
+                                           "X-92",
+                                           "X-116"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Data Risk",
+                                       "color":  "#F4511E"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-118",
+                      "name":  "ERP Integration Layer",
+                      "owner":  "Integration",
+                      "description":  "Adapter layer connecting the ERP to the new domain services: finance events, inventory signals, and procurement triggers routed through the message bus.",
+                      "dependencies":  [
+                                           "X-28",
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-119",
+                      "name":  "Legacy API Decommission",
+                      "owner":  "Engineering",
+                      "description":  "Traffic migrated from legacy API endpoints to new services. Consumers identified and migrated; legacy endpoints deprecated on confirmed zero-traffic date.",
+                      "dependencies":  [
+                                           "X-93",
+                                           "X-116"
+                                       ]
+                  },
+                  {
+                      "id":  "X-120",
+                      "name":  "Data Migration for Applications",
+                      "owner":  "Data",
+                      "description":  "Application-level data migrated to new schemas on the cloud data platform. Validation scripts confirm row counts, referential integrity, and business rule compliance.",
+                      "dependencies":  [
+                                           "X-60",
+                                           "X-92"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Data Risk",
+                                       "color":  "#F4511E"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-121",
+                      "name":  "User Journey Redesign",
+                      "owner":  "CX",
+                      "description":  "Customer journeys redesigned using the new capabilities: personalisation, real-time inventory, and frictionless checkout. Validated with usability testing.",
+                      "dependencies":  [
+                                           "X-26",
+                                           "X-101"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-122",
+                      "name":  "Accessibility Compliance",
+                      "owner":  "CX",
+                      "description":  "WCAG 2.1 AA compliance achieved across all customer-facing surfaces. Automated and manual audits completed; remediation tracked to closure.",
+                      "dependencies":  [
+                                           "X-121"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-123",
+                      "name":  "Localisation Platform",
+                      "owner":  "Engineering",
+                      "description":  "i18n infrastructure: translation management, locale-aware formatting, and RTL layout support. Localisation pipeline integrated with the CMS and build process.",
+                      "dependencies":  [
+                                           "X-75",
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-124",
+                      "name":  "Performance Optimisation Pass",
+                      "owner":  "Engineering",
+                      "description":  "Systematic optimisation of the customer portal and core APIs against the performance benchmarks: bundle splitting, query plan tuning, and cache strategy review.",
+                      "dependencies":  [
+                                           "X-30",
+                                           "X-107"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Performance",
+                                       "color":  "#00ACC1"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-125",
+                      "name":  "Security Hardening Pass",
+                      "owner":  "Security",
+                      "description":  "Comprehensive security hardening: container image minimisation, RBAC tightening, dependency vulnerability remediation, and secrets rotation verified across all services.",
+                      "dependencies":  [
+                                           "X-87",
+                                           "X-97"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-126",
+                      "name":  "Dependency Upgrades",
+                      "owner":  "Engineering",
+                      "description":  "All service dependencies updated to supported versions. Breaking changes resolved; automated dependency update pipeline activated for ongoing maintenance.",
+                      "dependencies":  [
+                                           "X-92"
+                                       ]
+                  },
+                  {
+                      "id":  "X-127",
+                      "name":  "Tech Debt Retirement Phase 1",
+                      "owner":  "Engineering",
+                      "description":  "Highest-priority technical debt items retired: deprecated patterns removed, shared modules extracted, and test coverage raised to baseline thresholds.",
+                      "dependencies":  [
+                                           "X-116",
+                                           "X-126"
+                                       ]
+                  },
+                  {
+                      "id":  "X-128",
+                      "name":  "Feature Parity Validation",
+                      "owner":  "QA",
+                      "description":  "New platform validated against the full feature inventory of legacy systems. Each capability mapped and confirmed in the new system or formally de-scoped.",
+                      "dependencies":  [
+                                           "X-107",
+                                           "X-115"
+                                       ]
+                  },
+                  {
+                      "id":  "X-129",
+                      "name":  "App Modernisation Sign-Off",
+                      "owner":  "Architecture",
+                      "description":  "Formal gate: CRM migration, data migration, accessibility, performance, security hardening, and feature parity all confirmed. Application workstream cleared for integration.",
+                      "dependencies":  [
+                                           "X-114",
+                                           "X-117",
+                                           "X-120",
+                                           "X-122",
+                                           "X-124",
+                                           "X-125",
+                                           "X-128"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-130",
+                      "name":  "Zero-Downtime Migration Playbook",
+                      "owner":  "DevOps",
+                      "description":  "Runbook for production cutover: traffic shifting sequence, health-check gates, automatic rollback triggers, and war-room communication protocol.",
+                      "dependencies":  [
+                                           "X-69",
+                                           "X-129"
+                                       ]
+                  },
+                  {
+                      "id":  "X-131",
+                      "name":  "External API Catalogue",
+                      "owner":  "Integration",
+                      "description":  "Published catalogue of all public and partner-facing APIs with OpenAPI specs, authentication guides, rate limits, and SLA commitments.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-119",
+                                           "X-129"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-132",
+                      "name":  "Partner API Programme",
+                      "owner":  "Integration",
+                      "description":  "B2B API partnership onboarding: developer portal access, sandbox provisioning, commercial terms, and tiered rate limit agreements for strategic partners.",
+                      "dependencies":  [
+                                           "X-18",
+                                           "X-131"
+                                       ]
+                  },
+                  {
+                      "id":  "X-133",
+                      "name":  "Third-Party Payment Gateway",
+                      "owner":  "Integration",
+                      "description":  "Integration with primary and fallback payment gateways: tokenisation handshake, 3DS2 support, settlement reconciliation, and PCI-DSS scope containment.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-97"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-134",
+                      "name":  "Logistics Provider Integration",
+                      "owner":  "Integration",
+                      "description":  "Real-time shipping rate quoting, label generation, and tracking event ingestion wired to the order management domain via the API gateway.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-96"
+                                       ]
+                  },
+                  {
+                      "id":  "X-135",
+                      "name":  "ERP Sync Service",
+                      "owner":  "Integration",
+                      "description":  "Bi-directional ERP synchronisation for financial postings, purchase orders, and inventory adjustments. Reconciliation jobs and exception queues configured.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-118"
+                                       ]
+                  },
+                  {
+                      "id":  "X-136",
+                      "name":  "CRM Sync Service",
+                      "owner":  "Integration",
+                      "description":  "Outbound sync of customer profile updates and interaction events to the legacy CRM during the dual-run cutover window. Sunset on CRM decommission.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-117"
+                                       ]
+                  },
+                  {
+                      "id":  "X-137",
+                      "name":  "Analytics Events Pipeline",
+                      "owner":  "Analytics",
+                      "description":  "Clickstream and behavioural events collected from all surfaces, validated against schemas, and routed to the analytics platform and data lake.",
+                      "dependencies":  [
+                                           "X-43",
+                                           "X-76"
+                                       ]
+                  },
+                  {
+                      "id":  "X-138",
+                      "name":  "Marketing Automation Integration",
+                      "owner":  "CX",
+                      "description":  "Customer segments from the CDP pushed to the marketing automation platform. Campaign triggers wired to loyalty, promotion, and recommendation events.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-99",
+                                           "X-101",
+                                           "X-105"
+                                       ]
+                  },
+                  {
+                      "id":  "X-139",
+                      "name":  "Customer Support Integration",
+                      "owner":  "Operations",
+                      "description":  "Ticketing and live-chat platform integrated with the customer service tooling. Case routing, escalation triggers, and SLA clock synchronised.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-112"
+                                       ]
+                  },
+                  {
+                      "id":  "X-140",
+                      "name":  "Fraud Network Integration",
+                      "owner":  "Security",
+                      "description":  "Industry fraud network feeds integrated with the fraud detection service. Shared blacklists, consortium velocity signals, and device fingerprint enrichment.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-88"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-141",
+                      "name":  "Regulatory Reporting Integration",
+                      "owner":  "Legal",
+                      "description":  "Automated feeds from financial and compliance services to regulatory reporting portals. Submission schedules, rejection handling, and audit trails configured.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-89"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-142",
+                      "name":  "B2B EDI Integration",
+                      "owner":  "Integration",
+                      "description":  "EDI 850/856/810 transaction sets integrated for enterprise wholesale customers. AS2 transport, functional acknowledgements, and exception management active.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-135"
+                                       ]
+                  },
+                  {
+                      "id":  "X-143",
+                      "name":  "Webhook Platform",
+                      "owner":  "Integration",
+                      "description":  "Outbound webhook delivery service: event subscriptions, retry with exponential backoff, delivery receipts, and consumer debug tooling.",
+                      "dependencies":  [
+                                           "X-76",
+                                           "X-77"
+                                       ]
+                  },
+                  {
+                      "id":  "X-144",
+                      "name":  "GraphQL Federation Layer",
+                      "owner":  "Engineering",
+                      "description":  "Federated GraphQL schema stitching domain subgraphs. Supergraph published via the API gateway for web and mobile consumers.",
+                      "dependencies":  [
+                                           "X-63",
+                                           "X-76"
+                                       ]
+                  },
+                  {
+                      "id":  "X-145",
+                      "name":  "Rate Limiting \u0026 Throttling",
+                      "owner":  "Platform",
+                      "description":  "Token-bucket rate limiting enforced at the API gateway per consumer, endpoint, and method. Adaptive throttling active for DDoS mitigation.",
+                      "dependencies":  [
+                                           "X-76"
+                                       ]
+                  },
+                  {
+                      "id":  "X-146",
+                      "name":  "API Security Controls",
+                      "owner":  "Security",
+                      "description":  "OWASP API Top 10 controls enforced at the gateway: input validation, injection prevention, and automated schema conformance checks in the CI pipeline.",
+                      "dependencies":  [
+                                           "X-62",
+                                           "X-76"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-147",
+                      "name":  "Integration Test Harness",
+                      "owner":  "QA",
+                      "description":  "Shared test harness for end-to-end integration scenarios across domain boundaries. Contracts verified; data isolation enforced via test-scoped sandboxes.",
+                      "dependencies":  [
+                                           "X-131",
+                                           "X-133",
+                                           "X-135"
+                                       ]
+                  },
+                  {
+                      "id":  "X-148",
+                      "name":  "Contract Testing Framework",
+                      "owner":  "QA",
+                      "description":  "Consumer-driven contract tests for all internal and external API boundaries. Pact broker integrated into all CI pipelines; breaking changes blocked on publish.",
+                      "dependencies":  [
+                                           "X-131"
+                                       ]
+                  },
+                  {
+                      "id":  "X-149",
+                      "name":  "API Versioning Strategy",
+                      "owner":  "Integration",
+                      "description":  "Semantic versioning policy enforced across all APIs. Deprecation timeline, sunset notifications, and compatibility matrix published to the developer portal.",
+                      "dependencies":  [
+                                           "X-18",
+                                           "X-131"
+                                       ]
+                  },
+                  {
+                      "id":  "X-150",
+                      "name":  "Developer Portal APIs",
+                      "owner":  "Engineering",
+                      "description":  "API catalogue, try-it console, and OAuth application registration exposed through the developer portal. Self-service onboarding enabled for external partners.",
+                      "dependencies":  [
+                                           "X-73",
+                                           "X-74",
+                                           "X-131"
+                                       ]
+                  },
+                  {
+                      "id":  "X-151",
+                      "name":  "Sandbox / Test Environment APIs",
+                      "owner":  "DevOps",
+                      "description":  "Fully isolated sandbox environment with synthetic data and configurable response stubs. Available to internal teams and external partners under NDA.",
+                      "dependencies":  [
+                                           "X-68",
+                                           "X-131"
+                                       ]
+                  },
+                  {
+                      "id":  "X-152",
+                      "name":  "API Analytics",
+                      "owner":  "Analytics",
+                      "description":  "Usage metrics, latency percentiles, and error rates per consumer tracked in the analytics platform. Capacity planning and partner billing powered by this data.",
+                      "dependencies":  [
+                                           "X-78",
+                                           "X-137"
+                                       ]
+                  },
+                  {
+                      "id":  "X-153",
+                      "name":  "SLA Monitoring for APIs",
+                      "owner":  "Operations",
+                      "description":  "Automated SLA compliance dashboard tracking availability, latency, and error rate against committed thresholds per partner and consumer tier.",
+                      "dependencies":  [
+                                           "X-78",
+                                           "X-131",
+                                           "X-152"
+                                       ]
+                  },
+                  {
+                      "id":  "X-154",
+                      "name":  "Integration Runbooks",
+                      "owner":  "Operations",
+                      "description":  "Operational runbooks for all external integrations: failover procedures, escalation contacts, circuit-breaker thresholds, and data reconciliation scripts.",
+                      "dependencies":  [
+                                           "X-147"
+                                       ]
+                  },
+                  {
+                      "id":  "X-155",
+                      "name":  "Integration Sign-Off",
+                      "owner":  "Integration",
+                      "description":  "Formal gate: external API catalogue, rate limiting, API security, and contract testing all passing. All third-party integrations validated end-to-end.",
+                      "dependencies":  [
+                                           "X-131",
+                                           "X-145",
+                                           "X-146",
+                                           "X-148"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-156",
+                      "name":  "Test Strategy \u0026 Pyramid",
+                      "owner":  "QA",
+                      "description":  "Formal test strategy: unit, integration, contract, E2E, performance, chaos, and compliance test tiers defined with coverage targets and CI/CD placement.",
+                      "dependencies":  [
+                                           "X-129",
+                                           "X-155"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-157",
+                      "name":  "End-to-End Test Suite",
+                      "owner":  "QA",
+                      "description":  "Full user journey test suite covering checkout, account management, fulfilment, and support flows. Executed against a production-like staging environment.",
+                      "dependencies":  [
+                                           "X-107",
+                                           "X-147",
+                                           "X-156"
+                                       ]
+                  },
+                  {
+                      "id":  "X-158",
+                      "name":  "Performance \u0026 Load Testing",
+                      "owner":  "QA",
+                      "description":  "Load, stress, and soak tests validating p95 latency and throughput against peak-day profiles. Autoscaling behaviour and database connection pooling verified.",
+                      "dependencies":  [
+                                           "X-30",
+                                           "X-156"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Performance",
+                                       "color":  "#00ACC1"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-159",
+                      "name":  "Security Penetration Testing",
+                      "owner":  "Security",
+                      "description":  "External penetration test of all public surfaces and internal lateral-movement scenarios. Critical findings must be remediated before go-live approval.",
+                      "dependencies":  [
+                                           "X-125",
+                                           "X-156"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-160",
+                      "name":  "Accessibility Testing",
+                      "owner":  "QA",
+                      "description":  "Automated axe-core scans and manual screen-reader testing across all customer-facing surfaces. WCAG 2.1 AA pass confirmed.",
+                      "dependencies":  [
+                                           "X-122",
+                                           "X-156"
+                                       ]
+                  },
+                  {
+                      "id":  "X-161",
+                      "name":  "Chaos \u0026 Resilience Testing",
+                      "owner":  "QA",
+                      "description":  "Controlled fault injection experiments covering zone failure, dependency timeout, and data store unavailability. All services meet their defined SLO targets under fault.",
+                      "dependencies":  [
+                                           "X-81",
+                                           "X-156"
+                                       ]
+                  },
+                  {
+                      "id":  "X-162",
+                      "name":  "Data Quality Testing",
+                      "owner":  "QA",
+                      "description":  "Automated data quality checks run against migrated datasets. Row counts, null rates, and business rule violations compared to source-system baselines.",
+                      "dependencies":  [
+                                           "X-60",
+                                           "X-156"
+                                       ]
+                  },
+                  {
+                      "id":  "X-163",
+                      "name":  "Regression Suite Automation",
+                      "owner":  "QA",
+                      "description":  "Full regression suite parallelised and integrated into CI. Flaky tests quarantined; pass rate above threshold before merge to main branches.",
+                      "dependencies":  [
+                                           "X-157"
+                                       ]
+                  },
+                  {
+                      "id":  "X-164",
+                      "name":  "User Acceptance Testing",
+                      "owner":  "QA",
+                      "description":  "Business stakeholders validate the transformed system against defined acceptance criteria. Showstopper defects require resolution before go-live approval.",
+                      "dependencies":  [
+                                           "X-121",
+                                           "X-157"
+                                       ]
+                  },
+                  {
+                      "id":  "X-165",
+                      "name":  "Compliance Audit",
+                      "owner":  "Legal",
+                      "description":  "Third-party audit against SOC 2, ISO 27001, PCI-DSS, and GDPR. Evidence package assembled from automated compliance tooling; gaps risk-accepted or remediated.",
+                      "dependencies":  [
+                                           "X-57",
+                                           "X-89",
+                                           "X-159"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Compliance",
+                                       "color":  "#00897B"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-166",
+                      "name":  "Third-Party Security Audit",
+                      "owner":  "Security",
+                      "description":  "Independent security firm validates fraud detection, payments, and identity services. Findings triaged; critical and high severity issues closed before go-live.",
+                      "dependencies":  [
+                                           "X-113",
+                                           "X-159"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-167",
+                      "name":  "Production Readiness Reviews",
+                      "owner":  "Operations",
+                      "description":  "PRR checklist completed for all critical services: SLO defined, alerting active, runbook linked, on-call trained, and canary strategy documented.",
+                      "dependencies":  [
+                                           "X-157",
+                                           "X-161",
+                                           "X-162"
+                                       ]
+                  },
+                  {
+                      "id":  "X-168",
+                      "name":  "Disaster Recovery Drills",
+                      "owner":  "Operations",
+                      "description":  "Full DR rehearsal: primary region failover triggered, RTO and RPO measured, and runbook gaps closed. Results signed off by the business continuity team.",
+                      "dependencies":  [
+                                           "X-23",
+                                           "X-85"
+                                       ]
+                  },
+                  {
+                      "id":  "X-169",
+                      "name":  "Incident Runbook Validation",
+                      "owner":  "Operations",
+                      "description":  "All production incident runbooks dry-run by on-call teams. Response time targets measured; tooling access, escalation contacts, and rollback procedures confirmed.",
+                      "dependencies":  [
+                                           "X-167"
+                                       ]
+                  },
+                  {
+                      "id":  "X-170",
+                      "name":  "Synthetic Monitoring Setup",
+                      "owner":  "Operations",
+                      "description":  "Synthetic user-journey checks running in production and staging. Failures page on-call immediately; results feed into the SLO burn-rate dashboard.",
+                      "dependencies":  [
+                                           "X-78",
+                                           "X-157"
+                                       ]
+                  },
+                  {
+                      "id":  "X-171",
+                      "name":  "Canary Deployment Validation",
+                      "owner":  "DevOps",
+                      "description":  "Canary deployment pattern validated end-to-end: 1% traffic slice, automated metric gates, and automatic rollback on SLO breach confirmed in staging.",
+                      "dependencies":  [
+                                           "X-82",
+                                           "X-157"
+                                       ]
+                  },
+                  {
+                      "id":  "X-172",
+                      "name":  "Rollback Playbook Validation",
+                      "owner":  "DevOps",
+                      "description":  "Zero-downtime rollback procedures validated for all critical services. GitOps revert, database rollback, and feature-flag kill switch tested under time pressure.",
+                      "dependencies":  [
+                                           "X-130",
+                                           "X-163"
+                                       ]
+                  },
+                  {
+                      "id":  "X-173",
+                      "name":  "Customer Beta Testing",
+                      "owner":  "CX",
+                      "description":  "Closed beta with a representative customer cohort. Feedback captured, critical issues resolved, and net promoter score baseline established before full launch.",
+                      "dependencies":  [
+                                           "X-107",
+                                           "X-164"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-174",
+                      "name":  "Launch Readiness Review",
+                      "owner":  "Operations",
+                      "description":  "Cross-functional go/no-go review: all PRRs passed, DR drills complete, incident runbooks validated, and customer beta feedback addressed. Cleared for go-live approval.",
+                      "dependencies":  [
+                                           "X-167",
+                                           "X-168",
+                                           "X-169",
+                                           "X-173"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-175",
+                      "name":  "Go-Live Approval Gate",
+                      "owner":  "CXO",
+                      "description":  "Final executive go/no-go. Compliance audit, third-party security audit, launch readiness, and rollback validation all passed. Executive sponsor signs cutover authority.",
+                      "dependencies":  [
+                                           "X-165",
+                                           "X-166",
+                                           "X-172",
+                                           "X-174"
+                                       ],
+                      "cinemaBottleneck":  true,
+                      "cinemaScript":  "Nine months of work, eight hundred decisions, and twenty-five teams converge on a single gate. The Go-Live Approval requires that functional correctness, performance under peak load, regulatory compliance, and disaster recovery readiness all pass simultaneously. Any one failure resets the launch clock.",
+                      "tags":  [
+                                   {
+                                       "label":  "Gate",
+                                       "color":  "#3949AB"
+                                   },
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-176",
+                      "name":  "Phased Traffic Rollout",
+                      "owner":  "DevOps",
+                      "description":  "Traffic progressively shifted from legacy to new platform using weighted DNS and feature flags: 1% â†’ 10% â†’ 50% â†’ 100% with automated metric gates at each step.",
+                      "dependencies":  [
+                                           "X-175"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Critical Path",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-177",
+                      "name":  "Feature Flag Controlled Launch",
+                      "owner":  "Engineering",
+                      "description":  "New features enabled progressively via feature flags. Each flag activated in sequence as monitoring confirms stability. Kill switches armed throughout.",
+                      "dependencies":  [
+                                           "X-82",
+                                           "X-83",
+                                           "X-176"
+                                       ]
+                  },
+                  {
+                      "id":  "X-178",
+                      "name":  "Customer Communication Launch",
+                      "owner":  "CX",
+                      "description":  "Customer-facing launch communications: email, in-app, and social announcements timed to traffic milestones. Support team briefed and surge-staffed.",
+                      "dependencies":  [
+                                           "X-103",
+                                           "X-176"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-179",
+                      "name":  "Operations Handover",
+                      "owner":  "Operations",
+                      "description":  "Formal handover from programme delivery to steady-state operations. On-call rotas transferred, escalation paths updated, and SRE team assumes ownership.",
+                      "dependencies":  [
+                                           "X-174",
+                                           "X-176"
+                                       ]
+                  },
+                  {
+                      "id":  "X-180",
+                      "name":  "SRE On-Call Runbooks",
+                      "owner":  "Operations",
+                      "description":  "Production SRE runbooks activated in the ops wiki. First on-call rotation under new ownership completes without critical incident.",
+                      "dependencies":  [
+                                           "X-169",
+                                           "X-179"
+                                       ]
+                  },
+                  {
+                      "id":  "X-181",
+                      "name":  "Post-Launch Monitoring",
+                      "owner":  "Operations",
+                      "description":  "Enhanced monitoring posture for the first 30 days: 24/7 war-room coverage, lowered alert thresholds, and daily SLO review. Anomalies triaged within 15 minutes.",
+                      "dependencies":  [
+                                           "X-170",
+                                           "X-178"
+                                       ]
+                  },
+                  {
+                      "id":  "X-182",
+                      "name":  "Legacy System Cutover",
+                      "owner":  "DevOps",
+                      "description":  "Legacy system traffic reduced to zero following the phased rollout. DNS cut, load balancer rules removed, and legacy application servers stopped.",
+                      "dependencies":  [
+                                           "X-130",
+                                           "X-176"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Irreversible",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-183",
+                      "name":  "Legacy Decommission Execution",
+                      "owner":  "Platform",
+                      "description":  "On-premises servers shut down per the decommission plan. Hardware returned to lessor, data destruction certificates issued, and decommission confirmed in the asset register.",
+                      "dependencies":  [
+                                           "X-116",
+                                           "X-182"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Irreversible",
+                                       "color":  "#E53935"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-184",
+                      "name":  "Licence Reclamation",
+                      "owner":  "Finance",
+                      "description":  "Software licences from decommissioned legacy systems returned or terminated. Savings realised against the original TCO model.",
+                      "dependencies":  [
+                                           "X-183"
+                                       ],
+                      "cinemaSkip":  true
+                  },
+                  {
+                      "id":  "X-185",
+                      "name":  "Post-Launch Performance Review",
+                      "owner":  "Operations",
+                      "description":  "30-day performance review: p95/p99 latency actuals versus targets, throughput peaks, and database query performance compared to pre-launch benchmarks.",
+                      "dependencies":  [
+                                           "X-158",
+                                           "X-181"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Performance",
+                                       "color":  "#00ACC1"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-186",
+                      "name":  "Customer Feedback Collection",
+                      "owner":  "CX",
+                      "description":  "Structured feedback collected via in-app surveys, NPS pulse, and customer interviews. Themes categorised and fed into the product backlog.",
+                      "dependencies":  [
+                                           "X-173",
+                                           "X-178"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Customer Facing",
+                                       "color":  "#1E88E5"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-187",
+                      "name":  "NPS \u0026 CSAT Measurement",
+                      "owner":  "CX",
+                      "description":  "Net Promoter Score and Customer Satisfaction metrics baseline established for the new platform. Compared to pre-transformation benchmarks and programme KPIs.",
+                      "dependencies":  [
+                                           "X-186"
+                                       ]
+                  },
+                  {
+                      "id":  "X-188",
+                      "name":  "Defect Triage \u0026 Resolution",
+                      "owner":  "Engineering",
+                      "description":  "Post-launch defect queue triaged by severity. P1 defects remediated within SLA; P2/P3 batched into fortnightly release cycles.",
+                      "dependencies":  [
+                                           "X-177",
+                                           "X-181"
+                                       ]
+                  },
+                  {
+                      "id":  "X-189",
+                      "name":  "Hotfix Pipeline Activation",
+                      "owner":  "DevOps",
+                      "description":  "Emergency hotfix pipeline validated and on-call teams trained. First live hotfix deployed within the 4-hour RTO without affecting in-flight transactions.",
+                      "dependencies":  [
+                                           "X-69",
+                                           "X-188"
+                                       ]
+                  },
+                  {
+                      "id":  "X-190",
+                      "name":  "Security Incident Response Drill",
+                      "owner":  "Security",
+                      "description":  "Tabletop and live security incident simulation. SIEM alerts triggered, incident commander engaged, and containment playbook executed within the target response time.",
+                      "dependencies":  [
+                                           "X-88",
+                                           "X-180"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "Security Gate",
+                                       "color":  "#8E24AA"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-191",
+                      "name":  "Cost Optimisation Review",
+                      "owner":  "Finance",
+                      "description":  "30-day spend analysis against the FinOps model. Oversized instances right-sized, idle resources terminated, and Reserved Instance coverage expanded.",
+                      "dependencies":  [
+                                           "X-72",
+                                           "X-184",
+                                           "X-185"
+                                       ]
+                  },
+                  {
+                      "id":  "X-192",
+                      "name":  "Observability Tuning",
+                      "owner":  "Operations",
+                      "description":  "Alert thresholds recalibrated post-launch. False positives silenced, missing coverage gaps filled, and distributed trace sampling rates tuned for cost versus fidelity.",
+                      "dependencies":  [
+                                           "X-80",
+                                           "X-185"
+                                       ]
+                  },
+                  {
+                      "id":  "X-193",
+                      "name":  "Capacity Planning Update",
+                      "owner":  "Platform",
+                      "description":  "Resource forecasts updated using 30-day production traffic patterns. Reserved capacity adjusted and autoscaling policies tuned for the observed demand curve.",
+                      "dependencies":  [
+                                           "X-64",
+                                           "X-185"
+                                       ]
+                  },
+                  {
+                      "id":  "X-194",
+                      "name":  "AI/ML Model Monitoring",
+                      "owner":  "Analytics",
+                      "description":  "Recommendation and fraud models monitored for data drift, prediction quality degradation, and business metric impact. Retraining triggers defined.",
+                      "dependencies":  [
+                                           "X-105",
+                                           "X-181"
+                                       ],
+                      "tags":  [
+                                   {
+                                       "label":  "AI/ML",
+                                       "color":  "#FFB300"
+                                   }
+                               ]
+                  },
+                  {
+                      "id":  "X-195",
+                      "name":  "Data Quality Monitoring",
+                      "owner":  "Data",
+                      "description":  "Automated data quality checks running continuously in production. SLA breaches alert data stewards; lineage impacts surfaced automatically.",
+                      "dependencies":  [
+                                           "X-60",
+                                           "X-181"
+                                       ]
+                  },
+                  {
+                      "id":  "X-196",
+                      "name":  "Continuous Improvement Backlog",
+                      "owner":  "Strategy",
+                      "description":  "Post-launch improvement themes collected from teams, customers, and monitoring data. Backlog groomed and prioritised for the first steady-state sprint cycles.",
+                      "dependencies":  [
+                                           "X-185",
+                                           "X-187"
+                                       ],
+                      "cinemaSkip":  true
+                  },
+                  {
+                      "id":  "X-197",
+                      "name":  "Lessons Learned Workshop",
+                      "owner":  "Strategy",
+                      "description":  "Programme-level retrospective: what went well, what failed, and systemic improvements for the next transformation. Output feeds the organisation\u0027s delivery playbook.",
+                      "dependencies":  [
+                                           "X-191",
+                                           "X-192",
+                                           "X-193",
+                                           "X-194"
+                                       ]
+                  },
+                  {
+                      "id":  "X-198",
+                      "name":  "Programme Closure Report",
+                      "owner":  "CXO",
+                      "description":  "Formal programme closure: KPIs measured against the original business case, savings realised, and lessons learned published to the executive leadership team.",
+                      "dependencies":  [
+                                           "X-190",
+                                           "X-195",
+                                           "X-196",
+                                           "X-197"
+                                       ]
+                  },
+                  {
+                      "id":  "X-199",
+                      "name":  "Next Phase Roadmap",
+                      "owner":  "Strategy",
+                      "description":  "18-month roadmap for the next modernisation wave, informed by lessons learned, NPS feedback, and platform capabilities unlocked during this transformation.",
+                      "dependencies":  [
+                                           "X-187",
+                                           "X-198"
+                                       ]
+                  },
+                  {
+                      "id":  "X-200",
+                      "name":  "Digital Transformation Complete",
+                      "owner":  "CXO",
+                      "description":  "Programme formally closed. The organisation operates on a fully modern, cloud-native, data-driven platform. The transformation is complete â€” the next evolution has already begun.",
+                      "dependencies":  [
+                                           "X-183",
+                                           "X-199"
+                                       ],
+                      "cinemaScript":  "The transformation is complete â€” but the real transformation is in the organisation that built it. Distributed ownership, automated delivery, observable systems, and data-driven decisions are now the default. The question is no longer whether the company can modernise, but how fast it can move."
+                  }
+              ],
+    "groups":  [
+                   {
+                       "id":  "GROUP-01",
+                       "name":  "Strategic Foundation",
+                       "description":  "Vision, governance, budget, and programme setup â€” the foundation without which no technical work can begin",
+                       "owners":  [
+                                      "CXO",
+                                      "Strategy",
+                                      "Finance",
+                                      "Architecture",
+                                      "Security",
+                                      "Data"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-01",
+                                            "X-02",
+                                            "X-03",
+                                            "X-04",
+                                            "X-05",
+                                            "X-06",
+                                            "X-07",
+                                            "X-08",
+                                            "X-09",
+                                            "X-10",
+                                            "X-11",
+                                            "X-12",
+                                            "X-13",
+                                            "X-14",
+                                            "X-15"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-02",
+                       "name":  "Architecture Workstream",
+                       "description":  "Full enterprise architecture blueprint covering all technical domains, delivered before any platform or application work begins",
+                       "owners":  [
+                                      "Architecture",
+                                      "Integration",
+                                      "Security",
+                                      "Platform",
+                                      "Data",
+                                      "Engineering",
+                                      "CX",
+                                      "Product",
+                                      "Finance",
+                                      "Legal",
+                                      "Analytics"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-16",
+                                            "X-17",
+                                            "X-18",
+                                            "X-19",
+                                            "X-20",
+                                            "X-21",
+                                            "X-22",
+                                            "X-23",
+                                            "X-24",
+                                            "X-25",
+                                            "X-26",
+                                            "X-27",
+                                            "X-28",
+                                            "X-29",
+                                            "X-30",
+                                            "X-31",
+                                            "X-32",
+                                            "X-33",
+                                            "X-34",
+                                            "X-35"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-03",
+                       "name":  "Data Foundation",
+                       "description":  "Complete data estate: lake, warehouse, streaming, governance, compliance, and the data mesh â€” the shared data platform every application domain depends on",
+                       "owners":  [
+                                      "Data",
+                                      "Analytics",
+                                      "Security",
+                                      "Legal",
+                                      "Platform"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-36",
+                                            "X-37",
+                                            "X-44",
+                                            "X-49",
+                                            "X-50",
+                                            "X-51",
+                                            "X-52",
+                                            "X-53",
+                                            "X-54",
+                                            "X-55",
+                                            "X-56",
+                                            "X-57",
+                                            "X-59",
+                                            "X-60"
+                                        ],
+                       "childGroupIds":  [
+                                             "GROUP-03A",
+                                             "GROUP-03B"
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-03A",
+                       "name":  "Data Infrastructure",
+                       "description":  "Lake, warehouse, and streaming platform â€” the physical data infrastructure layer",
+                       "owners":  [
+                                      "Data",
+                                      "Platform"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-41",
+                                            "X-42",
+                                            "X-43"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  true
+                   },
+                   {
+                       "id":  "GROUP-03B",
+                       "name":  "Data Governance",
+                       "description":  "Policy, lineage, classification, masking, consent, and access controls â€” the trust layer governing every data asset",
+                       "owners":  [
+                                      "Data",
+                                      "Security",
+                                      "Legal"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-38",
+                                            "X-39",
+                                            "X-40",
+                                            "X-45",
+                                            "X-46",
+                                            "X-47",
+                                            "X-48",
+                                            "X-58"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  true
+                   },
+                   {
+                       "id":  "GROUP-04",
+                       "name":  "Platform Engineering",
+                       "description":  "The full platform stack: cloud foundation, security controls, DevOps tooling, observability, and shared services",
+                       "owners":  [
+                                      "Platform",
+                                      "Security",
+                                      "DevOps",
+                                      "Engineering",
+                                      "Operations",
+                                      "QA",
+                                      "Finance",
+                                      "CX"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-66",
+                                            "X-70",
+                                            "X-72",
+                                            "X-73",
+                                            "X-74",
+                                            "X-75",
+                                            "X-81",
+                                            "X-82",
+                                            "X-83",
+                                            "X-84",
+                                            "X-85",
+                                            "X-86",
+                                            "X-87",
+                                            "X-88",
+                                            "X-89",
+                                            "X-90"
+                                        ],
+                       "childGroupIds":  [
+                                             "GROUP-04A",
+                                             "GROUP-04B"
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-04A",
+                       "name":  "Cloud Foundation",
+                       "description":  "Landing zone, IAM, service mesh, container orchestration, secrets, and policy â€” the security and compute substrate",
+                       "owners":  [
+                                      "Platform",
+                                      "Security"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-61",
+                                            "X-62",
+                                            "X-63",
+                                            "X-64",
+                                            "X-65",
+                                            "X-71"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  true
+                   },
+                   {
+                       "id":  "GROUP-04B",
+                       "name":  "DevOps \u0026 Observability",
+                       "description":  "Artifact registry, build pipelines, GitOps, API gateway, message bus, monitoring, logging, and tracing",
+                       "owners":  [
+                                      "DevOps",
+                                      "Integration",
+                                      "Operations"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-67",
+                                            "X-68",
+                                            "X-69",
+                                            "X-76",
+                                            "X-77",
+                                            "X-78",
+                                            "X-79",
+                                            "X-80"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  true
+                   },
+                   {
+                       "id":  "GROUP-05",
+                       "name":  "Commerce Services",
+                       "description":  "Product catalogue, inventory, orders, payments, pricing, promotions, and loyalty â€” the transactional heart of the platform",
+                       "owners":  [
+                                      "Engineering",
+                                      "Product",
+                                      "CX"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-94",
+                                            "X-95",
+                                            "X-96",
+                                            "X-97",
+                                            "X-98",
+                                            "X-99",
+                                            "X-100"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-06",
+                       "name":  "Customer Experience",
+                       "description":  "Customer profile, communication preferences, search, CMS, web portal, mobile apps, localisation, and journey redesign",
+                       "owners":  [
+                                      "CX",
+                                      "Engineering",
+                                      "Product"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-101",
+                                            "X-103",
+                                            "X-104",
+                                            "X-106",
+                                            "X-107",
+                                            "X-108",
+                                            "X-109",
+                                            "X-121",
+                                            "X-122",
+                                            "X-123"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-07",
+                       "name":  "Integration Hub",
+                       "description":  "All external and internal integrations: partner APIs, payment gateways, logistics, ERP, CRM, marketing, fraud networks, and API governance",
+                       "owners":  [
+                                      "Integration",
+                                      "Analytics",
+                                      "Security",
+                                      "Operations",
+                                      "Legal",
+                                      "CX",
+                                      "DevOps"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-131",
+                                            "X-132",
+                                            "X-133",
+                                            "X-134",
+                                            "X-135",
+                                            "X-136",
+                                            "X-137",
+                                            "X-138",
+                                            "X-139",
+                                            "X-140",
+                                            "X-141",
+                                            "X-142",
+                                            "X-143",
+                                            "X-144",
+                                            "X-145",
+                                            "X-146",
+                                            "X-147",
+                                            "X-148",
+                                            "X-149",
+                                            "X-150",
+                                            "X-151",
+                                            "X-152",
+                                            "X-153",
+                                            "X-154",
+                                            "X-155"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   },
+                   {
+                       "id":  "GROUP-08",
+                       "name":  "Validation Suite",
+                       "description":  "Full quality assurance programme: E2E, performance, security, accessibility, chaos, data quality, compliance, DR, and customer beta testing",
+                       "owners":  [
+                                      "QA",
+                                      "Security",
+                                      "Operations",
+                                      "Legal",
+                                      "CX",
+                                      "DevOps"
+                                  ],
+                       "childNodeIds":  [
+                                            "X-156",
+                                            "X-157",
+                                            "X-158",
+                                            "X-159",
+                                            "X-160",
+                                            "X-161",
+                                            "X-162",
+                                            "X-163",
+                                            "X-164",
+                                            "X-165",
+                                            "X-166",
+                                            "X-167",
+                                            "X-168",
+                                            "X-169",
+                                            "X-170",
+                                            "X-171",
+                                            "X-172",
+                                            "X-173",
+                                            "X-174",
+                                            "X-175"
+                                        ],
+                       "childGroupIds":  [
+
+                                         ],
+                       "collapsed":  false
+                   }
+               ],
+    "phases":  [
+                   {
+                       "id":  "PHASE-01",
+                       "name":  "Strategy",
+                       "description":  "Establish the vision, board mandate, governance, budget, and programme office before any technical work begins",
+                       "color":  "#3949AB",
+                       "nodeIds":  [
+                                       "X-01",
+                                       "X-02",
+                                       "X-03",
+                                       "X-04",
+                                       "X-05",
+                                       "X-06",
+                                       "X-07",
+                                       "X-08",
+                                       "X-09",
+                                       "X-10",
+                                       "X-11",
+                                       "X-12",
+                                       "X-13",
+                                       "X-14",
+                                       "X-15"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-01"
+                                    ],
+                       "sequence":  0
+                   },
+                   {
+                       "id":  "PHASE-02",
+                       "name":  "Architecture",
+                       "description":  "Design the full enterprise architecture: service topology, data architecture, security, network, observability, and developer experience",
+                       "color":  "#00897B",
+                       "nodeIds":  [
+                                       "X-16",
+                                       "X-17",
+                                       "X-18",
+                                       "X-19",
+                                       "X-20",
+                                       "X-21",
+                                       "X-22",
+                                       "X-23",
+                                       "X-24",
+                                       "X-25",
+                                       "X-26",
+                                       "X-27",
+                                       "X-28",
+                                       "X-29",
+                                       "X-30",
+                                       "X-31",
+                                       "X-32",
+                                       "X-33",
+                                       "X-34",
+                                       "X-35"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-02"
+                                    ],
+                       "sequence":  1
+                   },
+                   {
+                       "id":  "PHASE-03",
+                       "name":  "Data Foundation",
+                       "description":  "Build the unified data platform: lake, warehouse, streaming, governance, classification, consent, and compliance certification",
+                       "color":  "#1E88E5",
+                       "nodeIds":  [
+                                       "X-36",
+                                       "X-37",
+                                       "X-38",
+                                       "X-39",
+                                       "X-40",
+                                       "X-41",
+                                       "X-42",
+                                       "X-43",
+                                       "X-44",
+                                       "X-45",
+                                       "X-46",
+                                       "X-47",
+                                       "X-48",
+                                       "X-49",
+                                       "X-50",
+                                       "X-51",
+                                       "X-52",
+                                       "X-53",
+                                       "X-54",
+                                       "X-55",
+                                       "X-56",
+                                       "X-57",
+                                       "X-58",
+                                       "X-59",
+                                       "X-60"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-03A",
+                                        "GROUP-03B"
+                                    ],
+                       "sequence":  2
+                   },
+                   {
+                       "id":  "PHASE-04",
+                       "name":  "Platform",
+                       "description":  "Provision the full cloud platform: landing zone, IAM, containers, service mesh, CI/CD, observability, security controls, and shared services",
+                       "color":  "#7CB342",
+                       "nodeIds":  [
+                                       "X-61",
+                                       "X-62",
+                                       "X-63",
+                                       "X-64",
+                                       "X-65",
+                                       "X-66",
+                                       "X-67",
+                                       "X-68",
+                                       "X-69",
+                                       "X-70",
+                                       "X-71",
+                                       "X-72",
+                                       "X-73",
+                                       "X-74",
+                                       "X-75",
+                                       "X-76",
+                                       "X-77",
+                                       "X-78",
+                                       "X-79",
+                                       "X-80",
+                                       "X-81",
+                                       "X-82",
+                                       "X-83",
+                                       "X-84",
+                                       "X-85",
+                                       "X-86",
+                                       "X-87",
+                                       "X-88",
+                                       "X-89",
+                                       "X-90"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-04A",
+                                        "GROUP-04B"
+                                    ],
+                       "sequence":  3
+                   },
+                   {
+                       "id":  "PHASE-05",
+                       "name":  "Modernisation",
+                       "description":  "Migrate and rebuild all applications: commerce services, customer experience, admin tooling, data migration, CRM, and legacy decommission planning",
+                       "color":  "#FB8C00",
+                       "nodeIds":  [
+                                       "X-91",
+                                       "X-92",
+                                       "X-93",
+                                       "X-94",
+                                       "X-95",
+                                       "X-96",
+                                       "X-97",
+                                       "X-98",
+                                       "X-99",
+                                       "X-100",
+                                       "X-101",
+                                       "X-102",
+                                       "X-103",
+                                       "X-104",
+                                       "X-105",
+                                       "X-106",
+                                       "X-107",
+                                       "X-108",
+                                       "X-109",
+                                       "X-110",
+                                       "X-111",
+                                       "X-112",
+                                       "X-113",
+                                       "X-114",
+                                       "X-115",
+                                       "X-116",
+                                       "X-117",
+                                       "X-118",
+                                       "X-119",
+                                       "X-120",
+                                       "X-121",
+                                       "X-122",
+                                       "X-123",
+                                       "X-124",
+                                       "X-125",
+                                       "X-126",
+                                       "X-127",
+                                       "X-128",
+                                       "X-129",
+                                       "X-130"
+                                   ],
+                       "sequence":  4
+                   },
+                   {
+                       "id":  "PHASE-06",
+                       "name":  "Integration",
+                       "description":  "Connect all external systems: partner APIs, payment gateways, logistics, ERP, marketing automation, fraud networks, and API governance",
+                       "color":  "#8E24AA",
+                       "nodeIds":  [
+                                       "X-131",
+                                       "X-132",
+                                       "X-133",
+                                       "X-134",
+                                       "X-135",
+                                       "X-136",
+                                       "X-137",
+                                       "X-138",
+                                       "X-139",
+                                       "X-140",
+                                       "X-141",
+                                       "X-142",
+                                       "X-143",
+                                       "X-144",
+                                       "X-145",
+                                       "X-146",
+                                       "X-147",
+                                       "X-148",
+                                       "X-149",
+                                       "X-150",
+                                       "X-151",
+                                       "X-152",
+                                       "X-153",
+                                       "X-154",
+                                       "X-155"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-07"
+                                    ],
+                       "sequence":  5
+                   },
+                   {
+                       "id":  "PHASE-07",
+                       "name":  "Validation",
+                       "description":  "Full quality programme: E2E, performance, security pen test, chaos, accessibility, data quality, compliance audit, DR drills, customer beta, and go-live approval",
+                       "color":  "#E53935",
+                       "nodeIds":  [
+                                       "X-156",
+                                       "X-157",
+                                       "X-158",
+                                       "X-159",
+                                       "X-160",
+                                       "X-161",
+                                       "X-162",
+                                       "X-163",
+                                       "X-164",
+                                       "X-165",
+                                       "X-166",
+                                       "X-167",
+                                       "X-168",
+                                       "X-169",
+                                       "X-170",
+                                       "X-171",
+                                       "X-172",
+                                       "X-173",
+                                       "X-174",
+                                       "X-175"
+                                   ],
+                       "groupIds":  [
+                                        "GROUP-08"
+                                    ],
+                       "sequence":  6
+                   },
+                   {
+                       "id":  "PHASE-08",
+                       "name":  "Operations",
+                       "description":  "Phased rollout, legacy cutover, decommission, post-launch monitoring, cost optimisation, NPS measurement, and programme closure",
+                       "color":  "#757575",
+                       "nodeIds":  [
+                                       "X-176",
+                                       "X-177",
+                                       "X-178",
+                                       "X-179",
+                                       "X-180",
+                                       "X-181",
+                                       "X-182",
+                                       "X-183",
+                                       "X-184",
+                                       "X-185",
+                                       "X-186",
+                                       "X-187",
+                                       "X-188",
+                                       "X-189",
+                                       "X-190",
+                                       "X-191",
+                                       "X-192",
+                                       "X-193",
+                                       "X-194",
+                                       "X-195",
+                                       "X-196",
+                                       "X-197",
+                                       "X-198",
+                                       "X-199",
+                                       "X-200"
+                                   ],
+                       "sequence":  7
+                   }
+               ],
+    "tagRegistry":  [
+                        {
+                            "label":  "Critical Path",
+                            "color":  "#E53935"
+                        },
+                        {
+                            "label":  "Security Gate",
+                            "color":  "#8E24AA"
+                        },
+                        {
+                            "label":  "Compliance",
+                            "color":  "#00897B"
+                        },
+                        {
+                            "label":  "Gate",
+                            "color":  "#3949AB"
+                        },
+                        {
+                            "label":  "Data Risk",
+                            "color":  "#F4511E"
+                        },
+                        {
+                            "label":  "Vendor",
+                            "color":  "#FB8C00"
+                        },
+                        {
+                            "label":  "Irreversible",
+                            "color":  "#E53935"
+                        },
+                        {
+                            "label":  "Customer Facing",
+                            "color":  "#1E88E5"
+                        },
+                        {
+                            "label":  "AI/ML",
+                            "color":  "#FFB300"
+                        },
+                        {
+                            "label":  "Performance",
+                            "color":  "#00ACC1"
+                        }
+                    ],
+    "ownerRegistry":  [
+                          "CXO",
+                          "Strategy",
+                          "Finance",
+                          "Architecture",
+                          "Security",
+                          "Data",
+                          "Platform",
+                          "Engineering",
+                          "DevOps",
+                          "Integration",
+                          "Analytics",
+                          "Operations",
+                          "QA",
+                          "CX",
+                          "Product",
+                          "Legal"
+                      ],
+    "edgePathTypes":  {
+                          "X-01:X-02":  "critical",
+                          "X-02:X-03":  "critical",
+                          "X-02:X-05":  "priority",
+                          "X-02:X-08":  "priority",
+                          "X-03:X-04":  "critical",
+                          "X-03:X-10":  "priority",
+                          "X-03:X-11":  "standard",
+                          "X-03:X-13":  "priority",
+                          "X-03:X-14":  "priority",
+                          "X-04:X-15":  "critical",
+                          "X-04:X-31":  "standard",
+                          "X-05:X-06":  "standard",
+                          "X-05:X-07":  "standard",
+                          "X-05:X-09":  "priority",
+                          "X-06:X-15":  "priority",
+                          "X-07:X-15":  "priority",
+                          "X-08:X-15":  "priority",
+                          "X-09:X-15":  "standard",
+                          "X-10:X-35":  "priority",
+                          "X-11:X-12":  "priority",
+                          "X-12:X-16":  "priority",
+                          "X-13:X-24":  "priority",
+                          "X-13:X-33":  "standard",
+                          "X-14:X-20":  "priority",
+                          "X-14:X-29":  "priority",
+                          "X-14:X-88":  "priority",
+                          "X-15:X-16":  "critical",
+                          "X-15:X-26":  "standard",
+                          "X-16:X-17":  "priority",
+                          "X-16:X-18":  "priority",
+                          "X-16:X-19":  "priority",
+                          "X-16:X-21":  "priority",
+                          "X-16:X-22":  "standard",
+                          "X-16:X-23":  "standard",
+                          "X-16:X-25":  "priority",
+                          "X-16:X-30":  "standard",
+                          "X-16:X-35":  "critical",
+                          "X-17:X-19":  "standard",
+                          "X-17:X-25":  "priority",
+                          "X-18:X-25":  "standard",
+                          "X-18:X-28":  "standard",
+                          "X-18:X-132":  "standard",
+                          "X-18:X-149":  "standard",
+                          "X-19:X-43":  "priority",
+                          "X-19:X-77":  "priority",
+                          "X-20:X-16":  "standard",
+                          "X-20:X-62":  "critical",
+                          "X-20:X-58":  "priority",
+                          "X-21:X-23":  "standard",
+                          "X-21:X-41":  "priority",
+                          "X-21:X-61":  "critical",
+                          "X-21:X-66":  "standard",
+                          "X-22:X-78":  "priority",
+                          "X-22:X-79":  "standard",
+                          "X-23:X-85":  "priority",
+                          "X-23:X-168":  "standard",
+                          "X-24:X-38":  "priority",
+                          "X-24:X-39":  "standard",
+                          "X-24:X-41":  "priority",
+                          "X-25:X-32":  "priority",
+                          "X-25:X-34":  "standard",
+                          "X-25:X-63":  "priority",
+                          "X-25:X-64":  "priority",
+                          "X-25:X-92":  "priority",
+                          "X-26:X-75":  "priority",
+                          "X-26:X-121":  "standard",
+                          "X-27:X-108":  "standard",
+                          "X-27:X-109":  "standard",
+                          "X-28:X-118":  "standard",
+                          "X-29:X-38":  "priority",
+                          "X-29:X-46":  "priority",
+                          "X-29:X-48":  "priority",
+                          "X-29:X-71":  "priority",
+                          "X-29:X-89":  "priority",
+                          "X-29:X-114":  "standard",
+                          "X-30:X-124":  "standard",
+                          "X-30:X-158":  "priority",
+                          "X-31:X-72":  "standard",
+                          "X-32:X-67":  "priority",
+                          "X-32:X-68":  "priority",
+                          "X-32:X-73":  "priority",
+                          "X-33:X-49":  "priority",
+                          "X-34:X-82":  "priority",
+                          "X-35:X-16":  "standard",
+                          "X-35:X-24":  "standard",
+                          "X-35:X-25":  "standard",
+                          "X-35:X-29":  "standard",
+                          "X-35:X-30":  "standard",
+                          "X-35:X-36":  "priority",
+                          "X-35:X-61":  "critical",
+                          "X-36:X-37":  "priority",
+                          "X-37:X-38":  "priority",
+                          "X-38:X-39":  "priority",
+                          "X-38:X-40":  "standard",
+                          "X-38:X-46":  "priority",
+                          "X-38:X-48":  "priority",
+                          "X-38:X-52":  "priority",
+                          "X-38:X-53":  "standard",
+                          "X-39:X-42":  "priority",
+                          "X-39:X-44":  "priority",
+                          "X-39:X-52":  "standard",
+                          "X-40:X-45":  "standard",
+                          "X-41:X-42":  "critical",
+                          "X-41:X-43":  "priority",
+                          "X-41:X-45":  "standard",
+                          "X-41:X-59":  "optional",
+                          "X-42:X-49":  "priority",
+                          "X-42:X-50":  "standard",
+                          "X-42:X-59":  "optional",
+                          "X-43:X-44":  "priority",
+                          "X-43:X-56":  "priority",
+                          "X-43:X-137":  "priority",
+                          "X-44:X-100":  "priority",
+                          "X-44:X-101":  "priority",
+                          "X-45:X-52":  "priority",
+                          "X-46:X-47":  "priority",
+                          "X-46:X-57":  "priority",
+                          "X-46:X-58":  "priority",
+                          "X-47:X-57":  "priority",
+                          "X-48:X-57":  "standard",
+                          "X-49:X-50":  "standard",
+                          "X-49:X-51":  "priority",
+                          "X-49:X-54":  "standard",
+                          "X-49:X-56":  "priority",
+                          "X-50:X-54":  "standard",
+                          "X-51:X-105":  "priority",
+                          "X-52:X-53":  "priority",
+                          "X-52:X-60":  "priority",
+                          "X-53:X-60":  "standard",
+                          "X-55:X-115":  "standard",
+                          "X-57:X-60":  "critical",
+                          "X-57:X-165":  "priority",
+                          "X-58:X-60":  "priority",
+                          "X-60:X-91":  "critical",
+                          "X-60:X-120":  "priority",
+                          "X-60:X-162":  "priority",
+                          "X-60:X-195":  "standard",
+                          "X-61:X-62":  "critical",
+                          "X-61:X-63":  "priority",
+                          "X-61:X-64":  "critical",
+                          "X-61:X-66":  "priority",
+                          "X-61:X-67":  "priority",
+                          "X-61:X-70":  "priority",
+                          "X-61:X-72":  "standard",
+                          "X-61:X-76":  "critical",
+                          "X-61:X-77":  "priority",
+                          "X-61:X-78":  "priority",
+                          "X-61:X-82":  "priority",
+                          "X-61:X-84":  "priority",
+                          "X-61:X-85":  "priority",
+                          "X-62:X-65":  "priority",
+                          "X-62:X-87":  "priority",
+                          "X-62:X-93":  "critical",
+                          "X-62:X-146":  "priority",
+                          "X-63:X-76":  "priority",
+                          "X-63:X-80":  "priority",
+                          "X-63:X-94":  "priority",
+                          "X-63:X-95":  "priority",
+                          "X-63:X-102":  "priority",
+                          "X-63:X-144":  "standard",
+                          "X-64:X-69":  "priority",
+                          "X-64:X-81":  "standard",
+                          "X-64:X-90":  "critical",
+                          "X-64:X-193":  "standard",
+                          "X-65:X-86":  "priority",
+                          "X-66:X-84":  "standard",
+                          "X-67:X-68":  "priority",
+                          "X-67:X-151":  "standard",
+                          "X-68:X-69":  "priority",
+                          "X-68:X-73":  "standard",
+                          "X-69:X-86":  "standard",
+                          "X-69:X-130":  "priority",
+                          "X-69:X-189":  "priority",
+                          "X-70:X-71":  "priority",
+                          "X-71:X-87":  "priority",
+                          "X-71:X-89":  "priority",
+                          "X-72:X-191":  "standard",
+                          "X-73:X-74":  "standard",
+                          "X-73:X-150":  "standard",
+                          "X-74:X-150":  "standard",
+                          "X-75:X-106":  "priority",
+                          "X-75:X-108":  "priority",
+                          "X-75:X-109":  "priority",
+                          "X-75:X-123":  "standard",
+                          "X-76:X-131":  "critical",
+                          "X-76:X-133":  "priority",
+                          "X-76:X-134":  "priority",
+                          "X-76:X-135":  "priority",
+                          "X-76:X-136":  "priority",
+                          "X-76:X-137":  "priority",
+                          "X-76:X-138":  "priority",
+                          "X-76:X-139":  "priority",
+                          "X-76:X-140":  "priority",
+                          "X-76:X-141":  "priority",
+                          "X-76:X-142":  "standard",
+                          "X-76:X-143":  "priority",
+                          "X-76:X-144":  "priority",
+                          "X-76:X-145":  "priority",
+                          "X-76:X-146":  "critical",
+                          "X-76:X-152":  "standard",
+                          "X-76:X-153":  "standard",
+                          "X-77:X-102":  "priority",
+                          "X-77:X-143":  "standard",
+                          "X-77:X-90":  "priority",
+                          "X-78:X-79":  "priority",
+                          "X-78:X-80":  "priority",
+                          "X-78:X-81":  "priority",
+                          "X-78:X-90":  "priority",
+                          "X-78:X-170":  "priority",
+                          "X-79:X-88":  "priority",
+                          "X-79:X-110":  "standard",
+                          "X-80:X-192":  "priority",
+                          "X-82:X-83":  "standard",
+                          "X-82:X-171":  "priority",
+                          "X-82:X-177":  "priority",
+                          "X-83:X-177":  "standard",
+                          "X-84:X-104":  "priority",
+                          "X-84:X-106":  "priority",
+                          "X-85:X-90":  "priority",
+                          "X-85:X-168":  "priority",
+                          "X-87:X-125":  "priority",
+                          "X-88:X-113":  "priority",
+                          "X-88:X-140":  "standard",
+                          "X-88:X-190":  "priority",
+                          "X-89:X-141":  "priority",
+                          "X-89:X-165":  "priority",
+                          "X-90:X-91":  "critical",
+                          "X-91:X-92":  "critical",
+                          "X-91:X-116":  "priority",
+                          "X-92:X-93":  "critical",
+                          "X-92:X-94":  "critical",
+                          "X-92:X-95":  "priority",
+                          "X-92:X-102":  "standard",
+                          "X-92:X-104":  "priority",
+                          "X-92:X-110":  "standard",
+                          "X-92:X-117":  "priority",
+                          "X-92:X-118":  "priority",
+                          "X-92:X-119":  "standard",
+                          "X-92:X-120":  "priority",
+                          "X-92:X-123":  "standard",
+                          "X-92:X-126":  "standard",
+                          "X-93:X-96":  "standard",
+                          "X-93:X-97":  "critical",
+                          "X-93:X-100":  "priority",
+                          "X-93:X-101":  "priority",
+                          "X-93:X-114":  "priority",
+                          "X-93:X-119":  "priority",
+                          "X-94:X-96":  "critical",
+                          "X-94:X-98":  "priority",
+                          "X-94:X-111":  "standard",
+                          "X-95:X-96":  "priority",
+                          "X-96:X-97":  "critical",
+                          "X-96:X-134":  "priority",
+                          "X-97:X-99":  "standard",
+                          "X-97:X-113":  "priority",
+                          "X-97:X-125":  "critical",
+                          "X-97:X-133":  "priority",
+                          "X-98:X-99":  "priority",
+                          "X-99:X-138":  "standard",
+                          "X-100:X-99":  "standard",
+                          "X-101:X-103":  "priority",
+                          "X-101:X-107":  "priority",
+                          "X-101:X-112":  "standard",
+                          "X-101:X-121":  "priority",
+                          "X-101:X-138":  "priority",
+                          "X-102:X-103":  "priority",
+                          "X-104:X-105":  "priority",
+                          "X-104:X-107":  "priority",
+                          "X-105:X-138":  "standard",
+                          "X-105:X-194":  "priority",
+                          "X-106:X-107":  "priority",
+                          "X-107:X-108":  "priority",
+                          "X-107:X-109":  "priority",
+                          "X-107:X-111":  "standard",
+                          "X-107:X-124":  "priority",
+                          "X-107:X-128":  "priority",
+                          "X-107:X-157":  "priority",
+                          "X-107:X-173":  "priority",
+                          "X-110:X-112":  "priority",
+                          "X-112:X-139":  "standard",
+                          "X-113:X-166":  "priority",
+                          "X-114:X-129":  "priority",
+                          "X-115:X-128":  "standard",
+                          "X-116:X-117":  "priority",
+                          "X-116:X-119":  "priority",
+                          "X-116:X-127":  "standard",
+                          "X-116:X-183":  "priority",
+                          "X-117:X-129":  "priority",
+                          "X-117:X-136":  "priority",
+                          "X-118:X-135":  "priority",
+                          "X-119:X-131":  "priority",
+                          "X-120:X-129":  "priority",
+                          "X-121:X-122":  "priority",
+                          "X-121:X-164":  "standard",
+                          "X-122:X-129":  "priority",
+                          "X-122:X-160":  "priority",
+                          "X-123:X-107":  "standard",
+                          "X-124:X-129":  "priority",
+                          "X-125:X-129":  "critical",
+                          "X-126:X-127":  "standard",
+                          "X-128:X-129":  "priority",
+                          "X-129:X-130":  "priority",
+                          "X-129:X-131":  "critical",
+                          "X-130:X-172":  "priority",
+                          "X-130:X-182":  "critical",
+                          "X-131:X-132":  "standard",
+                          "X-131:X-147":  "priority",
+                          "X-131:X-148":  "priority",
+                          "X-131:X-149":  "standard",
+                          "X-131:X-150":  "standard",
+                          "X-131:X-151":  "standard",
+                          "X-131:X-153":  "standard",
+                          "X-131:X-155":  "critical",
+                          "X-132:X-155":  "standard",
+                          "X-133:X-147":  "priority",
+                          "X-135:X-142":  "standard",
+                          "X-135:X-147":  "standard",
+                          "X-137:X-152":  "priority",
+                          "X-145:X-155":  "priority",
+                          "X-146:X-155":  "critical",
+                          "X-147:X-154":  "priority",
+                          "X-148:X-155":  "priority",
+                          "X-150:X-155":  "optional",
+                          "X-152:X-153":  "priority",
+                          "X-155:X-156":  "critical",
+                          "X-156:X-157":  "critical",
+                          "X-156:X-158":  "priority",
+                          "X-156:X-159":  "priority",
+                          "X-156:X-160":  "priority",
+                          "X-156:X-161":  "priority",
+                          "X-156:X-162":  "priority",
+                          "X-157:X-163":  "priority",
+                          "X-157:X-164":  "priority",
+                          "X-157:X-167":  "priority",
+                          "X-157:X-170":  "priority",
+                          "X-157:X-171":  "priority",
+                          "X-158:X-185":  "priority",
+                          "X-159:X-165":  "priority",
+                          "X-159:X-166":  "critical",
+                          "X-160:X-164":  "standard",
+                          "X-161:X-167":  "priority",
+                          "X-162:X-167":  "standard",
+                          "X-163:X-172":  "priority",
+                          "X-164:X-173":  "priority",
+                          "X-165:X-175":  "critical",
+                          "X-166:X-175":  "priority",
+                          "X-167:X-169":  "priority",
+                          "X-167:X-174":  "priority",
+                          "X-168:X-174":  "priority",
+                          "X-169:X-174":  "priority",
+                          "X-169:X-180":  "priority",
+                          "X-170:X-181":  "priority",
+                          "X-171:X-175":  "optional",
+                          "X-172:X-175":  "priority",
+                          "X-173:X-174":  "priority",
+                          "X-173:X-186":  "standard",
+                          "X-174:X-175":  "critical",
+                          "X-175:X-176":  "critical",
+                          "X-176:X-177":  "priority",
+                          "X-176:X-178":  "priority",
+                          "X-176:X-179":  "priority",
+                          "X-176:X-182":  "critical",
+                          "X-177:X-188":  "priority",
+                          "X-178:X-181":  "priority",
+                          "X-178:X-186":  "priority",
+                          "X-179:X-180":  "priority",
+                          "X-180:X-190":  "standard",
+                          "X-181:X-185":  "priority",
+                          "X-181:X-188":  "standard",
+                          "X-181:X-194":  "priority",
+                          "X-181:X-195":  "standard",
+                          "X-182:X-183":  "critical",
+                          "X-183:X-184":  "priority",
+                          "X-183:X-200":  "critical",
+                          "X-184:X-191":  "standard",
+                          "X-185:X-191":  "priority",
+                          "X-185:X-192":  "priority",
+                          "X-185:X-193":  "standard",
+                          "X-185:X-196":  "priority",
+                          "X-186:X-187":  "priority",
+                          "X-187:X-199":  "priority",
+                          "X-188:X-189":  "priority",
+                          "X-190:X-198":  "standard",
+                          "X-191:X-197":  "priority",
+                          "X-192:X-197":  "standard",
+                          "X-193:X-197":  "standard",
+                          "X-194:X-197":  "standard",
+                          "X-195:X-198":  "standard",
+                          "X-196:X-198":  "standard",
+                          "X-197:X-198":  "priority",
+                          "X-198:X-199":  "priority",
+                          "X-199:X-200":  "critical"
+                      }
+}

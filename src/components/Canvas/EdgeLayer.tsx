@@ -6,7 +6,7 @@
  *   2. An etch body (.edge-groove) — very dark channel, width per tier
  *   3. A top-rim highlight (.edge-rim) — 1px faint white at the top edge of the groove
  *
- * Both visible paths are animated together on mount (draw-on entrance via WAAPI).
+ * On mount, all edges fade in together (opacity 0→1) after nodes have appeared.
  * V-Groove tiers control groove width and rim opacity only.
  *
  * In design mode, hovering an edge turns it red and shows a delete tooltip.
@@ -49,89 +49,26 @@ interface EdgeLayerProps {
 }
 
 export function EdgeLayer({ edges, positions, designMode, ownerColors, nodes, groups, ownerFocusSets, focusedOwner, suppressEntranceAnimation, onEdgeSelectPathType }: EdgeLayerProps) {
-  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId, discoveryActive, discoveryPhase, discoveryRoleMap, tracePathResults, tracePathSelectedIndex } = useGraphStore();
+  const { hoveredNodeId, deleteEdge, viewMode, designTool, multiSelectIds, selectedNodeId, selectedGroupId, discoveryActive, discoveryPhase, discoveryRoleMap, tracePathResults, tracePathSelectedIndex, criticalPathActive, criticalChains, criticalSelectedIds, criticalFocusActive } = useGraphStore();
 
   const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const containerRef = useRef<SVGGElement>(null);
 
-  // On every mount (= graph-content remount on view/focus switch or new file load),
-  // animate each edge drawing out from its source node, staggered by column.
+  // On mount, fade in all edges together after nodes have appeared.
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || rm || suppressEntranceAnimation) return;
 
-    const COLUMN_SPACING = NODE_W + GAP_X;
-    // Keep COLUMN_STAGGER in sync with Canvas.tsx nodeEntranceDelay (120ms per column).
-    const COLUMN_STAGGER = 120;           // ms per source column — matches Canvas.tsx
-    const POST_NODE_DELAY = 350;          // ms after source-column nodes begin appearing
-    const EDGE_DRAW_DUR = 300;            // ms — edge draw duration
-function finalizeEdge(path: SVGPathElement) {
-      path.classList.remove('edge-drawing');
-      const m = path.getAttribute('data-marker-end');
-      if (m) path.setAttribute('marker-end', m);
-    }
-
-    // Animate both the groove body and rim highlight together so neither appears alone.
-    const visPaths = container.querySelectorAll<SVGPathElement>('.edge-groove, .edge-rim');
-
-    // View-mode switch or owner-focus enter/exit: skip draw animation, show edges instantly.
-    if (suppressEntranceAnimation) {
-      visPaths.forEach((path) => finalizeEdge(path));
-      return;
-    }
-
-    const anims: Animation[] = [];
-    let maxEnd = 0;
-
-    // Add edge-drawing class imperatively so React never writes it as a managed prop.
-    // If React owned it via JSX className, re-renders would restore it after finalizeEdge
-    // removes it, permanently suppressing marker-end via CSS and keeping the glow.
-    visPaths.forEach((path) => path.classList.add('edge-drawing'));
-
-    visPaths.forEach((path) => {
-      const grp = path.closest<SVGGElement>('[data-edge-from]');
-      if (!grp) return;
-      const fromId = grp.getAttribute('data-edge-from') ?? '';
-      const fromPos = positions[fromId];
-      const col = fromPos ? Math.max(0, Math.round(fromPos.x / COLUMN_SPACING)) : 0;
-      const delay = col * COLUMN_STAGGER + POST_NODE_DELAY;
-      const length = path.getTotalLength();
-      if (length === 0) return;
-
-      // Set initial state via inline style so the path is invisible until animation starts.
-      // Inline style overrides React's SVG presentation attribute (set via JSX strokeDasharray).
-      path.style.strokeDasharray = `${length}`;
-      path.style.strokeDashoffset = `${length}`;
-
-      const anim = path.animate(
-        [{ strokeDashoffset: `${length}` }, { strokeDashoffset: '0' }],
-        { duration: EDGE_DRAW_DUR, delay, fill: 'forwards', easing: 'ease-out' },
-      );
-      anim.finished.then(() => {
-        finalizeEdge(path);
-      }).catch(() => {});
-      anims.push(anim);
-      maxEnd = Math.max(maxEnd, delay + EDGE_DRAW_DUR);
-    });
-
-    // After all animations finish, remove inline styles so React's JSX values
-    // (e.g. strokeDasharray="5 4" for cross-lane edges) take effect normally.
-    const cleanup = setTimeout(() => {
-      visPaths.forEach((path) => {
-        finalizeEdge(path);
-        path.style.strokeDasharray = '';
-        path.style.strokeDashoffset = '';
-      });
-    }, maxEnd + 50);
+    container.style.opacity = '0';
+    const anim = container.animate(
+      [{ opacity: 0 }, { opacity: 1 }],
+      { duration: 400, delay: 250, fill: 'forwards', easing: 'ease-out' },
+    );
+    anim.finished.then(() => { container.style.opacity = ''; }).catch(() => {});
 
     return () => {
-      clearTimeout(cleanup);
-      anims.forEach((a) => a.cancel());
-      visPaths.forEach((path) => {
-        finalizeEdge(path);
-        path.style.strokeDasharray = '';
-        path.style.strokeDashoffset = '';
-      });
+      anim.cancel();
+      container.style.opacity = '';
     };
   }, []); // empty deps — mount only; graph-content remounts on view/focus switches
 
@@ -353,6 +290,7 @@ function finalizeEdge(path: SVGPathElement) {
         const rimDy =  Math.cos(_rimAngle) * _rimHalf;
 
         let strokeColor = '#070a10';
+        let strokeWidth = tier.grooveW;
         let opacity = 1;
         let markerEnd = 'url(#arrow)';
         let isGhostMode = false;
@@ -407,6 +345,25 @@ function finalizeEdge(path: SVGPathElement) {
             markerEnd = 'url(#arrow-dyn)';
           } else {
             opacity = 0.05;
+            isGhostMode = true;
+          }
+        }
+
+        // Critical Path Explorer: color edges in selected chains; ghost everything else.
+        // Precedence: cinema > owner focus > hover > critical path > base.
+        // Hover takes precedence: edges touching the hovered node already have hover styling.
+        if (criticalPathActive && criticalSelectedIds.size > 0 && !discoveryActive && !criticalFocusActive && !isHoverHighlighted) {
+          const edgeKey = `${edge.from}:${edge.to}`;
+          const matchingChain = criticalChains.find(
+            c => criticalSelectedIds.has(c.id) && c.edgeKeys.has(edgeKey)
+          );
+          if (matchingChain) {
+            strokeColor = matchingChain.color;
+            strokeWidth = Math.max(tier.grooveW, 3);
+            opacity = 1;
+            markerEnd = 'url(#arrow-dyn)';
+          } else if (!isHighlighted) {
+            opacity = 0.04;
             isGhostMode = true;
           }
         }
@@ -482,7 +439,7 @@ function finalizeEdge(path: SVGPathElement) {
               d={pathD}
               fill="none"
               stroke={strokeColor}
-              strokeWidth={tier.grooveW}
+              strokeWidth={strokeWidth}
               opacity={opacity}
               style={{
                 color: strokeColor,

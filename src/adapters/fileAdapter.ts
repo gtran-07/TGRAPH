@@ -98,6 +98,6 @@ export class FileAdapter implements GraphAdapter {
    * @param nodes - The complete current node list to save.
    */
   async save(nodes: GraphNode[]): Promise<void> {
-    exportGraphToJson(nodes, undefined, null, null, 'flowgraph.json');
+    exportGraphToJson(nodes, 'flowgraph.json');
   }
 }
